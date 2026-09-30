@@ -21,8 +21,6 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ 
   currentLang, 
   onLanguageChange, 
-  theme, 
-  onThemeToggle,
   activeSection,
   onNavigateSection
 }) => {
@@ -57,7 +55,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const t = translations[currentLang];
-  const isLight = theme === 'light';
   const isShifted = activeSection > 0;
 
   // 15 Exchanges divididos en 3 columnas de exactamente 5 items cada una
@@ -93,17 +90,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           alt="ZYTI Trade Logo" 
           className={`object-contain transition-all duration-300 ${isShifted ? 'w-8 h-8' : 'w-10 h-10'}`}
         />
-        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-xl' : 'text-2xl'} ${isLight ? 'text-slate-950' : 'text-white'}`}>
-          ZYTI <span className={`font-light ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Trade</span>
+        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-xl' : 'text-2xl'} text-slate-950`}>
+          ZYTI <span className="font-light text-slate-500">Trade</span>
         </span>
       </button>
 
-      {/* 2. MENÚS DE NAVEGACIÓN — CADA ITEM CORRESPONDE A UNA PANTALLA */}
+      {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
       <div className={`flex items-center transition-all duration-300 font-bold ${
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
-      } ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
+      } text-slate-950`}>
         
-        {/* PANTALLA 1: MENU EXCHANGES (HOVER SÓLIDO CON PUENTE INVISIBLE Y DEBOUNCE) */}
+        {/* PANTALLA 1: MENU EXCHANGES */}
         <div 
           className="relative py-2"
           onMouseEnter={handleExchangeEnter}
@@ -113,34 +110,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onNavigateSection(1)}
             className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
               activeSection === 1 
-                ? 'text-blue-600 dark:text-blue-400' 
-                : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+                ? 'text-blue-600 font-black' 
+                : 'text-slate-950 hover:text-blue-600'
             }`}
           >
             <span>{t.nav.exchanges}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
           </button>
 
-          {/* POPOVER CON PUENTE INVISIBLE QUE PREVIENE LA PÉRDIDA DEL HOVER */}
+          {/* POPOVER CON CRISTAL LUMINOSO Y PUENTE INVISIBLE */}
           {exchangeOpen && (
             <div 
               onMouseEnter={handleExchangeEnter}
               onMouseLeave={handleExchangeLeave}
-              className={`absolute top-full left-0 mt-1 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
+              className="absolute top-full left-0 mt-1 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-2xl before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']"
             >
               
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
                 <div>
-                  <h4 className="text-sm font-black text-slate-950 dark:text-white">
+                  <h4 className="text-sm font-black text-slate-950">
                     {t.exchangesMenu.title}
                   </h4>
-                  <p className="text-xs text-slate-700 dark:text-slate-400 font-medium">
+                  <p className="text-xs text-slate-600 font-medium">
                     {t.exchangesMenu.subtitle}
                   </p>
                 </div>
                 <button
                   onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                  className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none"
+                  className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
                   {currentLang === 'es' ? 'Ver pantalla completa (15 Venues) →' : 'View full screen (15 Venues) →'}
                 </button>
@@ -149,36 +146,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* CONTENEDOR FLEX: LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE 5 */}
               <div className="flex gap-6 items-center">
                 
-                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE A LA IZQUIERDA USANDO COMPONENTE REUTILIZABLE */}
+                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE */}
                 <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
                   <LottieAnimation animationData={exchangeRadarData} className="w-48 h-48" />
                 </div>
 
-                {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA CON SUS ICONOS OFICIALES Y SIN FONDOS */}
+                {/* 3 COLUMNAS DE 5 EXCHANGES: SIN ETIQUETAS DE TIER/COPY Y CON HOVER ULTRA VISIBLE */}
                 <div className="flex-1 grid grid-cols-3 gap-3">
                   
                   {/* COLUMNA 1 (5 ITEMS) */}
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col1Title}
                     </span>
                     {col1.map((item, idx) => (
                       <div 
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
-                        }`}
+                        className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
                       >
-                        <ExchangeLogo name={item.name} size={22} />
+                        <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                          <ExchangeLogo name={item.name} size={24} />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                              {item.badge}
-                            </span>
-                          </div>
-                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                          <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                            {item.desc}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -186,26 +182,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {/* COLUMNA 2 (5 ITEMS) */}
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col2Title}
                     </span>
                     {col2.map((item, idx) => (
                       <div 
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
-                        }`}
+                        className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
                       >
-                        <ExchangeLogo name={item.name} size={22} />
+                        <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                          <ExchangeLogo name={item.name} size={24} />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                              {item.badge}
-                            </span>
-                          </div>
-                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                          <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                            {item.desc}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -213,26 +208,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {/* COLUMNA 3 (5 ITEMS) */}
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col3Title}
                     </span>
                     {col3.map((item, idx) => (
                       <div 
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
-                        }`}
+                        className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
                       >
-                        <ExchangeLogo name={item.name} size={22} />
+                        <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                          <ExchangeLogo name={item.name} size={24} />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                              {item.badge}
-                            </span>
-                          </div>
-                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                          <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                            {item.desc}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -245,7 +239,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* PANTALLA 2: MENU SERVICIOS (HOVER SÓLIDO CON PUENTE INVISIBLE) */}
+        {/* PANTALLA 2: MENU SERVICIOS */}
         <div 
           className="relative py-2"
           onMouseEnter={handleServicesEnter}
@@ -255,62 +249,64 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onNavigateSection(2)}
             className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
               activeSection === 2 
-                ? 'text-blue-600 dark:text-blue-400' 
-                : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+                ? 'text-blue-600 font-black' 
+                : 'text-slate-950 hover:text-blue-600'
             }`}
           >
             <span>{t.nav.services}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
           </button>
 
           {servicesOpen && (
             <div 
               onMouseEnter={handleServicesEnter}
               onMouseLeave={handleServicesLeave}
-              className={`absolute top-full left-0 mt-1 w-[780px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
+              className="absolute top-full left-0 mt-1 w-[780px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-2xl before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']"
             >
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
                 <div>
-                  <h4 className="text-sm font-black text-slate-950 dark:text-white">
+                  <h4 className="text-sm font-black text-slate-950">
                     {t.servicesMenu.title}
                   </h4>
-                  <p className="text-xs text-slate-700 dark:text-slate-400 font-medium">
+                  <p className="text-xs text-slate-600 font-medium">
                     {t.servicesMenu.subtitle}
                   </p>
                 </div>
                 <button
                   onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
-                  className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none"
+                  className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
                   {currentLang === 'es' ? 'Ver sección de servicios →' : 'View services section →'}
                 </button>
               </div>
 
               <div className="flex gap-6 items-center">
-                {/* ANIMACIÓN LOTTIE OFICIAL DE SERVICIOS A LA IZQUIERDA (100% TRANSPARENTE, SIN TEXTO NI CAJAS) */}
+                {/* ANIMACIÓN LOTTIE OFICIAL DE SERVICIOS */}
                 <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
                   <LottieAnimation animationData={servicesAnimationData} className="w-48 h-48" />
                 </div>
 
-                {/* 4 SERVICIOS CLAVE A LA DERECHA */}
+                {/* 4 SERVICIOS CLAVE: HOVER CLARO Y VISIBLE CON FONDO CÁLIDO */}
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {servicesList.map((srv, idx) => (
                     <div 
                       key={idx}
                       onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
-                      className={`p-3 rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
-                        isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
-                      }`}
+                      className="group p-3.5 rounded-2xl transition-all duration-150 cursor-pointer flex flex-col justify-between border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
                     >
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-mono font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-mono font-black text-blue-600">
                             0${idx + 1}
                           </span>
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 group-hover:scale-125 transition-transform" />
                         </div>
-                        <span className={`text-xs font-black ${isLight ? 'text-slate-950' : 'text-white'}`}>{srv.title}</span>
-                        <p className={`text-[11px] font-medium leading-relaxed mt-1 line-clamp-2 ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>{srv.desc}</p>
+                        <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors block mb-1">
+                          {srv.title}
+                        </span>
+                        <p className="text-[11px] font-medium leading-relaxed text-slate-600 group-hover:text-slate-900 transition-colors line-clamp-2">
+                          {srv.desc}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -325,8 +321,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onNavigateSection(3)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 3
-              ? 'text-blue-600 dark:text-blue-400'
-              : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+              ? 'text-blue-600 font-black'
+              : 'text-slate-950 hover:text-blue-600'
           }`}
         >
           {t.nav.pricing}
@@ -337,8 +333,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onNavigateSection(4)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 4
-              ? 'text-blue-600 dark:text-blue-400'
-              : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+              ? 'text-blue-600 font-black'
+              : 'text-slate-950 hover:text-blue-600'
           }`}
         >
           {t.nav.security}
@@ -349,48 +345,44 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onNavigateSection(5)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 5
-              ? 'text-blue-600 dark:text-blue-400'
-              : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+              ? 'text-blue-600 font-black'
+              : 'text-slate-950 hover:text-blue-600'
           }`}
         >
           {t.nav.download}
         </button>
       </div>
 
-      {/* 3. ACCIONES LATERALES (TEMA + IDIOMA + ACCEDER) SIN BORDES */}
+      {/* 3. ACCIONES LATERALES (IDIOMA + ACCEDER) SIN BORDES */}
       <div className={`flex items-center transition-all duration-300 shrink-0 ${
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
-        {/* SELECTOR IDIOMA: 100% SIN BORDES */}
+        {/* SELECTOR IDIOMA */}
         <div className="relative">
           <button 
             onClick={() => setLangOpen(!langOpen)}
             className={`flex items-center gap-1.5 rounded-xl transition-colors cursor-pointer border-none bg-transparent ${
               isShifted ? 'px-2 py-1.5 text-xs font-bold' : 'px-2.5 py-2 text-xs font-bold'
-            } ${
-              isLight 
-                ? 'text-slate-900 hover:bg-[#ede5d6]/50' 
-                : 'text-slate-200 hover:bg-slate-800/60'
-            }`}
+            } text-slate-950 hover:bg-[#ede5d6]/70`}
           >
-            <Globe className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
-            <span>{currentLang.toUpperCase()}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <Globe className="w-3.5 h-3.5 text-slate-700" />
+            <span className="text-slate-950 font-bold">{currentLang.toUpperCase()}</span>
+            <ChevronDown className="w-3 h-3 text-slate-600" />
           </button>
 
           {langOpen && (
-            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}>
+            <div className="absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-xl border border-slate-200 before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']">
               <button
                 onClick={() => { onLanguageChange('es'); setLangOpen(false); }}
-                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'es' ? 'bg-slate-900 text-white' : (isLight ? 'hover:bg-[#f4efe5] text-slate-900' : 'hover:bg-slate-800 text-slate-200'))}
+                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'es' ? 'bg-slate-950 text-white' : 'hover:bg-[#ede5d6]/70 text-slate-950')}
               >
                 <span>Español</span>
                 {currentLang === 'es' && <span className="text-[10px]">✓</span>}
               </button>
               <button
                 onClick={() => { onLanguageChange('en'); setLangOpen(false); }}
-                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'en' ? 'bg-slate-900 text-white' : (isLight ? 'hover:bg-[#f4efe5] text-slate-900' : 'hover:bg-slate-800 text-slate-200'))}
+                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'en' ? 'bg-slate-950 text-white' : 'hover:bg-[#ede5d6]/70 text-slate-950')}
               >
                 <span>English</span>
                 {currentLang === 'en' && <span className="text-[10px]">✓</span>}
@@ -400,12 +392,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* BOTÓN SIGN IN */}
-        <button className={`font-bold rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
+        <button className={`font-black rounded-xl border transition-all cursor-pointer whitespace-nowrap bg-slate-950 border-slate-950 text-white hover:bg-slate-800 shadow-sm ${
           isShifted ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'
-        } ${
-          isLight 
-            ? 'bg-slate-950 border-slate-950 text-white hover:bg-slate-800' 
-            : 'bg-white border-white text-slate-950 hover:bg-slate-200'
         }`}>
           {t.nav.signIn}
         </button>
@@ -414,3 +402,5 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+
+export default Navbar;

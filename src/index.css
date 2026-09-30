@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   html {
@@ -131,19 +132,28 @@ html.dark .satellite-card {
    CRISTAL / GLASSMORPHISM INSTITUCIONAL CON DESENFOQUE
    ---------------------------------------------------- */
 .glass-panel {
-  background: rgba(11, 16, 27, 0.72) !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.90) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border: 1px solid rgba(214, 206, 192, 0.85) !important;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  color: #020617 !important;
 }
 
-html:not(.dark) .glass-panel {
-  background: rgba(255, 255, 255, 0.75) !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+/* Reglas estrictas de legibilidad en Navbar y Submenús */
+header button,
+header span,
+header a {
+  color: #0f172a;
+}
+
+.glass-panel h4 {
+  color: #020617 !important;
+  font-weight: 900 !important;
+}
+
+.glass-panel p {
+  color: #334155 !important;
 }
 
 /* ----------------------------------------------------
