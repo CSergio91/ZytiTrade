@@ -29,22 +29,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
         {/* BADGE INSTITUCIONAL */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-blue-200/80 dark:border-blue-900/60 shadow-xs mb-6 animate-pulse">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wide">
+          <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
             {t.badge}
           </span>
         </div>
 
         {/* HEADLINE PRINCIPAL */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-slate-950 dark:text-white max-w-4xl leading-[1.12]">
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-950 dark:text-white max-w-4xl leading-[1.12]">
           {t.titleStart}{' '}
-          <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-300 dark:to-violet-400 bg-clip-text text-transparent underline decoration-blue-200 dark:decoration-blue-800 decoration-wavy decoration-2">
+          <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-300 dark:to-violet-400 bg-clip-text text-transparent ">
             {t.titleHighlight}
           </span>{' '}
           {t.titleEnd}
         </h1>
 
         {/* SUBTÍTULO */}
-        <p className="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl font-normal leading-relaxed">
+        <p className="mt-6 text-lg sm:text-xl text-slate-800 dark:text-slate-200 max-w-2xl font-medium leading-relaxed">
           {t.subtitle}
         </p>
 
@@ -65,7 +65,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
         <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 w-full max-w-4xl">
           <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400">{t.stats.latency}</p>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{t.stats.latencyLabel}</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1">{t.stats.latencyLabel}</p>
           </div>
           <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-indigo-600 dark:text-indigo-400">{t.stats.exchanges}</p>
