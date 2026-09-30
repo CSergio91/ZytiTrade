@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeftRight, LogOut, Repeat, X } from 'lucide-react';
 
 interface TerminalSideNavProps {
@@ -22,40 +22,23 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   onCloseMobileNav,
   onExit
 }) => {
-  const [isClickedExpanded, setIsClickedExpanded] = React.useState(false);
+  const [isClickedExpanded, setIsClickedExpanded] = useState(false);
 
   return (
     <>
       {/* 1. BARRA LATERAL EN ESCRITORIO (>= 1024px) */}
-      <aside className="hidden lg:flex flex-col shrink-0 relative z-30 select-none">
-        {/* Contenedor base de 48px para reservar el espacio de navegación */}
+      <aside className="hidden lg:flex flex-col w-12 h-full shrink-0 relative z-30 select-none">
+        {/* Contenedor base de 48px para reservar el espacio permanente en el layout */}
         <div className={`w-12 h-full ${navPosition === 'left' ? 'border-r' : 'border-l'} border-[#ded5c5] bg-[#fbf9f4]`} />
         
         {/* Menú flotante al hover o al click que vuela por encima del gráfico sin redimensionarlo ni empujarlo */}
         <div 
-          className={`absolute top-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} h-full ${
+          className={`absolute top-0 bottom-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} ${
             isClickedExpanded ? 'w-56 shadow-2xl' : 'w-12 hover:w-56 shadow-xs hover:shadow-2xl'
-          } bg-[#fbf9f4]/95 backdrop-blur-xl border-[#ded5c5] transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between py-3 px-1.5 group z-40`}
+          } bg-[#fbf9f4] border-[#ded5c5] transition-all duration-300 ease-out flex flex-col justify-between py-3 px-1.5 group z-40 overflow-hidden`}
         >
-          {/* SECCIONES */}
+          {/* SECCIONES ARRIBA */}
           <div className="space-y-1.5">
-            {/* BOTÓN CAMBIO DE POSICIÓN IZQUIERDA / DERECHA */}
-            <button
-              type="button"
-              onClick={onToggleNavPosition}
-              className="w-full flex items-center gap-3 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-white/80 transition-colors cursor-pointer"
-              title={navPosition === 'left' ? (isEs ? 'Mover menú a la derecha' : 'Move menu to right') : (isEs ? 'Mover menú a la izquierda' : 'Move menu to left')}
-            >
-              <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                <ArrowLeftRight className="w-4 h-4 text-slate-600" />
-              </div>
-              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                {navPosition === 'left' ? (isEs ? 'Mover a Derecha' : 'Move to Right') : (isEs ? 'Mover a Izquierda' : 'Move to Left')}
-              </span>
-            </button>
-
-            <div className="h-px bg-slate-200 my-1 mx-1" />
-
             {/* SECCIÓN 1: EXCHANGE */}
             <button
               type="button"
@@ -79,13 +62,29 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
             </button>
           </div>
 
-          {/* PIE DE NAVEGACIÓN: SALIR */}
-          <div className="pt-2 border-t border-slate-200">
+          {/* PIE DE NAVEGACIÓN ABAJO: CAMBIAR SENTIDO + CERRAR SESIÓN */}
+          <div className="pt-2 border-t border-slate-200 space-y-1">
+            {/* BOTÓN CAMBIO DE POSICIÓN IZQUIERDA / DERECHA (ENCIMA DE CERRAR SESIÓN) */}
+            <button
+              type="button"
+              onClick={onToggleNavPosition}
+              className="w-full flex items-center gap-3 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-white/80 transition-colors cursor-pointer"
+              title={navPosition === 'left' ? (isEs ? 'Mover menú a la derecha' : 'Move menu to right') : (isEs ? 'Mover menú a la izquierda' : 'Move menu to left')}
+            >
+              <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                <ArrowLeftRight className="w-4 h-4 text-slate-600" />
+              </div>
+              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                {navPosition === 'left' ? (isEs ? 'Mover a Derecha' : 'Move to Right') : (isEs ? 'Mover a Izquierda' : 'Move to Left')}
+              </span>
+            </button>
+
+            {/* BOTÓN CERRAR SESIÓN (AL FONDO) */}
             <button
               type="button"
               onClick={onExit}
               className="w-full flex items-center gap-3 p-2 rounded-xl text-slate-500 hover:text-red-700 hover:bg-red-50/70 transition-colors cursor-pointer"
-              title={isEs ? 'Cerrar sesión y volver' : 'Log out & return'}
+              title={isEs ? 'Cerrar sesión' : 'Log Out'}
             >
               <div className="w-6 h-6 flex items-center justify-center shrink-0">
                 <LogOut className="w-4 h-4" />

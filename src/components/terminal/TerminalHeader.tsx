@@ -160,17 +160,6 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           </span>
         </div>
 
-        {/* BOTÓN SALIR EN ESCRITORIO (>= 1024px) - SIEMPRE VISIBLE */}
-        <button
-          type="button"
-          onClick={onExit}
-          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-[#ded5c5] hover:border-red-200 cursor-pointer transition-colors text-xs font-bold shadow-xs"
-          title={isEs ? 'Cerrar sesión y salir' : 'Log out & Exit'}
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>{isEs ? 'Salir' : 'Log Out'}</span>
-        </button>
-
         {/* BOTÓN HAMBURGUESA EN MÓVIL (< 1024px) */}
         <button
           type="button"
