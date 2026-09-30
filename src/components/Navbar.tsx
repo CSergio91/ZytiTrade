@@ -97,8 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header 
       className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isShifted
-          ? 'top-0 left-0 right-0 w-full h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-[#ede8df]/70 flex items-center justify-between gap-3 md:top-3 md:left-6 md:right-auto md:w-auto md:max-w-[calc(100vw-48px)] md:bg-transparent md:border-none md:shadow-none md:px-0 md:gap-6'
-          : 'top-0 left-0 right-0 w-full h-14 md:h-20 px-3.5 md:px-6 lg:px-12 bg-[#fbf9f4]/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-b border-[#ede8df]/50 md:border-none flex items-center justify-between shadow-none'
+          ? 'top-2 left-3 right-3 w-auto h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border border-[#ede8df]/80 rounded-2xl flex items-center justify-between gap-3 md:top-3 md:left-6 md:right-auto md:rounded-2xl md:bg-white/80 md:border-[#ede8df] md:px-4 md:gap-6 md:shadow-sm'
+          : 'top-0 left-0 right-0 w-full h-16 md:h-20 px-4 md:px-6 lg:px-12 bg-transparent flex items-center justify-between shadow-none'
       }`}>
       
       {/* 1. LOGO INSTITUCIONAL COMPLETO */}
