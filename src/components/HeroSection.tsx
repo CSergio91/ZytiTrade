@@ -63,19 +63,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
 
         {/* MÉTRICAS INSTITUCIONALES */}
         <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 w-full max-w-4xl">
-          <div className="glass-card rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
+          <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400">{t.stats.latency}</p>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{t.stats.latencyLabel}</p>
           </div>
-          <div className="glass-card rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
+          <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-indigo-600 dark:text-indigo-400">{t.stats.exchanges}</p>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{t.stats.exchangesLabel}</p>
           </div>
-          <div className="glass-card rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
+          <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-emerald-600 dark:text-emerald-400">{t.stats.fps}</p>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{t.stats.fpsLabel}</p>
           </div>
-          <div className="glass-card rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
+          <div className="glass-crystal rounded-2xl p-4 text-center border border-white/80 dark:border-slate-800">
             <p className="text-2xl sm:text-3xl font-black font-mono text-violet-600 dark:text-violet-400">{t.stats.uptime}</p>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{t.stats.uptimeLabel}</p>
           </div>
@@ -85,7 +85,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
           
           {/* TARJETA ARBITRAJE EN VIVO */}
-          <div className="glass-card rounded-2xl p-5 text-left border border-white/90 dark:border-slate-800 shadow-lg relative overflow-hidden group hover:border-blue-200 dark:hover:border-blue-900/60 transition-all">
+          <div className="glass-crystal rounded-2xl p-5 text-left border border-white/90 dark:border-slate-800 shadow-lg relative overflow-hidden group hover:border-blue-200 dark:hover:border-blue-900/60 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
@@ -114,7 +114,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
           </div>
 
           {/* TARJETA COPY TRADING EN VIVO */}
-          <div className="glass-card rounded-2xl p-5 text-left border border-white/90 dark:border-slate-800 shadow-lg relative overflow-hidden group hover:border-indigo-200 dark:hover:border-indigo-900/60 transition-all">
+          <div className="glass-crystal rounded-2xl p-5 text-left border border-white/90 dark:border-slate-800 shadow-lg relative overflow-hidden group hover:border-indigo-200 dark:hover:border-indigo-900/60 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">

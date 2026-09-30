@@ -57,7 +57,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang })
           return (
             <div 
               key={idx}
-              className="glass-card rounded-3xl p-6 border border-white/90 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
+              className="glass-crystal rounded-3xl p-6 border border-white/90 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
             >
               <div>
                 <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${srv.gradient} text-white flex items-center justify-center shadow-md mb-5`}>

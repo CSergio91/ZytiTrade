@@ -22,7 +22,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
 
   return (
     <section id="exchanges" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="glass-card rounded-3xl p-6 sm:p-10 border border-white/80 dark:border-slate-800 shadow-xl">
+      <div className="glass-crystal rounded-3xl p-6 sm:p-10 border border-white/80 dark:border-slate-800 shadow-xl">
         <div className="max-w-2xl mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-900">
             <Cpu className="w-3.5 h-3.5" />

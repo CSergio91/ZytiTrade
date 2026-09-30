@@ -16,9 +16,8 @@ export const App: React.FC = () => {
       if (pathname.startsWith('/en')) return 'en';
       const stored = localStorage.getItem('zyti_lang') as Language;
       if (stored === 'es' || stored === 'en') return stored;
-      if (navigator.language.startsWith('es')) return 'es';
     }
-    return 'es'; // Español por defecto
+    return 'es';
   };
 
   const [currentLang, setCurrentLang] = useState<Language>(getInitialLanguage);
@@ -30,13 +29,13 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema: SIEMPRE MODO CLARO (LIGHT) POR DEFECTO
+  // 2. Tema: por defecto siempre LIGHT
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
       if (stored === 'dark') return 'dark';
     }
-    return 'light'; // MODO CLARO (BLANCO PURO) POR DEFECTO ABSOLUTO
+    return 'light';
   };
 
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
@@ -66,9 +65,13 @@ export const App: React.FC = () => {
       {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. CAPA SUPERIOR: EN LIGHT ES 100% BLANCO TRANSPARENTE LIMPIO */}
-      <div className={`relative z-10 min-h-screen ${theme === 'dark' ? 'bg-slate-950/70 backdrop-blur-md' : 'bg-transparent'}`}>
-        {/* BARRA DE NAVEGACIÓN */}
+      {/* 2. OVERLAY SEMITRANSPARENTE EQUILIBRADO CON BLUR (Permite ver el gráfico sin oscurecer) */}
+      <div className={`relative z-10 min-h-screen pt-16 transition-colors duration-250 ${
+        theme === 'dark' 
+          ? 'bg-slate-950/60 backdrop-blur-[8px]' 
+          : 'bg-white/55 backdrop-blur-[7px]'
+      }`}>
+        {/* BARRA DE NAVEGACIÓN FIJA ARRIBA DE LADO A LADO */}
         <Navbar 
           currentLang={currentLang} 
           onLanguageChange={handleLanguageChange}
