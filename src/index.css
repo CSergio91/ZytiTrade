@@ -1,63 +1,69 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    background-color: #ffffff;
+  }
+  html.dark {
+    background-color: #090d16;
+  }
   body {
     background-color: #ffffff;
     color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     overflow-x: hidden;
   }
-
   html.dark body {
     background-color: #090d16;
     color: #f8fafc;
   }
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism: Blanco Puro Radiante & Dark Obsidian */
 .glass-nav {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
 }
 
 html.dark .glass-nav {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(51, 65, 85, 0.5);
-  box-shadow: 0 4px 25px -2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 25px -2px rgba(0, 0, 0, 0.5);
 }
 
 .glass-card {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
 }
 
 html.dark .glass-card {
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(51, 65, 85, 0.45);
+  border: 1px solid rgba(51, 65, 85, 0.5);
   box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.5);
 }
 
 .glass-dropdown {
   background: #ffffff;
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
 }
 
 html.dark .glass-dropdown {
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(51, 65, 85, 0.6);
   box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
 }
 
-/* Custom Scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

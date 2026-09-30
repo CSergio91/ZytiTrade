@@ -46,20 +46,20 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
 
       const isDark = theme === 'dark';
 
-      // 1. Fondo: Blanco Puro (#ffffff) en modo claro vs Dark Obsidian (#090d16) en modo oscuro
+      // 1. Fondo del Canvas: Blanco 100% Puro en Light vs Obsidian en Dark
       if (isDark) {
         const bgGrad = ctx.createLinearGradient(0, 0, width, height);
         bgGrad.addColorStop(0, '#090d16');
         bgGrad.addColorStop(1, '#05080f');
         ctx.fillStyle = bgGrad;
       } else {
-        ctx.fillStyle = '#ffffff'; // BLANCO PURO ABSOLUTO
+        ctx.fillStyle = '#ffffff'; // BLANCO PURO INMACULADO
       }
       ctx.fillRect(0, 0, width, height);
 
-      // 2. Cuadrícula
+      // 2. Cuadrícula limpia y sutil (sin ensuciar el blanco)
       ctx.lineWidth = 1;
-      ctx.strokeStyle = isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(0, 0, 0, 0.04)'; // Línea gris ultra suave sobre blanco puro
+      ctx.strokeStyle = isDark ? 'rgba(30, 41, 59, 0.4)' : '#f1f5f9'; // Slate-100 limpio
       const gridSpacingX = 80;
       const gridSpacingY = 55;
 
@@ -74,7 +74,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       }
       ctx.stroke();
 
-      // Escala
+      // Escala de precios
       let minP = Infinity;
       let maxP = -Infinity;
       candles.forEach((c) => {
@@ -91,7 +91,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       const candleWidth = 7;
       const spacing = width / candles.length;
 
-      // 3. Volumen
+      // 3. Barras de Volumen
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const vH = (c.vol / 100) * (height * 0.16);
@@ -99,7 +99,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
         if (isDark) {
           ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.18)' : 'rgba(244, 63, 94, 0.18)';
         } else {
-          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
         }
         ctx.fillRect(x - candleWidth / 2, height - vH, candleWidth, vH);
       });
@@ -114,11 +114,11 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
         const isUp = c.close >= c.open;
 
         if (isDark) {
-          ctx.strokeStyle = isUp ? 'rgba(16, 185, 129, 0.8)' : 'rgba(244, 63, 94, 0.8)';
-          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.65)' : 'rgba(244, 63, 94, 0.65)';
+          ctx.strokeStyle = isUp ? 'rgba(16, 185, 129, 0.85)' : 'rgba(244, 63, 94, 0.85)';
+          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.7)' : 'rgba(244, 63, 94, 0.7)';
         } else {
           ctx.strokeStyle = isUp ? '#10b981' : '#ef4444';
-          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.65)' : 'rgba(239, 68, 68, 0.65)';
+          ctx.fillStyle = isUp ? '#10b981' : '#ef4444';
         }
 
         // Mecha
@@ -136,7 +136,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       // 5. Medias Móviles
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(37, 99, 235, 0.65)';
+      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.6)' : '#2563eb'; // Azul puro
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const y = getY(c.close) + Math.sin(idx * 0.15) * 8;
@@ -146,7 +146,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.strokeStyle = isDark ? 'rgba(168, 85, 247, 0.55)' : 'rgba(124, 58, 237, 0.6)';
+      ctx.strokeStyle = isDark ? 'rgba(168, 85, 247, 0.55)' : '#7c3aed'; // Violeta puro
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const y = getY(c.close) - Math.cos(idx * 0.12) * 12;
@@ -159,7 +159,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       const lastCandle = candles[candles.length - 1];
       const lastY = getY(lastCandle.close);
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.75)' : 'rgba(37, 99, 235, 0.75)';
+      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.75)' : '#2563eb';
       ctx.beginPath();
       ctx.moveTo(0, lastY);
       ctx.lineTo(width, lastY);
@@ -167,13 +167,13 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       ctx.setLineDash([]);
 
       // Badge de precio
-      ctx.fillStyle = isDark ? '#0284c7' : '#2563eb';
+      ctx.fillStyle = '#2563eb';
       ctx.fillRect(width - 95, lastY - 12, 90, 24);
       ctx.fillStyle = '#ffffff';
       ctx.font = '11px JetBrains Mono, monospace';
       ctx.fillText('$' + lastCandle.close.toFixed(2), width - 85, lastY + 4);
 
-      // Ticks
+      // Tick
       tickCounter++;
       if (tickCounter % 6 === 0) {
         const change = (Math.random() - 0.495) * 6;

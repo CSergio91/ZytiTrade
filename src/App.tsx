@@ -30,14 +30,13 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema Claro (Blanco Puro 100%) / Oscuro (Obsidian)
+  // 2. Tema: por defecto siempre LIGHT (Blanco Puro) a menos que esté en localStorage
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
       if (stored === 'light' || stored === 'dark') return stored;
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     }
-    return 'light';
+    return 'light'; // MODO CLARO BLANCO PURO POR DEFECTO
   };
 
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
@@ -62,11 +61,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-white dark:bg-[#090d16] font-sans selection:bg-blue-600 selection:text-white">
-      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: FONDO 100% BLANCO PURO O DARK OBSIDIAN */}
+      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: 100% BLANCO PURO O DARK OBSIDIAN */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. CAPA SUPERIOR: EN MODO CLARO ES TRANSPARENTE LIMPIO (CERO OVERLAY GRISÁCEO) */}
-      <div className="relative z-10 min-h-screen bg-transparent dark:bg-slate-950/70 dark:backdrop-blur-[7px] transition-colors duration-200">
+      {/* 2. CAPA SUPERIOR: EN LIGHT ES 100% TRANSPARENTE SIN VELOS GRISES */}
+      <div className="relative z-10 min-h-screen bg-transparent dark:bg-slate-950/75 dark:backdrop-blur-md transition-colors duration-200">
         {/* BARRA DE NAVEGACIÓN */}
         <Navbar 
           currentLang={currentLang} 
