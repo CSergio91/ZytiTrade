@@ -140,14 +140,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/65 backdrop-blur-md transition-opacity duration-300 ease-out ${
+      className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/65 backdrop-blur-md transition-opacity duration-300 ease-out ${
         mounted ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       onClick={onClose}
     >
       <div 
-        className={`warm-card auth-modal-window rounded-t-3xl sm:rounded-3xl shadow-2xl relative border border-[#ded5c5] bg-[#fbf9f4] overflow-hidden overflow-y-auto no-scrollbar transform transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          mounted ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 sm:translate-y-24 opacity-0 scale-98'
+        className={`warm-card auth-modal-window rounded-t-[28px] md:rounded-3xl shadow-2xl relative border border-[#ded5c5] bg-[#fbf9f4] overflow-hidden no-scrollbar transform transition-transform duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          mounted ? 'translate-y-0 opacity-100' : 'translate-y-full md:translate-y-12 opacity-0'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -155,51 +155,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 p-2 rounded-xl text-slate-500 hover:text-slate-950 hover:bg-[#ede5d6]/70 transition-colors cursor-pointer bg-white/70 backdrop-blur-sm shadow-xs"
+          className="absolute top-2.5 right-3.5 z-30 p-1.5 sm:p-2 rounded-full text-slate-500 hover:text-slate-950 hover:bg-[#ede5d6] transition-colors cursor-pointer bg-white/80 backdrop-blur-sm shadow-xs border border-[#ded5c5]/80"
           aria-label="Cerrar modal"
         >
           <X className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
-        {/* LAYOUT SPLIT: REGLAS CSS INFALIBLES PARA DESKTOP (1024px & 1920px+) Y MÓVIL */}
+        {/* LAYOUT SPLIT: 40% ARRIBA / 60% ABAJO EN MÓVIL, 2 COLUMNAS EN TABLET Y DESKTOP */}
         <div className="auth-modal-grid">
           
-          {/* LADO IZQUIERDO: LOGO ZYTI + INICIAR SESIÓN (SEPARADO) + ANIMACIÓN COMPACTA + DEMO */}
-          <div className="auth-modal-left bg-gradient-to-b from-[#f5ede0] to-[#ede3d1] text-center relative">
-            <div className="w-full">
-              {/* LOGO OFICIAL DE ZYTI */}
-              <div className="flex items-center justify-center gap-2">
+          {/* LADO IZQUIERDO: PORTADA VISUAL EN MÓVIL / COLUMNA IZQUIERDA EN TABLET Y DESKTOP */}
+          <div className="auth-modal-left bg-gradient-to-b from-[#f5ede0] via-[#f2e9dc] to-[#ede3d1] text-center relative">
+            {/* DRAG HANDLE NATIVO DE APP (SOLO MÓVIL) */}
+            <div className="w-10 h-1 bg-[#d4c8b5] rounded-full mx-auto mb-1 shrink-0 block md:hidden" />
+
+            {/* LOGO OFICIAL DE ZYTI: CENTRADO */}
+            <div className="w-full flex items-center justify-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-[#ded5c5] shadow-xs">
                 <img 
                   src="/logo-zyti.png" 
                   alt="ZYTI Trade Logo" 
-                  className="w-6 h-6 sm:w-8 sm:h-8 object-contain" 
+                  className="w-5 h-5 sm:w-6 sm:h-6 md:w-6 md:h-6 lg:w-7 lg:h-7 object-contain" 
                 />
-                <span className="font-black text-base sm:text-xl tracking-tight text-slate-950">
+                <span className="font-black text-xs sm:text-sm md:text-base tracking-tight text-slate-950">
                   ZYTI <span className="font-light text-slate-500">Trade</span>
                 </span>
               </div>
+            </div>
 
-              {/* TÍTULO SEPARADO DEL LOGO (SIN SUBTÍTULO DE ACCEDER A TU TERMINAL) */}
-              <h3 className="text-sm sm:text-xl lg:text-2xl font-black text-slate-950 tracking-tight mt-2.5 sm:mt-4">
+            {/* TÍTULO EN TABLET Y DESKTOP */}
+            <div className="hidden md:block w-full mt-2.5 lg:mt-3">
+              <h3 className="text-lg md:text-xl lg:text-2xl font-black text-slate-950 tracking-tight">
                 {isSignUp ? t.signUpTitle : t.signInTitle}
               </h3>
             </div>
 
-            {/* ANIMACIÓN LOTTIE: ULTRA REDUCIDA EN MÓVIL (w-8 h-8 o w-9 h-9) PARA VISTA COMPLETA SIN SCROLL */}
-            <div className="my-0.5 sm:my-2 lg:my-auto py-0.5 flex items-center justify-center w-full">
+            {/* ANIMACIÓN LOTTIE: TAMAÑO EQUILIBRADO PARA NO EMPUJAR EL BOTÓN DEMO */}
+            <div className="flex-1 flex items-center justify-center w-full min-h-0 py-1">
               <LottieAnimation 
                 animationData={loginAnimationData} 
-                className="w-9 h-9 sm:w-16 sm:h-16 lg:w-48 lg:h-48 xl:w-56 xl:h-56 object-contain" 
+                className="h-full w-full max-h-32 sm:max-h-36 md:max-h-36 lg:max-h-44 xl:max-h-48 object-contain drop-shadow-xs" 
               />
             </div>
 
-            {/* BOTÓN DESTACADO: ACCESO DEMO INSTANTÁNEO */}
-            <div className="w-full mt-0.5 sm:mt-2">
+            {/* BOTÓN DESTACADO DEMO EN PANEL IZQUIERDO: SIEMPRE VISIBLE EN DESKTOP Y TABLET */}
+            <div className="w-full shrink-0 mt-2 block">
               <button
                 type="button"
                 onClick={handleDemoAccess}
                 disabled={loading}
-                className="w-full py-1.5 sm:py-2.5 px-3 rounded-xl bg-white/95 hover:bg-white text-slate-950 font-bold text-xs shadow-xs border border-[#ded5c5] transition-all transform hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2 sm:py-2.5 px-3 rounded-xl bg-white/95 hover:bg-white text-slate-950 font-bold text-xs shadow-xs border border-[#ded5c5] transition-all transform hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
               >
                 <Zap className="w-3.5 h-3.5 fill-[#eab308] text-[#eab308]" />
                 <span>{t.demoBtn}</span>
@@ -210,8 +215,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          {/* LADO DERECHO: FORMULARIO DE LOGIN / REGISTRO */}
-          <div className="auth-modal-right">
+          {/* LADO DERECHO: FORMULARIO DE LOGIN COMPLETO */}
+          <div className="auth-modal-right no-scrollbar">
+            
+            {/* TÍTULO EN MÓVIL */}
+            <div className="block md:hidden mb-2 text-center">
+              <h3 className="text-base sm:text-lg font-black text-slate-950 tracking-tight">
+                {isSignUp ? t.signUpTitle : t.signInTitle}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {isSignUp ? t.subtitleSignUp : t.subtitleSignIn}
+              </p>
+            </div>
+
+            {/* BOTÓN ACCESO DEMO INSTANTÁNEO EN FORMULARIO: DISPONIBLE PARA TODOS LOS DISPOSITIVOS */}
+            <div className="mb-2.5 sm:mb-3 block">
+              <button
+                type="button"
+                onClick={handleDemoAccess}
+                disabled={loading}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-50 to-amber-100/80 hover:from-amber-100 hover:to-amber-200/80 text-slate-950 font-bold text-xs shadow-xs border border-amber-300/80 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Zap className="w-3.5 h-3.5 fill-[#eab308] text-[#eab308]" />
+                <span>{t.demoBtn}</span>
+              </button>
+            </div>
             
             {/* SOCIAL AUTH: GOOGLE & GITHUB */}
             <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-3">

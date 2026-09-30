@@ -62,3 +62,18 @@ status: Authoritative
 1. **Rutas URL Obligatorias:** Todas las vistas deben responder en `/es` (Espanol) y `/en` (Ingles).
 2. **Cero Textos Hardcodeados:** Ningun texto visible en la interfaz (botones, descripciones, titulos, alertas, tareas de checklist) puede quemarse en codigo sin su correspondiente par en `translations.ts`.
 3. **Persistencia y Redireccion:** La seleccion se almacena en `localStorage` y sincroniza la URL sin recargas bruscas.
+
+---
+
+## 6. GOBERNANZA ESTRICTA DE RESOLUCIONES Y DISPOSITIVOS (>= 1024px ES ESCRITORIO OBLIGATORIO)
+1. **Regla de Oro:** Cualquier viewport con ancho `>= 1024px` se clasifica estrictamente como **ESCRITORIO INSTITUCIONAL**.
+2. **Terminal de Trading:**
+   - Debe renderizar **SIEMPRE** el layout horizontal dividido:
+     - Gráfico central KLineCharts dominante (78% - 82% del ancho).
+     - Panel lateral de trading derecho estrecho (`280px`).
+     - Tabla inferior de posiciones (`140px`).
+   - Queda terminantemente **prohibido** renderizar vistas móviles, pestañas inferiores colapsables o layouts apilados en resoluciones `>= 1024px`.
+3. **Móviles (< 1024px):**
+   - El gráfico KLineCharts debe mantener una altura mínima garantizada (`48dvh` / `min-height: 280px`).
+   - La operativa y libros se gestionan mediante las pestañas táctiles inferiores (*Operar / Order Book / Posiciones*).
+

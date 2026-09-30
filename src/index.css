@@ -265,11 +265,20 @@ html:not(.dark) .text-slate-500 {
    Desktop (>= 1024px y 1920px+): 2 columnas estrictas
    Mobile (< 1024px): Columna única ultra-compacta
    ---------------------------------------------------- */
+/* AUTH_MODAL_GRID_RULES */
+/* ----------------------------------------------------
+   MODAL DE AUTENTICACIÓN MULTI-DISPOSITIVO
+   1. Desktop (>= 1024px y 1920px+): 2 columnas amplias y centradas
+   2. Tablet (768px a 1023.98px): Modal centrado flotante de 2 columnas adaptadas
+   3. Móvil (< 768px): Bottom Sheet anclado abajo estilo app (40% / 60%)
+   ---------------------------------------------------- */
 @media (min-width: 1024px) {
   .auth-modal-window {
     max-width: 960px !important;
     width: 90vw !important;
     max-height: 88vh !important;
+    border-radius: 1.5rem !important;
+    overflow-y: auto !important;
   }
   .auth-modal-grid {
     display: grid !important;
@@ -282,13 +291,13 @@ html:not(.dark) .text-slate-500 {
     justify-content: space-between !important;
     border-right: 1px solid #ded5c5 !important;
     border-bottom: none !important;
-    padding: 2.25rem !important;
+    padding: 1.5rem 1.75rem !important;
   }
   .auth-modal-right {
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
-    padding: 2.25rem !important;
+    padding: 1.5rem 1.75rem !important;
   }
 }
 
@@ -302,22 +311,167 @@ html:not(.dark) .text-slate-500 {
   }
 }
 
-@media (max-width: 1023.98px) {
+/* REGLAS EXCLUSIVAS PARA TABLETS (768px - 1023.98px) */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .auth-modal-window {
+    max-width: 740px !important;
+    width: 92vw !important;
+    max-height: 86vh !important;
+    border-radius: 1.5rem !important;
+    border: 1px solid #ded5c5 !important;
+    display: block !important;
+  }
+  .auth-modal-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1.15fr !important;
+    min-height: 460px !important;
+    height: 100% !important;
+  }
+  .auth-modal-left {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-right: 1px solid #ded5c5 !important;
+    border-bottom: none !important;
+    padding: 1.75rem 1.25rem !important;
+    height: 100% !important;
+  }
+  .auth-modal-right {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 1.75rem 1.5rem !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* REGLAS EXCLUSIVAS PARA SMARTPHONES / MÓVILES (< 768px) */
+@media (max-width: 767.98px) {
   .auth-modal-window {
     max-width: 100% !important;
     width: 100% !important;
-    max-height: 96dvh !important;
+    height: 88dvh !important;
+    max-height: 90dvh !important;
+    border-top-left-radius: 28px !important;
+    border-top-right-radius: 28px !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    margin-bottom: 0 !important;
   }
   .auth-modal-grid {
     display: flex !important;
     flex-direction: column !important;
+    height: 100% !important;
+    flex: 1 1 0% !important;
+    overflow: hidden !important;
   }
   .auth-modal-left {
+    height: 38% !important;
+    min-height: 155px !important;
+    max-height: 220px !important;
     border-bottom: 1px solid #ded5c5 !important;
     border-right: none !important;
-    padding: 0.65rem 0.85rem !important;
+    padding: 0.5rem 1rem 0.5rem 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-shrink: 0 !important;
   }
   .auth-modal-right {
-    padding: 0.75rem 0.85rem 1.15rem 0.85rem !important;
+    height: 62% !important;
+    flex: 1 1 0% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0.85rem 1.15rem 1.5rem 1.15rem !important;
   }
 }
+
+/* ====================================================
+   TRADING TERMINAL — GOBERNANZA DE LAYOUT MULTI-RESOLUCIÓN
+   Desktop (>= 1024px): Gráfico KLineCharts dominante (flex-1) + Sidebar estrecho (280px)
+   Móvil (< 1024px): Gráfico fijo superior (48dvh) + Pestañas de control inferiores
+   ==================================================== */
+@media (min-width: 1024px) {
+  .terminal-main-layout {
+    display: flex !important;
+    flex-direction: row !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  .terminal-chart-wrapper {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  .terminal-chart-canvas-box {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+  .terminal-desktop-positions {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 140px !important;
+    flex-shrink: 0 !important;
+    border-top: 1px solid #ded5c5 !important;
+  }
+  .terminal-desktop-sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 280px !important;
+    flex-shrink: 0 !important;
+    border-left: 1px solid #ded5c5 !important;
+    background-color: #fbf9f4 !important;
+    padding: 0.65rem !important;
+    gap: 0.65rem !important;
+    overflow-y: auto !important;
+  }
+  .terminal-mobile-controls {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .terminal-main-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  .terminal-chart-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  .terminal-chart-canvas-box {
+    height: 48dvh !important;
+    min-height: 280px !important;
+    width: 100% !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+  }
+  .terminal-desktop-positions {
+    display: none !important;
+  }
+  .terminal-desktop-sidebar {
+    display: none !important;
+  }
+  .terminal-mobile-controls {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    overflow: hidden !important;
+  }
+}
+

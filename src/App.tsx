@@ -18,7 +18,24 @@ export const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeSection, setActiveSection] = useState<number>(0);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'landing' | 'terminal'>('landing');
+
+  // Detección de subdominio (ej: zytiterminal.zytitrade.com o zytiterminal.*)
+  const isTerminalSubdomain = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname.toLowerCase();
+    return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
+  };
+
+  const getInitialView = (): 'landing' | 'terminal' => {
+    if (typeof window !== 'undefined') {
+      if (isTerminalSubdomain()) return 'terminal';
+      const pathname = window.location.pathname.toLowerCase();
+      if (pathname.includes('/zytiterminal')) return 'terminal';
+    }
+    return 'landing';
+  };
+
+  const [currentView, setCurrentView] = useState<'landing' | 'terminal'>(getInitialView);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -37,8 +54,36 @@ export const App: React.FC = () => {
   const handleLanguageChange = (newLang: Language) => {
     setCurrentLang(newLang);
     localStorage.setItem('zyti_lang', newLang);
-    window.history.replaceState(null, '', '/' + newLang);
+    if (isTerminalSubdomain()) {
+      window.history.replaceState(null, '', '/' + newLang);
+    } else {
+      const isTerminal = currentView === 'terminal' || window.location.pathname.toLowerCase().includes('/zytiterminal');
+      const targetPath = isTerminal ? `/${newLang}/zytiterminal` : `/${newLang}`;
+      window.history.replaceState(null, '', targetPath);
+    }
     document.documentElement.lang = newLang;
+  };
+
+  const navigateToTerminal = () => {
+    setCurrentView('terminal');
+    if (!isTerminalSubdomain()) {
+      const targetPath = `/${currentLang}/zytiterminal`;
+      if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+        window.history.pushState({ view: 'terminal' }, '', targetPath);
+      }
+    }
+  };
+
+  const navigateToLanding = () => {
+    if (isTerminalSubdomain()) {
+      window.location.href = 'https://zytitrade.com';
+      return;
+    }
+    setCurrentView('landing');
+    const targetPath = `/${currentLang}`;
+    if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+      window.history.pushState({ view: 'landing' }, '', targetPath);
+    }
   };
 
   // Light mode only - permanent institutional aesthetic
@@ -99,6 +144,30 @@ export const App: React.FC = () => {
     } catch (_) {}
   }, []);
 
+  // Sincronización con el historial del navegador (atrás/adelante)
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isTerminalSubdomain()) {
+        setCurrentView('terminal');
+        return;
+      }
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('/zytiterminal')) {
+        setCurrentView('terminal');
+      } else {
+        setCurrentView('landing');
+      }
+      if (path.startsWith('/en')) {
+        setCurrentLang('en');
+      } else if (path.startsWith('/es')) {
+        setCurrentLang('es');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const TOTAL_SCREENS = 8;
 
   if (currentView === 'terminal') {
@@ -106,10 +175,18 @@ export const App: React.FC = () => {
       <TradingTerminal 
         currentLang={currentLang} 
         user={currentUser} 
-        onExit={() => setCurrentView('landing')} 
+        onExit={navigateToLanding} 
       />
     );
   }
+
+  const handleOpenTerminalOrAuth = () => {
+    if (currentUser) {
+      navigateToTerminal();
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
 
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
@@ -122,7 +199,7 @@ export const App: React.FC = () => {
         onLanguageChange={handleLanguageChange}
         activeSection={activeSection}
         onNavigateSection={navigateToSection}
-        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenAuth={handleOpenTerminalOrAuth}
         currentUser={currentUser}
       />
 
@@ -133,22 +210,22 @@ export const App: React.FC = () => {
         style={{ scrollBehavior: 'smooth' }}
       >
         {/* PANTALLA 0: HERO / INICIO */}
-        <HeroSection currentLang={currentLang} onOpenAuth={() => setAuthModalOpen(true)} />
+        <HeroSection currentLang={currentLang} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 1: EXCHANGES */}
-        <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} onOpenAuth={() => setAuthModalOpen(true)} />
+        <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 2: PROP FIRMS (AUDITED DIRECTORY) */}
-        <PropFirmsSection currentLang={currentLang} isActive={activeSection === 2} onOpenAuth={() => setAuthModalOpen(true)} />
+        <PropFirmsSection currentLang={currentLang} isActive={activeSection === 2} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 3: SERVICIOS */}
-        <ServicesSection currentLang={currentLang} isActive={activeSection === 3} onOpenAuth={() => setAuthModalOpen(true)} />
+        <ServicesSection currentLang={currentLang} isActive={activeSection === 3} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 4: PRECIOS */}
-        <PricingSection currentLang={currentLang} isActive={activeSection === 4} onOpenAuth={() => setAuthModalOpen(true)} />
+        <PricingSection currentLang={currentLang} isActive={activeSection === 4} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 5: SEGURIDAD */}
-        <SecuritySection currentLang={currentLang} isActive={activeSection === 5} onOpenAuth={() => setAuthModalOpen(true)} />
+        <SecuritySection currentLang={currentLang} isActive={activeSection === 5} onOpenAuth={handleOpenTerminalOrAuth} />
 
         {/* PANTALLA 6: DESCARGAR */}
         <DownloadSection currentLang={currentLang} isActive={activeSection === 6} />
@@ -162,7 +239,10 @@ export const App: React.FC = () => {
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
         currentLang={currentLang} 
-        onLoginSuccess={(u) => { setCurrentUser(u); setCurrentView('terminal'); }} 
+        onLoginSuccess={(u) => { 
+          setCurrentUser(u); 
+          navigateToTerminal(); 
+        }} 
       />
 
       {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}

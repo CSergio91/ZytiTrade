@@ -3,16 +3,271 @@ import {
   Activity, 
   ArrowLeft, 
   Zap, 
-  LogOut
+  LogOut,
+  TrendingUp,
+  Cpu,
+  Layers,
+  ChevronDown,
+  BookOpen,
+  Star,
+  MoreHorizontal,
+  Search,
+  X,
+  Check
 } from 'lucide-react';
+import { init, dispose, Chart, DeepPartial, Styles } from 'klinecharts';
 import { Language } from '../i18n/translations';
 import { UserSession } from '../lib/supabase';
+import { MarketStats, OrderBookPayload } from '../workers/marketData.worker';
 
 interface TradingTerminalProps {
   currentLang: Language;
   user: UserSession | null;
   onExit: () => void;
 }
+
+const SUPPORTED_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
+
+export interface TimeframeOption {
+  value: string;
+  label: string;
+  category: 'seconds' | 'minutes' | 'hours' | 'days' | 'periods';
+}
+
+const ALL_TIMEFRAMES: TimeframeOption[] = [
+  // Segundos
+  { value: '1s', label: '1s', category: 'seconds' },
+  { value: '5s', label: '5s', category: 'seconds' },
+  { value: '15s', label: '15s', category: 'seconds' },
+  { value: '30s', label: '30s', category: 'seconds' },
+  // Minutos
+  { value: '1m', label: '1m', category: 'minutes' },
+  { value: '3m', label: '3m', category: 'minutes' },
+  { value: '5m', label: '5m', category: 'minutes' },
+  { value: '15m', label: '15m', category: 'minutes' },
+  { value: '30m', label: '30m', category: 'minutes' },
+  { value: '45m', label: '45m', category: 'minutes' },
+  // Horas
+  { value: '1h', label: '1h', category: 'hours' },
+  { value: '2h', label: '2h', category: 'hours' },
+  { value: '4h', label: '4h', category: 'hours' },
+  { value: '12h', label: '12h', category: 'hours' },
+  // Días y Semanas
+  { value: '1D', label: '1D', category: 'days' },
+  { value: '3d', label: '3D', category: 'days' },
+  { value: '1w', label: '1S', category: 'days' },
+  // Meses y Anuales
+  { value: '1M', label: '1M', category: 'periods' },
+  { value: '3M', label: '3M', category: 'periods' },
+  { value: '6M', label: '6M', category: 'periods' },
+  { value: '12M', label: '12M (1A)', category: 'periods' }
+];
+
+const DEFAULT_FAV_TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D'];
+
+export interface IndicatorOption {
+  name: string;
+  label: string;
+  category: 'main' | 'sub';
+  paneId: string;
+  description: string;
+}
+
+const ALL_INDICATORS: IndicatorOption[] = [
+  // Gráfico Principal (Superpuestos)
+  { name: 'MA', label: 'Media Móvil Simple', category: 'main', paneId: 'candle_pane', description: 'Moving Average sobre el precio' },
+  { name: 'EMA', label: 'Media Móvil Exponencial', category: 'main', paneId: 'candle_pane', description: 'Mayor ponderación a precios recientes' },
+  { name: 'SMA', label: 'Simple Moving Average', category: 'main', paneId: 'candle_pane', description: 'Promedio móvil suavizado' },
+  { name: 'BOLL', label: 'Bandas de Bollinger', category: 'main', paneId: 'candle_pane', description: 'Volatilidad y desviaciones estándar' },
+  { name: 'SAR', label: 'Parabolic SAR', category: 'main', paneId: 'candle_pane', description: 'Detección de puntos de reversión' },
+  { name: 'BBI', label: 'Bull and Bear Index', category: 'main', paneId: 'candle_pane', description: 'Índice de fuerza alcista/bajista' },
+  // Subpaneles
+  { name: 'VOL', label: 'Volumen', category: 'sub', paneId: 'pane_vol', description: 'Volumen transaccionado por vela' },
+  { name: 'RSI', label: 'Fuerza Relativa (RSI)', category: 'sub', paneId: 'pane_rsi', description: 'Oscilador de sobrecompra y sobreventa' },
+  { name: 'MACD', label: 'MACD Oscilador', category: 'sub', paneId: 'pane_macd', description: 'Convergencia y divergencia de medias' },
+  { name: 'KDJ', label: 'Oscilador Estocástico (KDJ)', category: 'sub', paneId: 'pane_kdj', description: 'Momento de precios a corto plazo' },
+  { name: 'ATR', label: 'Rango Verdadero Medio (ATR)', category: 'sub', paneId: 'pane_atr', description: 'Medición de volatilidad absoluta' },
+  { name: 'CCI', label: 'Commodity Channel Index', category: 'sub', paneId: 'pane_cci', description: 'Identificación de ciclos de precio' },
+  { name: 'WR', label: 'Williams %R', category: 'sub', paneId: 'pane_wr', description: 'Oscilador de impulso entre 0 y -100' },
+  { name: 'OBV', label: 'On-Balance Volume', category: 'sub', paneId: 'pane_obv', description: 'Flujo acumulativo de volumen de compra/venta' }
+];
+
+const DEFAULT_FAV_INDICATORS = ['MA', 'EMA', 'VOL', 'RSI', 'MACD'];
+
+// Estilo institucional de KLineChart integrado con el tema Warm Cream de ZYTI Trade
+const ZYTI_CHART_THEME: DeepPartial<Styles> = {
+  grid: {
+    show: true,
+    horizontal: {
+      show: true,
+      size: 1,
+      color: 'rgba(214, 206, 192, 0.45)',
+      style: 'dashed' as any,
+      dashedValue: [3, 3]
+    },
+    vertical: {
+      show: true,
+      size: 1,
+      color: 'rgba(214, 206, 192, 0.45)',
+      style: 'dashed' as any,
+      dashedValue: [3, 3]
+    }
+  },
+  candle: {
+    type: 'candle_solid' as any,
+    bar: {
+      upColor: '#16a34a',
+      downColor: '#dc2626',
+      noChangeColor: '#888888',
+      upBorderColor: '#16a34a',
+      downBorderColor: '#dc2626',
+      noChangeBorderColor: '#888888',
+      upWickColor: '#16a34a',
+      downWickColor: '#dc2626',
+      noChangeWickColor: '#888888'
+    },
+    priceMark: {
+      show: true,
+      high: {
+        show: true,
+        color: '#64748b',
+        textOffset: 5,
+        textSize: 10
+      },
+      low: {
+        show: true,
+        color: '#64748b',
+        textOffset: 5,
+        textSize: 10
+      },
+      last: {
+        show: true,
+        upColor: '#16a34a',
+        downColor: '#dc2626',
+        noChangeColor: '#888888',
+        line: {
+          show: true,
+          style: 'dashed' as any,
+          dashedValue: [4, 4],
+          size: 1
+        },
+        text: {
+          show: true,
+          style: 'fill' as any,
+          size: 11,
+          paddingLeft: 4,
+          paddingTop: 4,
+          paddingRight: 4,
+          paddingBottom: 4,
+          color: '#ffffff',
+          borderRadius: 4
+        }
+      }
+    },
+    tooltip: {
+      showRule: 'always' as any,
+      showType: 'standard' as any,
+      text: {
+        size: 11,
+        color: '#334155'
+      }
+    }
+  },
+  xAxis: {
+    show: true,
+    size: 'auto' as any,
+    axisLine: {
+      show: true,
+      color: '#ded5c5',
+      size: 1
+    },
+    tickText: {
+      show: true,
+      color: '#64748b',
+      size: 10,
+      family: 'JetBrains Mono, monospace'
+    },
+    tickLine: {
+      show: true,
+      size: 1,
+      length: 3,
+      color: '#ded5c5'
+    }
+  },
+  yAxis: {
+    show: true,
+    size: 'auto' as any,
+    position: 'right' as any,
+    axisLine: {
+      show: true,
+      color: '#ded5c5',
+      size: 1
+    },
+    tickText: {
+      show: true,
+      color: '#64748b',
+      size: 10,
+      family: 'JetBrains Mono, monospace'
+    },
+    tickLine: {
+      show: true,
+      size: 1,
+      length: 3,
+      color: '#ded5c5'
+    }
+  },
+  crosshair: {
+    show: true,
+    horizontal: {
+      show: true,
+      line: {
+        show: true,
+        style: 'dashed' as any,
+        dashedValue: [4, 2],
+        size: 1,
+        color: '#94a3b8'
+      },
+      text: {
+        show: true,
+        style: 'fill' as any,
+        color: '#ffffff',
+        size: 11,
+        paddingLeft: 4,
+        paddingRight: 4,
+        paddingTop: 2,
+        paddingBottom: 2,
+        borderSize: 1,
+        borderColor: '#0f172a',
+        borderRadius: 3,
+        backgroundColor: '#0f172a'
+      }
+    },
+    vertical: {
+      show: true,
+      line: {
+        show: true,
+        style: 'dashed' as any,
+        dashedValue: [4, 2],
+        size: 1,
+        color: '#94a3b8'
+      },
+      text: {
+        show: true,
+        style: 'fill' as any,
+        color: '#ffffff',
+        size: 11,
+        paddingLeft: 4,
+        paddingRight: 4,
+        paddingTop: 2,
+        paddingBottom: 2,
+        borderSize: 1,
+        borderColor: '#0f172a',
+        borderRadius: 3,
+        backgroundColor: '#0f172a'
+      }
+    }
+  }
+};
 
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   currentLang,
@@ -22,10 +277,33 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const isEs = currentLang === 'es';
   const [selectedPair, setSelectedPair] = useState('BTC/USDT');
   const [timeframe, setTimeframe] = useState('15m');
+  const [activeIndicators, setActiveIndicators] = useState<string[]>(['MA', 'VOL']);
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('1000');
   const [leverage, setLeverage] = useState(10);
+  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
+
+  // Pestaña activa en móvil: orden / libro / posiciones
+  const [mobileTab, setMobileTab] = useState<'order' | 'book' | 'positions'>('order');
+
+  // Estadísticas del par desde el Worker
+  const [stats, setStats] = useState<MarketStats>({
+    symbol: 'BTC/USDT',
+    lastPrice: 68450.0,
+    change24h: 2.42,
+    high24h: 69120.0,
+    low24h: 66800.0,
+    volume24h: 42890
+  });
+
+  // Order Book L2 en vivo emitido por el Worker
+  const [orderBook, setOrderBook] = useState<OrderBookPayload>({
+    bids: [],
+    asks: []
+  });
+
+  // Lista de posiciones simuladas
   const [positions, setPositions] = useState<any[]>([
     {
       id: 1,
@@ -51,201 +329,407 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   ]);
 
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const chartInstanceRef = useRef<Chart | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
+  // 1. Inicialización de KLineChart Canvas y el Web Worker
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const container = chartContainerRef.current;
+    if (!container) return;
 
-    let animId: number;
-    let width = (canvas.width = canvas.parentElement?.clientWidth || 800);
-    let height = (canvas.height = canvas.parentElement?.clientHeight || 450);
+    // A. Inicializar motor oficial KLineChart
+    const chart = init(container, {
+      styles: ZYTI_CHART_THEME,
+      locale: isEs ? 'es' : 'en'
+    });
+    if (!chart) return;
+    chartInstanceRef.current = chart;
 
-    const handleResize = () => {
-      if (!canvas || !canvas.parentElement) return;
-      width = canvas.width = canvas.parentElement.clientWidth;
-      height = canvas.height = canvas.parentElement.clientHeight;
-    };
-    window.addEventListener('resize', handleResize);
+    // Configurar precisión de precios e indicadores por defecto
+    chart.setPriceVolumePrecision(2, 4);
+    chart.createIndicator('MA', false, { id: 'candle_pane' });
+    chart.createIndicator('VOL', false, { id: 'pane_vol' });
 
-    const candleCount = 45;
-    let currentPrice = 68450.2;
-    const candles: Array<{ open: number; close: number; high: number; low: number }> = [];
+    // B. Instanciar Web Worker dedicado para datos de mercado
+    const worker = new Worker(
+      new URL('../workers/marketData.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    workerRef.current = worker;
 
-    for (let i = 0; i < candleCount; i++) {
-      const delta = (Math.random() - 0.48) * 80;
-      const open = currentPrice;
-      const close = open + delta;
-      const high = Math.max(open, close) + Math.random() * 45;
-      const low = Math.min(open, close) - Math.random() * 45;
-      candles.push({ open, close, high, low });
-      currentPrice = close;
-    }
+    // C. Manejador reactivo de eventos del Worker
+    worker.onmessage = (e: MessageEvent) => {
+      const { type, payload } = e.data || {};
+      const activeChart = chartInstanceRef.current;
 
-    let tick = 0;
-    const render = () => {
-      ctx.clearRect(0, 0, width, height);
-
-      // Background
-      ctx.fillStyle = '#fbf9f4';
-      ctx.fillRect(0, 0, width, height);
-
-      // Grid
-      ctx.strokeStyle = 'rgba(214, 206, 192, 0.4)';
-      ctx.lineWidth = 1;
-      for (let y = 40; y < height; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+      if (type === 'HISTORICAL_BARS') {
+        if (activeChart && payload.bars) {
+          activeChart.applyNewData(payload.bars);
+        }
+      } else if (type === 'TICK_UPDATE') {
+        if (activeChart && payload.bar) {
+          activeChart.updateData(payload.bar);
+        }
+        if (payload.stats) {
+          setStats(payload.stats);
+        }
+      } else if (type === 'ORDERBOOK_UPDATE') {
+        if (payload.bids && payload.asks) {
+          setOrderBook(payload);
+        }
       }
-
-      // Min/Max
-      let minP = Infinity;
-      let maxP = -Infinity;
-      candles.forEach(c => {
-        if (c.low < minP) minP = c.low;
-        if (c.high > maxP) maxP = c.high;
-      });
-      const range = maxP - minP || 1;
-      const getY = (val: number) => height - 30 - ((val - minP) / range) * (height - 60);
-
-      const spacing = width / candles.length;
-      const candleW = Math.max(4, spacing * 0.65);
-
-      candles.forEach((c, idx) => {
-        const x = idx * spacing + spacing / 2;
-        const isUp = c.close >= c.open;
-        const color = isUp ? '#16a34a' : '#dc2626';
-
-        // Wick
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(x, getY(c.high));
-        ctx.lineTo(x, getY(c.low));
-        ctx.stroke();
-
-        // Body
-        ctx.fillStyle = color;
-        const openY = getY(c.open);
-        const closeY = getY(c.close);
-        const topY = Math.min(openY, closeY);
-        const bodyH = Math.max(2, Math.abs(openY - closeY));
-        ctx.fillRect(x - candleW / 2, topY, candleW, bodyH);
-      });
-
-      // Price line
-      const lastC = candles[candles.length - 1];
-      const lastY = getY(lastC.close);
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = lastC.close >= lastC.open ? '#16a34a' : '#dc2626';
-      ctx.beginPath();
-      ctx.moveTo(0, lastY);
-      ctx.lineTo(width, lastY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      tick++;
-      if (tick % 60 === 0) {
-        const last = candles[candles.length - 1];
-        last.close += (Math.random() - 0.49) * 15;
-        last.high = Math.max(last.high, last.close);
-        last.low = Math.min(last.low, last.close);
-      }
-
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    // D. Iniciar suscripción del par y timeframe inicial
+    worker.postMessage({
+      type: 'SUBSCRIBE',
+      payload: { symbol: selectedPair, timeframe }
+    });
 
+    // E. ResizeObserver reactivo a 60 FPS
+    const resizeObserver = new ResizeObserver(() => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.resize();
+      }
+    });
+    resizeObserver.observe(container);
+
+    // F. Limpieza estricta al desmontar
     return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+      if (workerRef.current) {
+        workerRef.current.postMessage({ type: 'UNSUBSCRIBE' });
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      if (chartInstanceRef.current) {
+        dispose(container);
+        chartInstanceRef.current = null;
+      }
     };
   }, []);
 
+  // 2. Cambio reactivo de Par
+  const handleSelectPair = (pair: string) => {
+    setSelectedPair(pair);
+    if (workerRef.current) {
+      workerRef.current.postMessage({
+        type: 'SUBSCRIBE',
+        payload: { symbol: pair, timeframe }
+      });
+    }
+  };
+
+  // 3. Cambio reactivo de Timeframe
+  const handleSelectTimeframe = (tf: string) => {
+    setTimeframe(tf);
+    if (workerRef.current) {
+      workerRef.current.postMessage({
+        type: 'CHANGE_TIMEFRAME',
+        payload: { timeframe: tf }
+      });
+    }
+  };
+
+  // 4. Toggle de Indicadores Técnicos y Perfil de Volumen
+  const handleToggleIndicator = (name: string) => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    const paneMap: Record<string, string> = {
+      MA: 'candle_pane',
+      EMA: 'candle_pane',
+      VOL: 'pane_vol',
+      RSI: 'pane_rsi',
+      MACD: 'pane_macd'
+    };
+
+    const targetPane = paneMap[name] || 'candle_pane';
+
+    if (activeIndicators.includes(name)) {
+      chart.removeIndicator(targetPane, name);
+      setActiveIndicators(activeIndicators.filter((i) => i !== name));
+    } else {
+      chart.createIndicator(name, false, { id: targetPane });
+      setActiveIndicators([...activeIndicators, name]);
+    }
+  };
+
+  // 5. Ejecución de Órdenes
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    const currentP = stats.lastPrice;
+    const sizeNumber = parseFloat(amount) / currentP;
+    
     const newPos = {
       id: Date.now(),
       symbol: selectedPair,
       side: side === 'buy' ? 'LONG' : 'SHORT',
-      size: (parseFloat(amount) / 68450).toFixed(4) + ' BTC',
-      entry: 68450.2,
-      mark: 68450.2,
+      size: sizeNumber.toFixed(4) + ' ' + selectedPair.split('/')[0],
+      entry: currentP,
+      mark: currentP,
       pnl: '0.00 USDT',
       pnlPercent: '0.00%',
       isProfit: true
     };
+
     setPositions([newPos, ...positions]);
-    setOrderSuccess(isEs ? '¡Orden ejecutada instantáneamente en ZYTI OS!' : 'Order filled instantly on ZYTI OS!');
+    setOrderSuccess(
+      isEs
+        ? `¡Orden ${side === 'buy' ? 'LONG' : 'SHORT'} ejecutada por el Worker!`
+        : `Order ${side === 'buy' ? 'LONG' : 'SHORT'} filled via Worker!`
+    );
     setTimeout(() => setOrderSuccess(null), 2500);
   };
 
-  return (
-    <div className="min-h-screen w-screen bg-[#fbf9f4] text-slate-900 flex flex-col font-sans overflow-hidden">
-      
-      {/* 1. TOP HEADER INSTITUCIONAL DE LA TERMINAL */}
-      <header className="h-14 border-b border-[#ded5c5] bg-[#fbf9f4]/98 px-4 flex items-center justify-between shrink-0 z-30">
-        
-        {/* LOGO & VOLVER A LANDING */}
-        <div className="flex items-center gap-4">
-          <button 
-            type="button"
-            onClick={onExit}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold border border-[#ded5c5] transition-all cursor-pointer shadow-xs"
-            title="Volver a la Landing Page"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{isEs ? 'Volver al Inicio' : 'Back to Home'}</span>
-          </button>
+  // Renderizador del OrderBook para reutilizar entre Desktop y Móvil
+  const renderOrderBookContent = () => (
+    <div className="p-2 sm:p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs">
+      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
+        <span className="text-[11px] font-black text-slate-900 flex items-center gap-1.5">
+          <Activity className="w-3 h-3 text-slate-600" />
+          <span>Order Book L2</span>
+        </span>
+        <span className="text-[9px] font-mono text-slate-400">Profundidad</span>
+      </div>
 
-          <div className="h-5 w-px bg-slate-300" />
-
-          {/* SELECTOR DE PAR */}
-          <div className="flex items-center gap-2">
-            <span className="font-black text-sm text-slate-950 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {selectedPair}
-            </span>
-            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              $68,450.20 (+2.42%)
-            </span>
+      {/* ASKS (VENTAS - ROJO) */}
+      <div className="space-y-0.5 font-mono text-[10px]">
+        {orderBook.asks.slice(-5).reverse().map((ask, i) => (
+          <div key={i} className="relative flex justify-between px-1.5 py-0.5">
+            <div 
+              className="absolute inset-y-0 right-0 bg-red-100/60 rounded-xs pointer-events-none" 
+              style={{ width: `${Math.min(100, (ask.total / 15) * 100)}%` }}
+            />
+            <span className="relative z-10 text-red-600 font-bold">${ask.price.toFixed(2)}</span>
+            <span className="relative z-10 text-slate-600">{ask.amount.toFixed(4)}</span>
           </div>
+        ))}
+      </div>
 
-          <div className="hidden lg:flex items-center gap-4 text-xs font-mono text-slate-600 pl-3">
-            <span>24h High: <strong className="text-slate-900">$69,120.00</strong></span>
-            <span>24h Low: <strong className="text-slate-900">$66,800.50</strong></span>
-            <span>24h Vol: <strong className="text-slate-900">42,890 BTC</strong></span>
+      {/* SPREAD Y PRECIO MEDIO */}
+      <div className="my-1.5 py-0.5 px-2 rounded-lg bg-[#ede5d6]/70 border border-[#ded5c5] flex items-center justify-between font-mono text-[11px]">
+        <span className="font-black text-slate-950">${stats.lastPrice.toFixed(2)}</span>
+        <span className="text-[9px] text-slate-500 font-medium">Spread: $0.10</span>
+      </div>
+
+      {/* BIDS (COMPRAS - VERDE) */}
+      <div className="space-y-0.5 font-mono text-[10px]">
+        {orderBook.bids.slice(0, 5).map((bid, i) => (
+          <div key={i} className="relative flex justify-between px-1.5 py-0.5">
+            <div 
+              className="absolute inset-y-0 right-0 bg-emerald-100/60 rounded-xs pointer-events-none" 
+              style={{ width: `${Math.min(100, (bid.total / 15) * 100)}%` }}
+            />
+            <span className="relative z-10 text-emerald-600 font-bold">${bid.price.toFixed(2)}</span>
+            <span className="relative z-10 text-slate-600">{bid.amount.toFixed(4)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Renderizador del Formulario de Orden para Desktop y Móvil
+  const renderOrderFormContent = () => (
+    <div className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs">
+      {/* SELECTOR COMPRA / VENTA */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#ede5d6] mb-2.5">
+        <button
+          type="button"
+          onClick={() => setSide('buy')}
+          className={`py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+            side === 'buy'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-slate-800 hover:text-emerald-700'
+          }`}
+        >
+          {isEs ? 'Comprar / Long' : 'Buy / Long'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSide('sell')}
+          className={`py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+            side === 'sell'
+              ? 'bg-red-600 text-white shadow-xs'
+              : 'text-slate-800 hover:text-red-700'
+          }`}
+        >
+          {isEs ? 'Vender / Short' : 'Sell / Short'}
+        </button>
+      </div>
+
+      {/* TIPO DE ORDEN */}
+      <div className="flex gap-1.5 mb-2.5">
+        <button
+          type="button"
+          onClick={() => setOrderType('market')}
+          className={`flex-1 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+            orderType === 'market'
+              ? 'bg-slate-900 text-white border-slate-900'
+              : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          Market
+        </button>
+        <button
+          type="button"
+          onClick={() => setOrderType('limit')}
+          className={`flex-1 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+            orderType === 'limit'
+              ? 'bg-slate-900 text-white border-slate-900'
+              : 'bg-white text-slate-600 border-slate-200'
+          }`}
+        >
+          Limit
+        </button>
+      </div>
+
+      {/* FORMULARIO */}
+      <form onSubmit={handlePlaceOrder} className="space-y-2.5">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
+            {isEs ? 'Monto (USDT)' : 'Order Value (USDT)'}
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full pl-2.5 pr-10 py-1.5 rounded-lg border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-500"
+              placeholder="1000"
+              required
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400">
+              USDT
+            </span>
           </div>
         </div>
 
-        {/* ACCIONES DERECHA: STATUS DE CONEXIÓN + USUARIO DEMO */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold border border-emerald-200">
-            <Activity className="w-3 h-3 text-emerald-600 animate-pulse" />
-            <span>60 FPS WSS • Direct Engine</span>
+        {/* APALANCAMIENTO */}
+        <div>
+          <div className="flex justify-between text-[10px] font-bold text-slate-700 mb-0.5">
+            <span>{isEs ? 'Apalancamiento' : 'Leverage'}</span>
+            <span className="text-amber-600 font-mono font-black">{leverage}x</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="100"
+            value={leverage}
+            onChange={(e) => setLeverage(Number(e.target.value))}
+            className="w-full accent-amber-500 cursor-pointer h-1.5"
+          />
+        </div>
+
+        {/* FEEDBACK DE ÉXITO */}
+        {orderSuccess && (
+          <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold flex items-center gap-1.5">
+            <TrendingUp className="w-3 h-3 shrink-0" />
+            <span>{orderSuccess}</span>
+          </div>
+        )}
+
+        {/* BOTÓN DISPARADOR */}
+        <button
+          type="submit"
+          className={`w-full py-2 rounded-xl text-xs font-black shadow-xs transition-all transform active:scale-98 cursor-pointer flex items-center justify-center gap-1.5 text-white ${
+            side === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 fill-white" />
+          <span>
+            {side === 'buy'
+              ? isEs ? `Comprar ${selectedPair.split('/')[0]}` : `Buy ${selectedPair.split('/')[0]}`
+              : isEs ? `Vender ${selectedPair.split('/')[0]}` : `Sell ${selectedPair.split('/')[0]}`
+            }
+          </span>
+        </button>
+      </form>
+    </div>
+  );
+
+  return (
+    <div className="h-screen w-screen bg-[#fbf9f4] text-slate-900 flex flex-col font-sans overflow-hidden select-none">
+      
+      {/* 1. TOP HEADER INSTITUCIONAL */}
+      <header className="h-12 sm:h-14 border-b border-[#ded5c5] bg-[#fbf9f4] px-3 sm:px-4 flex items-center justify-between shrink-0 z-30">
+        
+        {/* PARTE IZQUIERDA: VOLVER + SELECTOR DE PAR + PRECIO EN VIVO */}
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
+          <button 
+            type="button"
+            onClick={onExit}
+            className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold border border-[#ded5c5] transition-all cursor-pointer shadow-xs shrink-0"
+            title="Volver al Inicio"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isEs ? 'Inicio' : 'Home'}</span>
+          </button>
+
+          <div className="h-4 w-px bg-slate-300 hidden sm:block" />
+
+          {/* SELECTOR DE PARES DESPLEGABLE */}
+          <div className="relative group shrink-0">
+            <button 
+              type="button"
+              className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-white border border-[#ded5c5] hover:border-slate-400 font-black text-xs sm:text-sm text-slate-950 cursor-pointer shadow-xs"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{selectedPair}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+            <div className="absolute top-full left-0 mt-1 w-36 bg-white border border-[#ded5c5] rounded-xl shadow-lg py-1 hidden group-hover:block z-50">
+              {SUPPORTED_PAIRS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handleSelectPair(p)}
+                  className={`w-full text-left px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer hover:bg-amber-50 ${
+                    selectedPair === p ? 'text-amber-600 bg-amber-50/50' : 'text-slate-800'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* USER BADGE & SALIR */}
-          <div className="flex items-center gap-2 bg-[#ede5d6] px-3 py-1.5 rounded-xl border border-[#ded5c5]">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-xs font-bold text-slate-900 truncate max-w-[120px]">
-              {user?.name || user?.email || 'Demo Trader'}
+          {/* PRECIO ACTUAL Y ESTADÍSTICAS 24H */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className={`text-xs sm:text-sm font-mono font-black ${stats.change24h >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              ${stats.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold">
-              $100,000 USD
+            <span className={`text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded ${stats.change24h >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {stats.change24h >= 0 ? '+' : ''}{stats.change24h}%
+            </span>
+          </div>
+
+          <div className="hidden xl:flex items-center gap-4 text-xs font-mono text-slate-600 pl-2">
+            <span>24h High: <strong className="text-slate-900">${stats.high24h.toLocaleString()}</strong></span>
+            <span>24h Low: <strong className="text-slate-900">${stats.low24h.toLocaleString()}</strong></span>
+            <span>24h Vol: <strong className="text-slate-900">{stats.volume24h.toLocaleString()} BTC</strong></span>
+          </div>
+        </div>
+
+        {/* PARTE DERECHA: STATUS WORKER + USUARIO + LOGOUT */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold border border-emerald-200 shadow-xs">
+            <Cpu className="w-3 h-3 text-emerald-600 animate-pulse" />
+            <span>Worker 60 FPS</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-[#ede5d6] px-2 sm:px-3 py-1 rounded-xl border border-[#ded5c5]">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-xs font-bold text-slate-900 truncate max-w-[85px] sm:max-w-[140px]">
+              {user?.name || user?.email || 'Demo Trader'}
             </span>
           </div>
 
           <button
             type="button"
             onClick={onExit}
-            className="p-2 rounded-xl text-slate-600 hover:text-slate-950 hover:bg-[#ede5d6] cursor-pointer transition-colors"
+            className="p-1 sm:p-2 rounded-xl text-slate-600 hover:text-slate-950 hover:bg-[#ede5d6] cursor-pointer transition-colors"
             title="Cerrar sesión y volver"
           >
             <LogOut className="w-4 h-4" />
@@ -253,21 +737,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         </div>
       </header>
 
-      {/* 2. CUERPO PRINCIPAL DE LA TERMINAL: GRÁFICO + ORDERBOOK + ORDER ENTRY */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+      {/* 2. ÁREA PRINCIPAL: GRÁFICO CENTRAL + PANEL LATERAL ESTRECHO */}
+      <div className="terminal-main-layout flex-1 overflow-hidden">
         
-        {/* ÁREA CENTRAL: GRÁFICO KLINECHART / CANVAS + TIMEFRAMES */}
-        <div className="lg:col-span-9 flex flex-col border-r border-[#ded5c5] bg-[#fbf9f4]">
+        {/* COLUMNA CENTRAL: TOOLBAR + KLINECHART ENGINE + POSICIONES (Desktop) */}
+        <div className="terminal-chart-wrapper">
           
           {/* BARRA DE HERRAMIENTAS Y TIMEFRAMES */}
-          <div className="h-10 px-4 border-b border-[#ded5c5] flex items-center justify-between text-xs shrink-0 bg-white/70">
-            <div className="flex items-center gap-1">
-              {['1m', '5m', '15m', '1h', '4h', '1D'].map((tf) => (
+          <div className="h-9 sm:h-10 px-2 sm:px-4 border-b border-[#ded5c5] flex items-center justify-between text-xs shrink-0 bg-white/60 overflow-x-auto no-scrollbar">
+            {/* SELECTOR DE TIMEFRAMES */}
+            <div className="flex items-center gap-1 shrink-0">
+              {TIMEFRAMES.map((tf) => (
                 <button
                   key={tf}
                   type="button"
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-2.5 py-1 rounded-lg font-mono font-bold transition-colors cursor-pointer ${
+                  onClick={() => handleSelectTimeframe(tf)}
+                  className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg font-mono font-bold text-[10px] sm:text-xs transition-colors cursor-pointer ${
                     timeframe === tf 
                       ? 'bg-slate-950 text-white shadow-xs' 
                       : 'text-slate-600 hover:bg-slate-200/60 text-slate-900'
@@ -278,54 +763,82 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               ))}
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-mono text-slate-600">
-              <span className="text-emerald-600 font-bold">● Binance Pro REST</span>
-              <span className="text-blue-600 font-bold">● Bybit v5 WSS</span>
-              <span className="text-purple-600 font-bold">● OKX L2 Arb</span>
+            {/* INDICADORES TÉCNICOS Y PERFIL DE VOLUMEN */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 pl-2">
+              <span className="text-[10px] font-mono text-slate-400 uppercase hidden sm:inline">Indicadores:</span>
+              {['MA', 'EMA', 'VOL', 'RSI', 'MACD'].map((ind) => {
+                const isActive = activeIndicators.includes(ind);
+                return (
+                  <button
+                    key={ind}
+                    type="button"
+                    onClick={() => handleToggleIndicator(ind)}
+                    className={`px-1.5 sm:px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
+                      isActive 
+                        ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {ind}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* CANVAS DEL GRÁFICO EN VIVO */}
-          <div className="flex-1 relative overflow-hidden bg-[#fbf9f4]">
-            <canvas ref={canvasRef} className="w-full h-full block" />
-            <div className="absolute top-4 left-4 pointer-events-none bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-[#ded5c5] shadow-xs">
-              <span className="text-xs font-bold text-slate-900 font-mono">
-                {selectedPair} • {timeframe} • GPU Canvas 60 FPS
-              </span>
-            </div>
+          {/* CONTENEDOR KLINECHART v9.8.6 OFICIAL */}
+          <div className="terminal-chart-canvas-box overflow-hidden bg-[#fbf9f4]">
+            <div 
+              ref={chartContainerRef} 
+              id="trading-terminal-chart" 
+              className="w-full h-full block" 
+            />
           </div>
 
-          {/* PANEL INFERIOR: POSICIONES ABIERTAS */}
-          <div className="h-44 border-t border-[#ded5c5] bg-white flex flex-col shrink-0">
-            <div className="h-8 px-4 border-b border-slate-200 flex items-center justify-between text-xs bg-[#fbf9f4]">
-              <span className="font-black text-slate-900">
-                {isEs ? 'Posiciones Abiertas (2)' : 'Open Positions (2)'}
+          {/* DESKTOP: TABLA INFERIOR DE POSICIONES ABIERTAS (h-36 COMPACTA) */}
+          <div className="terminal-desktop-positions bg-white">
+            <div className="h-7 px-3 border-b border-slate-200 flex items-center justify-between text-xs bg-[#fbf9f4]">
+              <span className="font-black text-slate-900 flex items-center gap-1.5 text-[11px]">
+                <Layers className="w-3 h-3 text-slate-600" />
+                <span>{isEs ? `Posiciones Abiertas (${positions.length})` : `Open Positions (${positions.length})`}</span>
               </span>
-              <span className="text-[11px] font-mono text-emerald-600 font-bold">
+              <span className="text-[10px] font-mono text-emerald-600 font-bold">
                 PnL No Realizado: +442.78 USDT
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto no-scrollbar p-2">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-1.5">
               <table className="w-full text-left text-xs font-mono">
                 <thead>
-                  <tr className="text-[10px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <tr className="text-[9px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
                     <th className="pb-1 px-2">Par</th>
                     <th className="pb-1 px-2">Lado</th>
                     <th className="pb-1 px-2">Tamaño</th>
-                    <th className="pb-1 px-2">Precio Entrada</th>
-                    <th className="pb-1 px-2">Precio Marca</th>
+                    <th className="pb-1 px-2">Entrada</th>
+                    <th className="pb-1 px-2">Marca</th>
                     <th className="pb-1 px-2">PnL (%)</th>
+                    <th className="pb-1 px-2 text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {positions.map((pos) => (
-                    <tr key={pos.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-2 px-2 font-bold text-slate-900">{pos.symbol}</td>
-                      <td className="py-2 px-2 text-emerald-600 font-bold">{pos.side}</td>
-                      <td className="py-2 px-2 text-slate-800">{pos.size}</td>
-                      <td className="py-2 px-2 text-slate-600">${pos.entry.toFixed(2)}</td>
-                      <td className="py-2 px-2 text-slate-900 font-bold">${pos.mark.toFixed(2)}</td>
-                      <td className="py-2 px-2 text-emerald-600 font-bold">{pos.pnl} ({pos.pnlPercent})</td>
+                    <tr key={pos.id} className="border-b border-slate-100 hover:bg-slate-50 text-[11px]">
+                      <td className="py-1 px-2 font-bold text-slate-900">{pos.symbol}</td>
+                      <td className={`py-1 px-2 font-bold ${pos.side === 'LONG' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {pos.side}
+                      </td>
+                      <td className="py-1 px-2 text-slate-800">{pos.size}</td>
+                      <td className="py-1 px-2 text-slate-600">${pos.entry.toFixed(2)}</td>
+                      <td className="py-1 px-2 text-slate-900 font-bold">${stats.lastPrice.toFixed(2)}</td>
+                      <td className="py-1 px-2 text-emerald-600 font-bold">{pos.pnl} ({pos.pnlPercent})</td>
+                      <td className="py-1 px-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setPositions(positions.filter((p) => p.id !== pos.id))}
+                          className="px-1.5 py-0.2 text-[9px] rounded bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 font-bold transition-colors cursor-pointer"
+                        >
+                          Cerrar
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -333,143 +846,90 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             </div>
           </div>
 
+          {/* MÓVIL (< 1024px): PESTAÑAS Y CONTROLES INFERIORES */}
+          <div className="terminal-mobile-controls">
+            {/* BARRA DE PESTAÑAS TÁCTILES INFERIORES */}
+            <div className="h-10 border-y border-[#ded5c5] bg-white shrink-0 flex">
+              <button
+                type="button"
+                onClick={() => setMobileTab('order')}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-black transition-colors ${
+                  mobileTab === 'order'
+                    ? 'border-b-2 border-amber-500 text-slate-950 bg-amber-50/50'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span>{isEs ? 'Operar' : 'Trade'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('book')}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-black transition-colors ${
+                  mobileTab === 'book'
+                    ? 'border-b-2 border-amber-500 text-slate-950 bg-amber-50/50'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-slate-600" />
+                <span>Order Book</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('positions')}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-black transition-colors ${
+                  mobileTab === 'positions'
+                    ? 'border-b-2 border-amber-500 text-slate-950 bg-amber-50/50'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-slate-600" />
+                <span>{isEs ? `Posiciones (${positions.length})` : `Positions (${positions.length})`}</span>
+              </button>
+            </div>
+
+            {/* MÓVIL: VISTA ACTIVA DE LA PESTAÑA INFERIOR */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-2.5 bg-[#fbf9f4]">
+              {mobileTab === 'order' && renderOrderFormContent()}
+              {mobileTab === 'book' && renderOrderBookContent()}
+              {mobileTab === 'positions' && (
+                <div className="p-2 rounded-xl bg-white border border-[#ded5c5] shadow-xs">
+                  {positions.map((pos) => (
+                    <div key={pos.id} className="p-2 border-b border-slate-100 last:border-b-0 flex items-center justify-between font-mono text-xs">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-slate-900">{pos.symbol}</span>
+                          <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${pos.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                            {pos.side}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Entrada: ${pos.entry} • Tam: {pos.size}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-emerald-600 font-bold">{pos.pnl}</div>
+                        <button
+                          type="button"
+                          onClick={() => setPositions(positions.filter((p) => p.id !== pos.id))}
+                          className="text-[10px] text-red-600 font-bold hover:underline cursor-pointer mt-0.5"
+                        >
+                          {isEs ? 'Cerrar' : 'Close'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
-        {/* LADO DERECHO: ORDER ENTRY WIDGET & ORDER BOOK */}
-        <div className="lg:col-span-3 flex flex-col bg-[#fbf9f4] p-4 border-t lg:border-t-0 overflow-y-auto no-scrollbar">
-          
-          {/* SELECTOR COMPRA / VENTA */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#ede5d6] mb-4">
-            <button
-              type="button"
-              onClick={() => setSide('buy')}
-              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                side === 'buy'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-800 hover:text-emerald-700'
-              }`}
-            >
-              {isEs ? 'Comprar / Long' : 'Buy / Long'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSide('sell')}
-              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                side === 'sell'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-slate-800 hover:text-red-700'
-              }`}
-            >
-              {isEs ? 'Vender / Short' : 'Sell / Short'}
-            </button>
-          </div>
-
-          {/* TOGGLE MARKET / LIMIT */}
-          <div className="flex items-center justify-between text-xs mb-3">
-            <span className="font-bold text-slate-700">{isEs ? 'Tipo de Orden' : 'Order Type'}</span>
-            <div className="flex gap-1 bg-white p-0.5 rounded-lg border border-[#ded5c5]">
-              <button
-                type="button"
-                onClick={() => setOrderType('market')}
-                className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  orderType === 'market' ? 'bg-[#eab308] text-slate-950' : 'text-slate-600'
-                }`}
-              >
-                Market
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderType('limit')}
-                className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  orderType === 'limit' ? 'bg-[#eab308] text-slate-950' : 'text-slate-600'
-                }`}
-              >
-                Limit
-              </button>
-            </div>
-          </div>
-
-          {/* FORMULARIO DE ORDEN */}
-          <form onSubmit={handlePlaceOrder} className="flex flex-col gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {isEs ? 'Monto (USDT)' : 'Amount (USDT)'}
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-[#ded5c5] text-xs font-mono font-bold text-slate-950 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-
-            {/* APALANCAMIENTO */}
-            <div>
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
-                <span>{isEs ? 'Apalancamiento' : 'Leverage'}</span>
-                <span className="font-mono text-amber-800">{leverage}x</span>
-              </div>
-              <input 
-                type="range" 
-                min="1" 
-                max="50" 
-                value={leverage} 
-                onChange={(e) => setLeverage(parseInt(e.target.value))}
-                className="w-full accent-amber-500 cursor-pointer"
-              />
-            </div>
-
-            {/* BOTÓN EJECUTAR */}
-            <button
-              type="submit"
-              className={`w-full py-3 rounded-2xl text-xs sm:text-sm font-black text-slate-950 shadow-md transition-all transform hover:scale-[1.02] active:scale-98 cursor-pointer flex items-center justify-center gap-2 mt-2 ${
-                side === 'buy' ? 'bg-[#eab308] hover:bg-[#ca8a04]' : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-            >
-              <Zap className="w-4 h-4 stroke-[2.5] fill-current" />
-              <span>
-                {side === 'buy' 
-                  ? (isEs ? `Abrir Long (${leverage}x)` : `Open Long (${leverage}x)`)
-                  : (isEs ? `Abrir Short (${leverage}x)` : `Open Short (${leverage}x)`)}
-              </span>
-            </button>
-          </form>
-
-          {orderSuccess && (
-            <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center animate-zoom-in">
-              {orderSuccess}
-            </div>
-          )}
-
-          {/* MINI LIBRO DE ÓRDENES (DEPTH) */}
-          <div className="mt-6 pt-4 border-t border-[#ded5c5]">
-            <span className="text-[11px] font-mono font-black text-slate-500 uppercase tracking-wider block mb-2">
-              {isEs ? 'Libro de Órdenes en Vivo' : 'Live Order Book'}
-            </span>
-            <div className="flex flex-col gap-1 text-[11px] font-mono">
-              <div className="flex justify-between text-red-600">
-                <span>68,454.50</span>
-                <span>0.84 BTC</span>
-              </div>
-              <div className="flex justify-between text-red-600">
-                <span>68,452.00</span>
-                <span>1.42 BTC</span>
-              </div>
-              <div className="flex justify-between font-black text-slate-950 py-1 border-y border-slate-200 bg-white px-1 rounded">
-                <span>68,450.20</span>
-                <span>Spread: $0.50</span>
-              </div>
-              <div className="flex justify-between text-emerald-600">
-                <span>68,449.70</span>
-                <span>2.10 BTC</span>
-              </div>
-              <div className="flex justify-between text-emerald-600">
-                <span>68,448.00</span>
-                <span>0.95 BTC</span>
-              </div>
-            </div>
-          </div>
-
+        {/* DESKTOP: PANEL LATERAL ESTRECHO (280px) */}
+        <div className="terminal-desktop-sidebar no-scrollbar">
+          {renderOrderBookContent()}
+          {renderOrderFormContent()}
         </div>
 
       </div>

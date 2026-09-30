@@ -99,3 +99,23 @@ Todo componente y pantalla de ZYTI Trade debe diseñarse bajo la estricta metodo
    - En móvil, adaptadas para no salirse de los límites de pantalla (`relative sm:absolute`).
 3. **Barra de Progreso Inferior Dinámica:**
    - Indicador dinámico de avance (`((activeSection + 1) / TOTAL_SCREENS) * 100%`).
+
+---
+
+## 6. GOBERNANZA ESTRICTA DE RESOLUCIONES DE ESCRITORIO (>= 1024px)
+
+> **REGLA DE ORO INVIOLABLE:**
+> **Toda pantalla o ventana con ancho igual o superior a 1024px (`>= 1024px`) ES ESCRITORIO INSTITUCIONAL OBLIGATORIO.**
+
+### A. Reglas Mandatarias para la Trading Terminal en Escritorio (>= 1024px):
+1. **Layout Dividido Horizontal Permanente:**
+   - A la izquierda: **Gráfico KLineCharts Dominante** (`flex-1`, ocupando entre el 78% y 82% del ancho de pantalla).
+   - A la derecha: **Panel Lateral Estrecho de Trading** con ancho fijo estricto (`w-[270px]` a `w-[290px]`), alojando el Order Book L2 compacto y el widget de ejecución de órdenes sin saturar la pantalla.
+   - En la base izquierda: **Panel de Posiciones y Órdenes** con altura compacta (`h-32` a `h-36`).
+2. **Prohibición Terminante de Controles Móviles en Escritorio:**
+   - Queda estrictamente prohibido renderizar pestañas táctiles móviles (*Operar / Order Book / Posiciones*) o layouts de columna única apilada en resoluciones `>= 1024px`.
+3. **Blindaje de Estilos con Media Queries Explícitas:**
+   - Para evitar inconsistencias de especificidad o fallos de compilación en utilidades de Tailwind, se deben blindar las reglas de escritorio en CSS puro con `@media (min-width: 1024px)` y `!important` en las clases estructurales:
+     - `.terminal-desktop-sidebar`: Visible exclusivamente en `>= 1024px`.
+     - `.terminal-mobile-controls`: Oculto estrictamente (`display: none !important`) en `>= 1024px`.
+
