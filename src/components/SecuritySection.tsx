@@ -40,7 +40,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-20 lg:pt-22 pb-8 lg:pb-10 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-14 sm:pt-16 lg:pt-18 pb-3 lg:pb-5 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -63,15 +63,15 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
             </div>
 
             {/* ANIMACIÓN LOTTIE OFICIAL (ESCUDO Y ENCLAVE SEGURO, 100% TRANSPARENTE) */}
-            <div className="mt-3 flex items-center justify-center bg-transparent border-none">
+            <div className="mt-2 sm:mt-2.5 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={securityShieldData} 
-                className="w-28 h-28 sm:w-36 sm:h-36 lg:w-52 lg:h-52" 
+                className="w-14 h-14 sm:w-16 sm:h-16 lg:w-28 lg:h-28 xl:w-32 xl:h-32" 
               />
             </div>
 
             {/* BOTÓN CTA ACTIVO */}
-            <div className="mt-3 flex items-center">
+            <div className="mt-2 sm:mt-2.5 flex items-center">
               <button 
                 className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
               >

@@ -11,6 +11,7 @@ import { PropFirmLogo } from './PropFirmLogo';
 import { LottieAnimation } from './LottieAnimation';
 import exchangeRadarData from '../assets/animations/exchange-radar.json';
 import servicesAnimationData from '../assets/animations/services-network.json';
+import propFirmsAnimationData from '../assets/animations/propfirms.json';
 
 interface NavbarProps {
   currentLang: Language;
@@ -118,8 +119,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
-      <div className={`hidden lg:flex items-center transition-all duration-300 font-bold ${
-        isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
+      <div className={`hidden lg:flex items-center gap-8 transition-all duration-300 font-bold text-sm ${
+        isShifted ? '' : ''
       } text-slate-950`}>
         
         {/* PANTALLA 1: EXCHANGES */}
@@ -299,7 +300,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="flex gap-6 items-center">
+                <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
+                  <LottieAnimation animationData={propFirmsAnimationData} className="w-48 h-48" />
+                </div>
+
+                <div className="flex-1 grid grid-cols-3 gap-3">
                 {/* COLUMNA 1 */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
@@ -379,6 +385,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
             </div>
+          </div>
           )}
         </div>
 
