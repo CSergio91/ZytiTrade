@@ -69,43 +69,43 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ currentLang, isAct
               onClick={() => onNavigateSection(0)} 
               className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              01. Inicio / Terminal OS
+              {currentLang === 'es' ? 'Inicio / Terminal OS' : 'Home / Terminal OS'}
             </button>
             <button 
               onClick={() => onNavigateSection(1)} 
               className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              02. {navT.exchanges} (16 Venues)
+              {navT.exchanges} (16 Venues)
             </button>
             <button 
               onClick={() => onNavigateSection(2)} 
               className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              03. {navT.propFirms || 'Prop Firms'} (16 Firmas)
+              {navT.propFirms || 'Prop Firms'} (16 Firmas)
             </button>
             <button 
               onClick={() => onNavigateSection(3)} 
               className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              04. {navT.services}
+              {navT.services}
             </button>
             <button 
               onClick={() => onNavigateSection(4)} 
               className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              05. {navT.pricing || 'Precios'}
+              {navT.pricing || 'Precios'}
             </button>
             <button 
               onClick={() => onNavigateSection(5)} 
               className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              06. {navT.security}
+              {navT.security}
             </button>
             <button 
               onClick={() => onNavigateSection(6)} 
               className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              07. {navT.download} & Apps
+              {navT.download} & Apps
             </button>
           </div>
 

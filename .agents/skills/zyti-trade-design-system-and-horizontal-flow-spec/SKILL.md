@@ -51,15 +51,13 @@ Todo componente y pantalla de ZYTI Trade debe diseñarse bajo la estricta metodo
 
 ### C. Navegación Móvil Táctil (Drawer & Menú Hamburguesa)
 - **Ocultamiento de Menús Hover en Móvil:** Los dropdowns masivos de 15 items por hover de escritorio quedan terminantemente prohibidos en pantallas táctiles (`hidden lg:flex`).
-- **Header Móvil Compacto (`lg:hidden`):**
-  - Logo institucional ZYTI Trade.
-  - Conmutador rápido de idioma (ES / EN).
-  - Botón de Menú Hamburguesa táctil (`Menu` / `X` de Lucide) con target mínimo de 44x44px.
-- **Drawer / Hoja de Navegación Lateral:**
-  - Despliegue con desenfoque de cristal (`bg-[#fbf9f4]/98 backdrop-blur-xl`).
-  - Lista táctil de las 8 secciones numeradas (`01` a `08`), resaltando la pantalla activa.
-  - Al pulsar cualquier opción, se ejecuta `onNavigateSection(index)` y se cierra el menú con animación suave.
-  - Botón CTA prominente «Operar Ahora» en la parte inferior.
+- **Exclusividad del Menú Hamburguesa en Móvil (`md:hidden`):**
+  - El menú de hamburguesa está estrictamente reservado a pantallas móviles (`< 768px`). En resoluciones de escritorio o laptops jamás debe mostrarse el menú de hamburguesa.
+  - En la barra superior de móvil se ubica únicamente el logotipo institucional a la izquierda y el botón de hamburguesa a la derecha (sin selector de idioma exterior para evitar duplicidades).
+- **Selector de Idioma Centralizado en Móvil:**
+  - El selector de idioma (Español / English) se aloja exclusivamente en la cabecera interna del Drawer táctil móvil, con botones de conmutación de alto contraste.
+- **Prohibición de Prefijos Numéricos en Enlaces:**
+  - Queda estrictamente prohibido anteponer números correlativos (`01.`, `02.`, etc.) tanto en los enlaces del menú móvil como en la columna de secciones del Footer institucional. Los enlaces deben mostrar exclusivamente sus nombres limpios (ej. *Inicio / Terminal OS*, *Exchanges (16 Venues)*, *Prop Firms (16 Firmas)*, *Servicios*, *Precios*, *Seguridad*, *Descargar & Apps*).
 
 ### D. Escala Tipográfica Fluida
 - Títulos principales en móvil: `text-3xl sm:text-5xl lg:text-[66px]` (nunca forzar `text-6xl` directo en pantallas de 360-390px).

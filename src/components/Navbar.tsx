@@ -119,8 +119,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
-      <div className={`hidden lg:flex items-center transition-all duration-300 font-bold ${
-        isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
+      <div className={`hidden md:flex items-center transition-all duration-300 font-bold ${
+        isShifted ? 'gap-2 lg:gap-5 text-xs' : 'gap-3 lg:gap-8 text-xs lg:text-sm'
       } text-slate-950`}>
         
         {/* PANTALLA 1: EXCHANGES */}
@@ -556,40 +556,64 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* 3. CONTROLES MÓVILES (IDIOMA + BOTÓN HAMBURGUESA) */}
-      <div className="lg:hidden flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onLanguageChange(currentLang === 'es' ? 'en' : 'es')}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#ede5d6] text-slate-950 font-bold text-xs border border-[#ded5c5] cursor-pointer"
-          title="Cambiar idioma"
-        >
-          <Globe className="w-3.5 h-3.5 text-slate-700" />
-          <span className="uppercase">{currentLang}</span>
-        </button>
-
+      {/* 3. CONTROLES MÓVILES (SOLO EN MÓVIL < 768px, SIN IDIOMA REPETIDO EN LA BARRA) */}
+      <div className="md:hidden flex items-center">
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-xl bg-[#ede5d6] text-slate-950 border border-[#ded5c5] flex items-center justify-center cursor-pointer shadow-sm"
+          className="p-2.5 rounded-xl bg-[#ede5d6] text-slate-950 border border-[#ded5c5] flex items-center justify-center cursor-pointer shadow-sm active:scale-95 transition-transform"
           aria-label="Menú de navegación"
         >
           {mobileMenuOpen ? <X className="w-5 h-5 text-slate-950" /> : <Menu className="w-5 h-5 text-slate-950" />}
         </button>
       </div>
 
-      {/* 4. DRAWER / MODAL TÁCTIL MÓVIL FULL-WIDTH */}
+      {/* 4. DRAWER / MODAL TÁCTIL MÓVIL (SOLO EN MÓVIL, IDIOMA INTEGRADO, SIN NÚMEROS) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-3 top-16 sm:top-20 z-50 lg:hidden warm-card rounded-3xl p-5 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-x-3 top-16 sm:top-20 z-50 md:hidden warm-card rounded-3xl p-5 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar">
+          
+          {/* SELECTOR DE IDIOMA INTEGRADO DENTRO DEL MENÚ MÓVIL */}
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#ede8df]">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-slate-700" />
+              <span>{currentLang === 'es' ? 'Idioma' : 'Language'}</span>
+            </span>
+            <div className="flex items-center gap-1 bg-[#ede5d6] p-1 rounded-xl border border-[#ded5c5]">
+              <button
+                type="button"
+                onClick={() => onLanguageChange('es')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentLang === 'es'
+                    ? 'bg-[#0f172a] text-white shadow-sm'
+                    : 'text-slate-800 hover:text-black'
+                }`}
+              >
+                Español
+              </button>
+              <button
+                type="button"
+                onClick={() => onLanguageChange('en')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentLang === 'en'
+                    ? 'bg-[#0f172a] text-white shadow-sm'
+                    : 'text-slate-800 hover:text-black'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          </div>
+
+          {/* LISTA DE SECCIONES LIMPIA (SIN NÚMEROS) */}
           <div className="flex flex-col gap-2">
             {[
-              { num: '01', title: currentLang === 'es' ? 'Inicio / Terminal OS' : 'Home / Terminal OS', idx: 0 },
-              { num: '02', title: `${t.nav.exchanges} (16 Venues)`, idx: 1 },
-              { num: '03', title: `${t.nav.propFirms || 'Prop Firms'} (16 Firmas)`, idx: 2 },
-              { num: '04', title: t.nav.services, idx: 3 },
-              { num: '05', title: t.nav.pricing || 'Precios', idx: 4 },
-              { num: '06', title: t.nav.security, idx: 5 },
-              { num: '07', title: `${t.nav.download} & Apps`, idx: 6 },
+              { title: currentLang === 'es' ? 'Inicio / Terminal OS' : 'Home / Terminal OS', idx: 0 },
+              { title: `${t.nav.exchanges} (16 Venues)`, idx: 1 },
+              { title: `${t.nav.propFirms || 'Prop Firms'} (16 Firmas)`, idx: 2 },
+              { title: t.nav.services, idx: 3 },
+              { title: t.nav.pricing || 'Precios', idx: 4 },
+              { title: t.nav.security, idx: 5 },
+              { title: `${t.nav.download} & Apps`, idx: 6 },
             ].map(item => (
               <button
                 key={item.idx}
@@ -605,7 +629,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <span>{item.title}</span>
-                <span className="font-mono text-xs opacity-75">{item.num}</span>
               </button>
             ))}
 
