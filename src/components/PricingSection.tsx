@@ -153,8 +153,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
                   </div>
 
                   {/* BOTÓN CTA */}
-                  <button
-                    className={`w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  <button onClick={onOpenAuth} type="button" className={`w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       plan.isPopular
                         ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md'
                         : 'bg-slate-950 hover:bg-slate-800 text-white shadow-sm'
