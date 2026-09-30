@@ -30,7 +30,7 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema Claro (Platino Soft Slate) / Oscuro (Obsidian)
+  // 2. Tema Claro (Blanco Puro Limpio) / Oscuro (Obsidian)
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
@@ -62,11 +62,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="relative min-h-screen font-sans selection:bg-blue-600 selection:text-white">
-      {/* 1. GRÁFICO DE FONDO TRADINGVIEW: PLATINO SUAVE O DARK OBSIDIAN */}
+      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: BLANCO PURO O DARK OBSIDIAN */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. OVERLAY SUPERIOR: EN MODO CLARO ES PLATINO TRASLÚCIDO MATE, NO BLANCO CLÍNICO */}
-      <div className="relative z-10 min-h-screen bg-slate-200/30 dark:bg-slate-950/70 backdrop-blur-[6px] transition-colors duration-300">
+      {/* 2. OVERLAY SUPERIOR: BLANCO TRASLÚCIDO LIMPIO Y CRISTALINO */}
+      <div className="relative z-10 min-h-screen bg-white/45 dark:bg-slate-950/70 backdrop-blur-[5px] transition-colors duration-250">
         {/* BARRA DE NAVEGACIÓN */}
         <Navbar 
           currentLang={currentLang} 
