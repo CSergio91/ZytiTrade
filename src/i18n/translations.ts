@@ -4,12 +4,40 @@ export const translations = {
   es: {
     nav: {
       exchanges: 'Exchanges',
+      propFirms: 'Prop Firms',
       services: 'Servicios',
       security: 'Seguridad',
       pricing: 'Precios',
       download: 'Descargar',
       signIn: 'Operar Ahora',
       launchTerminal: 'Operar Ahora',
+    },
+    propFirmsMenu: {
+      title: 'Directorio de Prop Firms Auditadas',
+      subtitle: 'Firmas de fondeo líderes compatibles con la terminal ZYTI Trade (alimentación dinámica)',
+      col1Title: 'Líderes Mundiales',
+      col2Title: 'Flexibles & Algorítmicas',
+      col3Title: 'Futuros & Especializadas',
+      firms: [
+        // Columna 1 (5 items)
+        { name: 'FTMO', desc: 'Praga • Cuentas hasta $200k • 90% Split', badge: 'Tier 1', country: 'CZ', split: '90%' },
+        { name: 'FundedNext', desc: 'EAU • 15% Ganancia en Reto • Stellar', badge: 'Popular', country: 'AE', split: '90%' },
+        { name: 'We Master Trade', desc: 'Fondeo Inmediato y desafíos 1-Fase', badge: 'Instant', country: 'US', split: '80%' },
+        { name: 'The 5%ers', desc: 'UK • Cuentas hasta $4M • Bootcamp', badge: 'Direct', country: 'UK', split: '100%' },
+        { name: 'Funding Pips', desc: 'Dubai • Pagos cada 5 días • Crypto', badge: 'Bajos Spreads', country: 'AE', split: '90%' },
+        // Columna 2 (5 items)
+        { name: 'E8 Markets', desc: 'USA • E8 Track • Retiro en 8 días', badge: 'Flexible', country: 'US', split: '80%' },
+        { name: 'Alpha Capital', desc: 'UK • 0% Comisiones • MT5 institucional', badge: 'Sin Comisión', country: 'UK', split: '80%' },
+        { name: 'Goat Funded Trader', desc: 'Sin límite de tiempo • 95% Split', badge: 'No Time Limit', country: 'ES', split: '95%' },
+        { name: 'AquaFunded', desc: 'Hasta 90% Payout • Retiros cripto en 24h', badge: 'Rápido', country: 'AE', split: '90%' },
+        { name: 'MyFundedFX', desc: 'Desafíos 1 y 2 Fases • Cripto & Forex', badge: 'Multi-Asset', country: 'US', split: '80%' },
+        // Columna 3 (5 items)
+        { name: 'Topstep', desc: 'Chicago • Futuros CME • Combine oficial', badge: 'Futuros', country: 'US', split: '90%' },
+        { name: 'Apex Trader Funding', desc: 'USA • Contratos NinjaTrader & Tradovate', badge: 'Futuros', country: 'US', split: '90%' },
+        { name: 'Global City Funding', desc: 'Integración Nativa ZYTI • Fondeo Inmediato', badge: 'Nativa ZYTI', country: 'Global', split: '90%' },
+        { name: 'FunderPro', desc: 'Liquidez STP directa • Cuentas reales', badge: 'STP Real', country: 'MT', split: '80%' },
+        { name: 'City Traders Imperium', desc: 'Londres • Cartera y gestión institucional', badge: 'Portafolio', country: 'UK', split: '80%' },
+      ]
     },
     exchangesMenu: {
       title: 'Exchanges Soportados',
@@ -251,12 +279,40 @@ export const translations = {
   en: {
     nav: {
       exchanges: 'Exchanges',
+      propFirms: 'Prop Firms',
       services: 'Services',
       security: 'Security',
       pricing: 'Pricing',
       download: 'Download',
       signIn: 'Sign in',
       launchTerminal: 'Launch Terminal',
+    },
+        propFirmsMenu: {
+      title: 'Audited Prop Firms Directory',
+      subtitle: 'Top industry prop trading firms benchmarked for ZYTI Trade execution (dynamic feed)',
+      col1Title: 'Global Leaders',
+      col2Title: 'Flexible & Algo',
+      col3Title: 'Futures & Specialized',
+      firms: [
+        // Column 1 (5 items)
+        { name: 'FTMO', desc: 'Prague • Up to $200k capital • 90% Split', badge: 'Tier 1', country: 'CZ', split: '90%' },
+        { name: 'FundedNext', desc: 'UAE • 15% Profit share on challenge • Stellar', badge: 'Popular', country: 'AE', split: '90%' },
+        { name: 'We Master Trade', desc: 'Instant funding & 1-step challenges', badge: 'Instant', country: 'US', split: '80%' },
+        { name: 'The 5%ers', desc: 'UK • Scale up to $4M • Bootcamp model', badge: 'Direct', country: 'UK', split: '100%' },
+        { name: 'Funding Pips', desc: 'Dubai • 5-day payouts • Crypto & FX', badge: 'Low Spreads', country: 'AE', split: '90%' },
+        // Column 2 (5 items)
+        { name: 'E8 Markets', desc: 'USA • E8 Track • 8-day payout cycle', badge: 'Flexible', country: 'US', split: '80%' },
+        { name: 'Alpha Capital', desc: 'UK • 0% commissions • Institutional MT5', badge: 'Zero Comms', country: 'UK', split: '80%' },
+        { name: 'Goat Funded Trader', desc: 'No time limits • 95% profit split', badge: 'No Time Limit', country: 'ES', split: '95%' },
+        { name: 'AquaFunded', desc: 'Up to 90% payout • Same day crypto payouts', badge: 'Fast Payout', country: 'AE', split: '90%' },
+        { name: 'MyFundedFX', desc: '1 & 2 Step challenges • Crypto & FX', badge: 'Multi-Asset', country: 'US', split: '80%' },
+        // Column 3 (5 items)
+        { name: 'Topstep', desc: 'Chicago • CME Futures • Official Combine', badge: 'Futures', country: 'US', split: '90%' },
+        { name: 'Apex Trader Funding', desc: 'USA • NinjaTrader & Tradovate contracts', badge: 'Futures', country: 'US', split: '90%' },
+        { name: 'Global City Funding', desc: 'Native ZYTI integration • Instant capital', badge: 'ZYTI Native', country: 'Global', split: '90%' },
+        { name: 'FunderPro', desc: 'Direct STP liquidity • Real funded accounts', badge: 'Real STP', country: 'MT', split: '80%' },
+        { name: 'City Traders Imperium', desc: 'London • Institutional desk portfolio', badge: 'Portfolio', country: 'UK', split: '80%' },
+      ]
     },
     exchangesMenu: {
       title: 'Supported Exchanges',

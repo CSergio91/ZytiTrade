@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
+import { PropFirmLogo } from './PropFirmLogo';
 import { LottieAnimation } from './LottieAnimation';
 import exchangeRadarData from '../assets/animations/exchange-radar.json';
 import servicesAnimationData from '../assets/animations/services-network.json';
@@ -25,12 +26,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateSection
 }) => {
   const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [propFirmsOpen, setPropFirmsOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
   // Timers con margen de gracia (debounce) para que el menú nunca se cierre por movimientos accidentales
   const exchangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const propFirmsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const servicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePropFirmsEnter = () => {
+    if (propFirmsTimeoutRef.current) clearTimeout(propFirmsTimeoutRef.current);
+    setPropFirmsOpen(true);
+  };
+
+  const handlePropFirmsLeave = () => {
+    propFirmsTimeoutRef.current = setTimeout(() => {
+      setPropFirmsOpen(false);
+    }, 220);
+  };
 
   const handleExchangeEnter = () => {
     if (exchangeTimeoutRef.current) clearTimeout(exchangeTimeoutRef.current);
@@ -62,6 +76,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const col1 = venues.slice(0, 5);
   const col2 = venues.slice(5, 10);
   const col3 = venues.slice(10, 15);
+
+  // 15 Prop Firms divididas en 3 columnas de 5 items cada una
+  const propFirms = t.propFirmsMenu?.firms || [];
+  const pfCol1 = propFirms.slice(0, 5);
+  const pfCol2 = propFirms.slice(5, 10);
+  const pfCol3 = propFirms.slice(10, 15);
 
   const servicesList = [
     t.servicesMenu.propFirms,
@@ -234,6 +254,130 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 </div>
 
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* MENU PROP FIRMS (DIRECTORIO AUDITADO DE FONDEO) */}
+        <div 
+          className="relative py-2"
+          onMouseEnter={handlePropFirmsEnter}
+          onMouseLeave={handlePropFirmsLeave}
+        >
+          <button 
+            type="button"
+            onClick={() => onNavigateSection(2)}
+            className="flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none text-slate-950 hover:text-blue-600"
+          >
+            <span>{t.nav.propFirms}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
+          </button>
+
+          {/* POPOVER CON CRISTAL LUMINOSO PARA PROP FIRMS */}
+          {propFirmsOpen && (
+            <div 
+              onMouseEnter={handlePropFirmsEnter}
+              onMouseLeave={handlePropFirmsLeave}
+              className="absolute top-full left-0 mt-1 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-2xl before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']"
+            >
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
+                <div>
+                  <h4 className="text-sm font-black text-slate-950">
+                    {t.propFirmsMenu?.title || 'Directorio de Prop Firms Auditadas'}
+                  </h4>
+                  <p className="text-xs text-slate-600 font-medium">
+                    {t.propFirmsMenu?.subtitle || 'Firmas líderes de fondeo compatibles con ZYTI Trade'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { onNavigateSection(2); setPropFirmsOpen(false); }}
+                  className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
+                >
+                  {currentLang === 'es' ? 'Ver comparador de fondeo →' : 'View prop firm comparator →'}
+                </button>
+              </div>
+
+              {/* 3 COLUMNAS DE 5 PROP FIRMS CADA UNA */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* COLUMNA 1 */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
+                    {t.propFirmsMenu?.col1Title || 'Líderes Mundiales'}
+                  </span>
+                  {pfCol1.map((firm, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => { onNavigateSection(2); setPropFirmsOpen(false); }}
+                      className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
+                    >
+                      <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                        <PropFirmLogo name={firm.name} size={26} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                          {firm.name}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                          {firm.desc}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* COLUMNA 2 */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
+                    {t.propFirmsMenu?.col2Title || 'Flexibles & Algorítmicas'}
+                  </span>
+                  {pfCol2.map((firm, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => { onNavigateSection(2); setPropFirmsOpen(false); }}
+                      className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
+                    >
+                      <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                        <PropFirmLogo name={firm.name} size={26} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                          {firm.name}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                          {firm.desc}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* COLUMNA 3 */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
+                    {t.propFirmsMenu?.col3Title || 'Futuros & Especializadas'}
+                  </span>
+                  {pfCol3.map((firm, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => { onNavigateSection(2); setPropFirmsOpen(false); }}
+                      className="group p-2.5 rounded-2xl transition-all duration-150 cursor-pointer flex items-center gap-3 border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
+                    >
+                      <div className="shrink-0 transition-transform duration-150 group-hover:scale-110">
+                        <PropFirmLogo name={firm.name} size={26} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black text-slate-950 group-hover:text-blue-600 transition-colors truncate">
+                          {firm.name}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate">
+                          {firm.desc}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
