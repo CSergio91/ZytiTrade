@@ -62,16 +62,16 @@ export const DownloadSection: React.FC<DownloadSectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-18 lg:pt-20 pb-2 sm:pb-3 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-6xl mx-auto">
         
         {/* CABECERA EDITORIAL */}
-        <div className={`max-w-2xl mb-8 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+        <div className={`max-w-2xl mb-3 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
             <Download className="w-3.5 h-3.5" />
             <span>{t.tag}</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-950 dark:text-white tracking-tight">
             {t.title}
           </h2>
           <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-200 font-medium mt-2 leading-relaxed">
@@ -80,14 +80,14 @@ export const DownloadSection: React.FC<DownloadSectionProps> = ({ currentLang, i
         </div>
 
         {/* 3 PLATAFORMAS OFICIALES EN GRID 3 COLUMNAS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {platforms.map((plat, idx) => {
             const Icon = plat.icon;
             return (
               <div
                 key={plat.id}
                 style={{ animationDelay: `${idx * 90}ms` }}
-                className={`warm-card rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:border-slate-500 shadow-md ${
+                className={`warm-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:border-slate-500 shadow-md ${
                   isActive ? 'animate-card-in' : 'opacity-0'
                 }`}
               >

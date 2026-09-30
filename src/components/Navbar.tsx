@@ -3,7 +3,8 @@ import {
   ChevronDown, 
   Globe,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
@@ -650,8 +651,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onNavigateSection(0);
                 setMobileMenuOpen(false);
               }}
-              className="mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#0f172a] text-white font-black text-xs sm:text-sm shadow-md cursor-pointer transform active:scale-95 transition-transform"
+              className="mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-sm cursor-pointer transform active:scale-95 transition-transform"
             >
+              <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.nav.signIn}</span>
             </button>
           </div>

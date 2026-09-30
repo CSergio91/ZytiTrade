@@ -17,7 +17,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
   const displayPlans = t.plans.filter(p => p.id !== 'enterprise').slice(0, 3);
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-18 lg:pt-20 pb-2 sm:pb-3 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
@@ -34,7 +34,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
               </div>
 
               {/* TÍTULO Y SUBTÍTULO */}
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight leading-tight">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-950 tracking-tight leading-tight">
                 {t.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-900 font-medium mt-2 leading-relaxed">
@@ -72,13 +72,13 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
             <div className="mt-2 sm:mt-2.5 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={pricingAnimationData} 
-                className="w-14 h-14 sm:w-16 sm:h-16 lg:w-28 lg:h-28 xl:w-32 xl:h-32" 
+                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 xl:w-20 xl:h-20" 
               />
             </div>
           </div>
 
           {/* LADO DERECHO (8 COLUMNAS): 3 PLANES DE SUSCRIPCIÓN EN GRID EQUILIBRADO */}
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
             {displayPlans.map((plan, idx) => {
               const price = isAnnual ? plan.priceAnnual : plan.priceMonthly;
               const isCustom = typeof price === 'string';
@@ -87,7 +87,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
                 <div
                   key={plan.id}
                   style={{ animationDelay: `${idx * 75}ms` }}
-                  className={`warm-card rounded-3xl p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-md relative ${
+                  className={`warm-card rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-md relative ${
                     plan.isPopular 
                       ? 'border-2 border-indigo-600 shadow-indigo-500/10' 
                       : 'hover:border-slate-500'
@@ -113,14 +113,14 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-900 leading-snug font-medium mb-4 min-h-[38px]">
+                    <p className="text-xs text-slate-900 leading-snug font-medium mb-4 ">
                       {plan.desc}
                     </p>
 
                     {/* PRECIO */}
-                    <div className="pb-4 mb-4 border-t border-b border-[#ede8df] pt-3">
+                    <div className="pb-2 mb-2 border-t border-b border-[#ede8df] pt-1.5">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
+                        <span className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
                           {isCustom ? price : `$${price}`}
                         </span>
                         {!isCustom && (
@@ -137,7 +137,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
                     </div>
 
                     {/* LISTA DE CARACTERÍSTICAS INSTITUCIONALES */}
-                    <ul className="flex flex-col gap-2.5 mb-6">
+                    <ul className="flex flex-col gap-1.5 mb-3">
                       {plan.features.map((feat, fIdx) => (
                         <li key={fIdx} className="flex items-start gap-2 text-xs">
                           <div className="w-4 h-4 rounded-full bg-[#dcfce7] text-[#16a34a] flex items-center justify-center shrink-0 mt-0.5">

@@ -16,38 +16,33 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
   const t = translations[currentLang].hero;
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-18 lg:pt-20 pb-3 sm:pb-4 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-8 items-center animate-zoom-in">
         
         {/* COLUMNA IZQUIERDA */}
         <div className="lg:col-span-6 flex flex-col items-start z-10">
           
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-6">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
             {t.tag}
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.08] sm:leading-[1.06]">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-[58px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.08] sm:leading-[1.06]">
             {t.headlineStart}<br />
             <span className="text-gradient-purple font-black">{t.headlineHighlight}</span>
           </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
+          <p className="mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
             {t.subtitle}
           </p>
 
-          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-            <button className="flex items-center justify-center gap-2.5 px-7 py-3.5 text-sm font-bold text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+          <div className="mt-4 sm:mt-6 flex items-center">
+            <button className="flex items-center justify-center gap-2.5 px-7 py-3 text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
               <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.ctaPrimary}</span>
             </button>
-
-            <button className="flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-slate-900 dark:text-white bg-transparent hover:bg-slate-900/5 dark:hover:bg-white/5 rounded-2xl border border-slate-900 dark:border-slate-300 transition-all cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
-              <Eye className="w-4 h-4" />
-              <span>{t.ctaSecondary}</span>
-            </button>
           </div>
 
-          <div className="mt-8 flex items-center gap-3">
+          <div className="mt-4 sm:mt-5 flex items-center gap-3">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider mr-1">
               {t.connectorsLabel}
             </span>

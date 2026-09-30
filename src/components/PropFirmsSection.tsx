@@ -189,31 +189,31 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
   };
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-18 lg:pt-20 pb-2 sm:pb-3 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center">
           
           {/* LADO IZQUIERDO (4 COLUMNAS): CABECERA + ANIMACIÓN LOTTIE + CTA */}
           <div className={`lg:col-span-4 flex flex-col justify-between transition-all duration-500 ${
             isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
           }`}>
             <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] text-[#855e15] text-xs font-mono font-bold tracking-tight mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f4edd9] text-[#855e15] text-xs font-mono font-bold tracking-tight mb-1.5">
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 <span>{t.tag || '/prop-firms-auditadas'}</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight leading-tight">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-950 tracking-tight leading-tight">
                 {t.title}
               </h2>
-              <p className="text-xs sm:text-sm text-slate-800 font-medium mt-2 leading-relaxed">
+              <p className="text-xs text-slate-800 font-medium mt-1 line-clamp-2 leading-relaxed">
                 {t.subtitle}
               </p>
             </div>
 
             {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE */}
             <div className="mt-2 sm:mt-2.5 flex items-center justify-center bg-transparent border-none">
-              <LottieAnimation animationData={propFirmsAnimationData} className="w-14 h-14 sm:w-16 sm:h-16 lg:w-28 lg:h-28 xl:w-32 xl:h-32" />
+              <LottieAnimation animationData={propFirmsAnimationData} className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 xl:w-20 xl:h-20" />
             </div>
 
             {/* BOTÓN CTA ACTIVO */}
@@ -232,12 +232,12 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
           <div className="lg:col-span-8 flex flex-col justify-between gap-5">
             
             {/* GRID DE 4 CARDS HORIZONTALES GRANDES (2x2) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
               {currentFirms.map((firm, idx) => (
                 <div
                   key={firm.id}
                   style={{ animationDelay: `${idx * 50}ms` }}
-                  className={`warm-card rounded-3xl p-5 sm:p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-md ${
+                  className={`warm-card rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-md ${
                     isActive ? 'animate-card-in' : 'opacity-0'
                   }`}
                 >
@@ -245,12 +245,12 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
                     {/* CABECERA: LOGO + NOMBRE + PAÍS + SPLIT */}
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-[#f4ede0] flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-[#f4ede0] flex items-center justify-center shrink-0">
                           <PropFirmLogo name={firm.name} size={30} />
                         </div>
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-base sm:text-lg font-black text-slate-950 truncate">
+                            <h3 className="text-xs sm:text-sm font-black text-slate-950 truncate">
                               {firm.name}
                             </h3>
                             <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#ede5d6] text-slate-800">
@@ -279,12 +279,12 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
                   </div>
 
                   {/* PIE DE CARD: BOTÓN CREAR CUENTA */}
-                  <div className="pt-3.5 border-t border-[#ede8df] flex items-center justify-end">
+                  <div className="pt-2 border-t border-[#ede8df] flex items-center justify-end">
                     <a
                       href={firm.affiliateUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-slate-950 hover:bg-slate-800 text-white flex items-center justify-center gap-2 transition-all shadow-sm"
+                      className="w-full py-1.5 px-3 rounded-lg text-[11px] text-xs font-black bg-slate-950 hover:bg-slate-800 text-white flex items-center justify-center gap-2 transition-all shadow-sm"
                     >
                       <span className="!text-white">{isEs ? 'Crear Cuenta' : 'Create Account'}</span>
                       <ExternalLink className="w-3.5 h-3.5 text-white" />

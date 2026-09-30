@@ -40,7 +40,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-18 lg:pt-20 pb-2 sm:pb-3 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -54,7 +54,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>{t.tag}</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
                 {t.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-200 font-medium mt-2 leading-relaxed">
@@ -66,7 +66,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
             <div className="mt-2 sm:mt-2.5 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={securityShieldData} 
-                className="w-14 h-14 sm:w-16 sm:h-16 lg:w-28 lg:h-28 xl:w-32 xl:h-32" 
+                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 xl:w-20 xl:h-20" 
               />
             </div>
 
@@ -83,7 +83,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
           </div>
 
           {/* LADO DERECHO: 4 PILARES INSTITUCIONALES EN GRID 2x2 */}
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             {pillars.map((item, idx) => {
               const Icon = item.icon;
               return (
