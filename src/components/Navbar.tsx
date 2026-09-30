@@ -1,9 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   ChevronDown, 
-  Globe, 
-  Sun,
-  Moon
+  Globe
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
@@ -14,8 +12,8 @@ import servicesAnimationData from '../assets/animations/services-network.json';
 interface NavbarProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
-  theme: 'light' | 'dark';
-  onThemeToggle: () => void;
+  theme?: 'light' | 'dark';
+  onThemeToggle?: () => void;
   activeSection: number;
   onNavigateSection: (index: number) => void;
 }
@@ -364,25 +362,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
-        {/* THEME TOGGLE: 100% SIN BORDES */}
-        <button
-          onClick={onThemeToggle}
-          aria-label="Toggle Theme"
-          className={`rounded-xl transition-colors cursor-pointer flex items-center justify-center border-none bg-transparent ${
-            isShifted ? 'p-1.5' : 'p-2'
-          } ${
-            isLight 
-              ? 'text-amber-500 hover:bg-[#ede5d6]/50' 
-              : 'text-slate-200 hover:bg-slate-800/60'
-          }`}
-        >
-          {isLight ? (
-            <Sun className="w-4 h-4 fill-amber-500 text-amber-500" />
-          ) : (
-            <Moon className="w-4 h-4 text-blue-400" />
-          )}
-        </button>
-
         {/* SELECTOR IDIOMA: 100% SIN BORDES */}
         <div className="relative">
           <button 

@@ -34,21 +34,8 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  const getInitialTheme = (): 'light' | 'dark' => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('zyti_theme');
-      if (stored === 'dark') return 'dark';
-    }
-    return 'light';
-  };
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
-
-  const handleThemeToggle = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(nextTheme);
-    localStorage.setItem('zyti_theme', nextTheme);
-  };
+  // Light mode only - permanent institutional aesthetic
+  const theme: 'light' | 'dark' = 'light';
 
   const navigateToSection = (index: number) => {
     setActiveSection(index);
@@ -96,19 +83,17 @@ export const App: React.FC = () => {
   }, [currentLang]);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.body.style.backgroundColor = '#0a0d14';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body.style.backgroundColor = '#fbf9f4';
-    }
-  }, [theme]);
+    document.documentElement.classList.remove('dark');
+    document.body.style.backgroundColor = '#fbf9f4';
+    try {
+      localStorage.setItem('zyti_theme', 'light');
+    } catch (_) {}
+  }, []);
 
   const TOTAL_SCREENS = 7;
 
   return (
-    <div className={'relative h-screen w-screen overflow-hidden font-sans ' + (theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900')}>
+    <div className="relative h-screen w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
       {/* GRÁFICO DE FONDO */}
       <BackgroundTradingChart theme={theme} />
 
@@ -116,8 +101,6 @@ export const App: React.FC = () => {
       <Navbar 
         currentLang={currentLang} 
         onLanguageChange={handleLanguageChange}
-        theme={theme}
-        onThemeToggle={handleThemeToggle}
         activeSection={activeSection}
         onNavigateSection={navigateToSection}
       />
