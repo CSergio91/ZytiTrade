@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ChevronDown, Cpu, LayoutGrid, LogOut, Menu, Repeat } from 'lucide-react';
+import React from 'react';
+import { ChevronDown, Cpu, Menu } from 'lucide-react';
 import { UserSession } from '../../lib/supabase';
 import { MarketStats } from '../../workers/marketData.worker';
 
@@ -10,11 +10,11 @@ interface TerminalHeaderProps {
   supportedPairs: string[];
   stats: MarketStats;
   isMobileNavOpen: boolean;
-  activeSection: string;
-  onSelectSection: (section: 'none' | 'exchange' | string) => void;
+  activeSection?: string;
+  onSelectSection?: (section: 'none' | 'exchange' | string) => void;
   onSelectPair: (pair: string) => void;
   onToggleMobileNav: () => void;
-  onExit: () => void;
+  onExit?: () => void;
 }
 
 export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
@@ -23,86 +23,13 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   selectedPair,
   supportedPairs,
   stats,
-  isMobileNavOpen,
-  activeSection,
-  onSelectSection,
   onSelectPair,
-  onToggleMobileNav,
-  onExit
+  onToggleMobileNav
 }) => {
-  const [isTopNavOpen, setIsTopNavOpen] = useState(false);
-
   return (
     <header className="h-12 sm:h-14 border-b border-[#ded5c5] bg-[#fbf9f4] px-3 sm:px-4 flex items-center justify-between shrink-0 z-30">
-      {/* PARTE IZQUIERDA: VOLVER + NAVEGACIÓN SUPERIOR (DESKTOP) + SELECTOR DE PAR + PRECIO EN VIVO */}
+      {/* PARTE IZQUIERDA: SELECTOR DE PAR + PRECIO EN VIVO */}
       <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
-        {/* Botón de atrás: visible en escritorio (>= lg) */}
-        <button 
-          type="button"
-          onClick={onExit}
-          className="terminal-home-btn items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold border border-[#ded5c5] transition-all cursor-pointer shadow-xs shrink-0"
-          title={isEs ? 'Volver al Inicio' : 'Back to Home'}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isEs ? 'Inicio' : 'Home'}</span>
-        </button>
-
-        <div className="terminal-header-separator h-4 w-px bg-slate-300" />
-
-        {/* NAVEGACIÓN SUPERIOR EN ESCRITORIO (>= 1024px): MENÚ DE SECCIONES (HOVER O CLICK) */}
-        <div 
-          className="terminal-top-nav relative"
-          onMouseEnter={() => setIsTopNavOpen(true)}
-          onMouseLeave={() => setIsTopNavOpen(false)}
-        >
-          <button 
-            type="button"
-            onClick={() => setIsTopNavOpen(!isTopNavOpen)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${
-              activeSection === 'exchange' || isTopNavOpen
-                ? 'bg-amber-100 text-amber-950 border-amber-300'
-                : 'bg-white hover:bg-slate-100 text-slate-800 border-[#ded5c5]'
-            }`}
-            title={isEs ? 'Menú de navegación y secciones' : 'Navigation & sections menu'}
-          >
-            <LayoutGrid className="w-3.5 h-3.5 text-amber-600" />
-            <span>{isEs ? 'Navegación' : 'Navigation'}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isTopNavOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* MENÚ FLOTANTE AL HOVER O CLICK */}
-          {isTopNavOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-60 bg-white/95 backdrop-blur-xl border border-[#ded5c5] rounded-2xl shadow-2xl p-1.5 z-50 animate-zoom-in">
-              <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                {isEs ? 'Secciones ZYTI Trade' : 'ZYTI Trade Sections'}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectSection(activeSection === 'exchange' ? 'none' : 'exchange');
-                  setIsTopNavOpen(false);
-                }}
-                className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                  activeSection === 'exchange'
-                    ? 'bg-amber-100 text-amber-950 font-black'
-                    : 'text-slate-800 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Repeat className="w-4 h-4 text-amber-600" />
-                  <span>Exchange</span>
-                </div>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-200/60 text-amber-900 font-bold">
-                  LIVE
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="terminal-header-separator h-4 w-px bg-slate-300" />
-
         {/* SELECTOR DE PARES DESPLEGABLE */}
         <div className="relative group shrink-0">
           <button 

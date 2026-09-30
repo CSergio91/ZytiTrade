@@ -444,15 +444,6 @@ html:not(.dark) .text-slate-500 {
     z-index: 30 !important;
     user-select: none !important;
   }
-  .terminal-home-btn {
-    display: inline-flex !important;
-  }
-  .terminal-top-nav {
-    display: block !important;
-  }
-  .terminal-header-separator {
-    display: block !important;
-  }
   .terminal-mobile-hamburger {
     display: none !important;
   }
@@ -572,11 +563,6 @@ html:not(.dark) .text-slate-500 {
     display: none !important;
   }
   .terminal-side-nav {
-    display: none !important;
-  }
-  .terminal-home-btn,
-  .terminal-top-nav,
-  .terminal-header-separator {
     display: none !important;
   }
   .terminal-mobile-hamburger {
