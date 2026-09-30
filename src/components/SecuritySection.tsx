@@ -40,7 +40,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-16 sm:pt-20 lg:pt-16 pb-8 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">

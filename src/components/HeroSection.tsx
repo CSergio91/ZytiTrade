@@ -16,7 +16,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
   const t = translations[currentLang].hero;
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-16 sm:pt-20 lg:pt-16 pb-8 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center animate-zoom-in">
         
         {/* COLUMNA IZQUIERDA */}
@@ -26,7 +26,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             {t.tag}
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.1] sm:leading-[1.06]">
+          <h1 className="text-2xl sm:text-4xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.12] sm:leading-[1.06]">
             {t.headlineStart}<br />
             <span className="text-gradient-purple font-black">{t.headlineHighlight}</span>
           </h1>
@@ -68,7 +68,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
         <div className="lg:col-span-6 relative flex items-center justify-center my-6 sm:my-0">
           
           {/* ALERTA SATÉLITE 1: LEVITACIÓN ORGÁNICA LENTA */}
-          <div className="absolute -top-4 sm:-top-8 left-1 sm:-left-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[185px] sm:max-w-[220px] animate-float">
+          <div className="hidden sm:block absolute -top-8 left-0 sm:-left-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[200px] sm:max-w-[220px] animate-float">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#fee2e2] text-[#dc2626] shrink-0 mt-0.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
           </div>
 
           {/* ALERTA SATÉLITE 2: LEVITACIÓN EN DESFASE */}
-          <div className="absolute -bottom-4 sm:-bottom-8 right-1 sm:-right-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[195px] sm:max-w-[230px] animate-float-reverse">
+          <div className="hidden sm:block absolute -bottom-8 right-0 sm:-right-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[210px] sm:max-w-[230px] animate-float-reverse">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#dcfce7] text-[#16a34a] shrink-0 mt-0.5">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />

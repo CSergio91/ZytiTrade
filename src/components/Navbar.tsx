@@ -95,12 +95,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header 
-      className={`fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] bg-transparent border-none ${
+      className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isShifted
-          ? 'top-2 sm:top-3 left-3 sm:left-6 right-3 sm:right-auto lg:w-auto lg:max-w-[calc(100vw-48px)] h-14 flex items-center justify-between gap-3 sm:gap-6 shadow-none'
-          : 'top-0 left-0 right-0 w-full h-16 sm:h-20 px-3 sm:px-6 lg:px-12 flex items-center justify-between shadow-none'
-      }`}
-    >
+          ? 'top-0 left-0 right-0 w-full h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-[#ede8df]/70 md:top-3 md:left-6 md:right-auto md:w-auto md:max-w-[calc(100vw-48px)] md:bg-transparent md:border-none md:shadow-none md:px-0 flex items-center justify-between gap-3 sm:gap-6'
+          : 'top-0 left-0 right-0 w-full h-14 sm:h-16 md:h-20 px-3.5 sm:px-6 lg:px-12 bg-[#fbf9f4]/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-b border-[#ede8df]/50 md:border-none flex items-center justify-between shadow-none'
+      }`}>
       
       {/* 1. LOGO INSTITUCIONAL COMPLETO */}
       <button 
@@ -111,9 +110,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         <img 
           src="/logo-zyti.png" 
           alt="ZYTI Trade Logo" 
-          className={`object-contain transition-all duration-300 ${isShifted ? 'w-8 h-8' : 'w-10 h-10'}`}
+          className={`object-contain transition-all duration-300 ${isShifted ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10'}`}
         />
-        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-xl' : 'text-2xl'} text-slate-950`}>
+        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-base sm:text-xl' : 'text-base sm:text-xl md:text-2xl'} text-slate-950`}>
           ZYTI <span className="font-light text-slate-500">Trade</span>
         </span>
       </button>
@@ -556,36 +555,39 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* 3. CONTROLES MÓVILES (SOLO EN MÓVIL < 768px, SIN IDIOMA REPETIDO EN LA BARRA) */}
+      {/* 3. CONTROLES MÓVILES (BOTÓN HAMBURGUESA — EXCLUSIVO MÓVIL < 768px) */}
       <div className="md:hidden flex items-center">
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2.5 rounded-xl bg-[#ede5d6] text-slate-950 border border-[#ded5c5] flex items-center justify-center cursor-pointer shadow-sm active:scale-95 transition-transform"
+          className="p-2 rounded-xl bg-[#ede5d6] text-slate-950 border border-[#ded5c5] flex items-center justify-center cursor-pointer shadow-sm active:scale-95 transition-transform"
           aria-label="Menú de navegación"
         >
           {mobileMenuOpen ? <X className="w-5 h-5 text-slate-950" /> : <Menu className="w-5 h-5 text-slate-950" />}
         </button>
       </div>
 
-      {/* 4. DRAWER / MODAL TÁCTIL MÓVIL (SOLO EN MÓVIL, IDIOMA INTEGRADO, SIN NÚMEROS) */}
+      {/* 4. DRAWER TÁCTIL MÓVIL FULL-WIDTH (OPTIMIZADO PARA IPHONE SE) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-3 top-16 sm:top-20 z-50 md:hidden warm-card rounded-3xl p-5 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-x-2.5 top-15 z-50 md:hidden warm-card rounded-2xl p-4 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100dvh-68px)] overflow-y-auto no-scrollbar">
           
-          {/* SELECTOR DE IDIOMA INTEGRADO DENTRO DEL MENÚ MÓVIL */}
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#ede8df]">
+          {/* SELECTOR DE IDIOMA AMBER DE ALTO CONTRASTE (SIN TEXTO OSCURO SOBRE FONDO OSCURO) */}
+          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-[#ede8df]">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Globe className="w-4 h-4 text-slate-700" />
+              <Globe className="w-3.5 h-3.5 text-slate-700" />
               <span>{currentLang === 'es' ? 'Idioma' : 'Language'}</span>
             </span>
             <div className="flex items-center gap-1 bg-[#ede5d6] p-1 rounded-xl border border-[#ded5c5]">
               <button
                 type="button"
                 onClick={() => onLanguageChange('es')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  currentLang === 'es'
-                    ? 'bg-[#0f172a] text-white shadow-sm'
-                    : 'text-slate-800 hover:text-black'
+                style={{
+                  backgroundColor: currentLang === 'es' ? '#eab308' : 'transparent',
+                  color: '#020617',
+                  fontWeight: currentLang === 'es' ? 900 : 600
+                }}
+                className={`px-3 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                  currentLang === 'es' ? 'shadow-sm' : 'opacity-70 hover:opacity-100'
                 }`}
               >
                 Español
@@ -593,10 +595,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => onLanguageChange('en')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  currentLang === 'en'
-                    ? 'bg-[#0f172a] text-white shadow-sm'
-                    : 'text-slate-800 hover:text-black'
+                style={{
+                  backgroundColor: currentLang === 'en' ? '#eab308' : 'transparent',
+                  color: '#020617',
+                  fontWeight: currentLang === 'en' ? 900 : 600
+                }}
+                className={`px-3 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                  currentLang === 'en' ? 'shadow-sm' : 'opacity-70 hover:opacity-100'
                 }`}
               >
                 English
@@ -604,8 +609,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* LISTA DE SECCIONES LIMPIA (SIN NÚMEROS) */}
-          <div className="flex flex-col gap-2">
+          {/* LISTA DE SECCIONES COMPACTA SIN NÚMEROS */}
+          <div className="flex flex-col gap-1.5">
             {[
               { title: currentLang === 'es' ? 'Inicio / Terminal OS' : 'Home / Terminal OS', idx: 0 },
               { title: `${t.nav.exchanges} (16 Venues)`, idx: 1 },
@@ -622,9 +627,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onNavigateSection(item.idx);
                   setMobileMenuOpen(false);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
+                className={`flex items-center justify-between py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-left cursor-pointer ${
                   activeSection === item.idx 
-                    ? 'bg-[#eab308] text-slate-950 shadow-sm' 
+                    ? 'bg-[#eab308] text-slate-950 shadow-sm font-black' 
                     : 'bg-white/80 hover:bg-white text-slate-900 border border-[#ede8df]'
                 }`}
               >
@@ -638,7 +643,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onNavigateSection(0);
                 setMobileMenuOpen(false);
               }}
-              className="mt-3 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-[#eab308] text-slate-950 font-black text-sm shadow-md cursor-pointer transform active:scale-95 transition-transform"
+              className="mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#0f172a] text-white font-black text-xs sm:text-sm shadow-md cursor-pointer transform active:scale-95 transition-transform"
             >
               <span>{t.nav.signIn}</span>
             </button>
