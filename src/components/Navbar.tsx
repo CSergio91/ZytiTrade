@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { 
   ChevronDown, 
-  Globe
+  Globe,
+  Menu,
+  X
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
@@ -29,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [propFirmsOpen, setPropFirmsOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Timers con margen de gracia (debounce) para que el menú nunca se cierre por movimientos accidentales
   const exchangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,8 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header 
       className={`fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] bg-transparent border-none ${
         isShifted
-          ? 'top-3 left-6 w-auto max-w-[calc(100vw-48px)] h-14 flex items-center justify-between gap-6 shadow-none'
-          : 'top-0 left-0 right-0 w-full h-20 px-6 lg:px-12 flex items-center justify-between shadow-none'
+          ? 'top-2 sm:top-3 left-3 sm:left-6 right-3 sm:right-auto lg:w-auto lg:max-w-[calc(100vw-48px)] h-14 flex items-center justify-between gap-3 sm:gap-6 shadow-none'
+          : 'top-0 left-0 right-0 w-full h-16 sm:h-20 px-3 sm:px-6 lg:px-12 flex items-center justify-between shadow-none'
       }`}
     >
       
@@ -116,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
-      <div className={`flex items-center transition-all duration-300 font-bold ${
+      <div className={`hidden lg:flex items-center transition-all duration-300 font-bold ${
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } text-slate-950`}>
         
@@ -552,6 +555,73 @@ export const Navbar: React.FC<NavbarProps> = ({
           {t.nav.signIn}
         </button>
       </div>
+
+      {/* 3. CONTROLES MÓVILES (IDIOMA + BOTÓN HAMBURGUESA) */}
+      <div className="lg:hidden flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onLanguageChange(currentLang === 'es' ? 'en' : 'es')}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#ede5d6] text-slate-950 font-bold text-xs border border-[#ded5c5] cursor-pointer"
+          title="Cambiar idioma"
+        >
+          <Globe className="w-3.5 h-3.5 text-slate-700" />
+          <span className="uppercase">{currentLang}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2 rounded-xl bg-[#ede5d6] text-slate-950 border border-[#ded5c5] flex items-center justify-center cursor-pointer shadow-sm"
+          aria-label="Menú de navegación"
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5 text-slate-950" /> : <Menu className="w-5 h-5 text-slate-950" />}
+        </button>
+      </div>
+
+      {/* 4. DRAWER / MODAL TÁCTIL MÓVIL FULL-WIDTH */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-x-3 top-16 sm:top-20 z-50 lg:hidden warm-card rounded-3xl p-5 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-2">
+            {[
+              { num: '01', title: currentLang === 'es' ? 'Inicio / Terminal OS' : 'Home / Terminal OS', idx: 0 },
+              { num: '02', title: `${t.nav.exchanges} (16 Venues)`, idx: 1 },
+              { num: '03', title: `${t.nav.propFirms || 'Prop Firms'} (16 Firmas)`, idx: 2 },
+              { num: '04', title: t.nav.services, idx: 3 },
+              { num: '05', title: t.nav.pricing || 'Precios', idx: 4 },
+              { num: '06', title: t.nav.security, idx: 5 },
+              { num: '07', title: `${t.nav.download} & Apps`, idx: 6 },
+            ].map(item => (
+              <button
+                key={item.idx}
+                type="button"
+                onClick={() => {
+                  onNavigateSection(item.idx);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
+                  activeSection === item.idx 
+                    ? 'bg-[#eab308] text-slate-950 shadow-sm' 
+                    : 'bg-white/80 hover:bg-white text-slate-900 border border-[#ede8df]'
+                }`}
+              >
+                <span>{item.title}</span>
+                <span className="font-mono text-xs opacity-75">{item.num}</span>
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => {
+                onNavigateSection(0);
+                setMobileMenuOpen(false);
+              }}
+              className="mt-3 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-[#eab308] text-slate-950 font-black text-sm shadow-md cursor-pointer transform active:scale-95 transition-transform"
+            >
+              <span>{t.nav.signIn}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
     </header>
   );

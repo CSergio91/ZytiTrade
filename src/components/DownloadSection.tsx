@@ -62,7 +62,7 @@ export const DownloadSection: React.FC<DownloadSectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-6xl mx-auto">
         
         {/* CABECERA EDITORIAL */}
@@ -71,7 +71,7 @@ export const DownloadSection: React.FC<DownloadSectionProps> = ({ currentLang, i
             <Download className="w-3.5 h-3.5" />
             <span>{t.tag}</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 dark:text-white tracking-tight">
             {t.title}
           </h2>
           <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-200 font-medium mt-2 leading-relaxed">

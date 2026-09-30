@@ -41,8 +41,9 @@ export const App: React.FC = () => {
   const navigateToSection = (index: number) => {
     setActiveSection(index);
     if (containerRef.current) {
+      const screenWidth = containerRef.current.clientWidth || window.innerWidth;
       containerRef.current.scrollTo({
-        left: index * window.innerWidth,
+        left: index * screenWidth,
         behavior: 'smooth'
       });
     }
@@ -64,7 +65,8 @@ export const App: React.FC = () => {
 
     const handleScroll = () => {
       const scrollLeft = container.scrollLeft;
-      const index = Math.round(scrollLeft / window.innerWidth);
+      const screenWidth = container.clientWidth || window.innerWidth;
+      const index = Math.round(scrollLeft / screenWidth);
       if (index !== activeSection) {
         setActiveSection(index);
       }
@@ -94,7 +96,7 @@ export const App: React.FC = () => {
   const TOTAL_SCREENS = 8;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
+    <div className="relative h-[100dvh] w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
       {/* GRÁFICO DE FONDO */}
       <BackgroundTradingChart theme={theme} />
 
@@ -109,7 +111,7 @@ export const App: React.FC = () => {
       {/* VIEWPORT SLIDER HORIZONTAL CON TODAS LAS PANTALLAS */}
       <main 
         ref={containerRef}
-        className="relative z-10 flex flex-row overflow-x-auto snap-x snap-mandatory h-screen w-screen no-scrollbar"
+        className="relative z-10 flex flex-row overflow-x-auto snap-x snap-mandatory h-[100dvh] w-screen no-scrollbar"
         style={{ scrollBehavior: 'smooth' }}
       >
         {/* PANTALLA 0: HERO / INICIO */}

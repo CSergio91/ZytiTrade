@@ -17,7 +17,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
   const displayPlans = t.plans.filter(p => p.id !== 'enterprise').slice(0, 3);
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
@@ -34,7 +34,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
               </div>
 
               {/* TÍTULO Y SUBTÍTULO */}
-              <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight leading-tight">
                 {t.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-900 font-medium mt-2 leading-relaxed">
@@ -72,7 +72,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
             <div className="mt-6 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={pricingAnimationData} 
-                className="w-56 h-56 sm:w-64 sm:h-64" 
+                className="w-28 h-28 sm:w-36 sm:h-36 lg:w-56 lg:h-56" 
               />
             </div>
           </div>

@@ -189,7 +189,7 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
   };
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
@@ -203,7 +203,7 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 <span>{t.tag || '/prop-firms-auditadas'}</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight leading-tight">
                 {t.title}
               </h2>
               <p className="text-xs sm:text-sm text-slate-800 font-medium mt-2 leading-relaxed">
@@ -213,13 +213,13 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
 
             {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE */}
             <div className="mt-4 flex items-center justify-center bg-transparent border-none">
-              <LottieAnimation animationData={networkAnimationData} className="w-52 h-52" />
+              <LottieAnimation animationData={networkAnimationData} className="w-28 h-28 sm:w-36 sm:h-36 lg:w-52 lg:h-52" />
             </div>
 
             {/* BOTÓN CTA ACTIVO */}
             <div className="mt-3 flex items-center">
               <button 
-                className="flex items-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95"
+                className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
               >
                 <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
                 <span>{isEs ? 'Operar en Prop Firms' : 'Trade Prop Firms'}</span>

@@ -1,12 +1,12 @@
 ---
 name: zyti-trade-design-system-and-horizontal-flow-spec
-description: Sistema de diseño visual, paleta cromática editorial (Warm Cream y Dark Obsidian), arquitectura de navegación horizontal fluida, animaciones con zoom y levitación orgánica para ZYTI Trade.
-version: 1.0.0
-category: Design System & Motion Engineering
+description: Sistema de diseño visual, paleta cromática editorial (Warm Cream y Dark Obsidian), arquitectura de navegación horizontal fluida, animaciones con zoom, levitación orgánica y gobernanza Mobile-First obligatoria para ZYTI Trade.
+version: 1.1.0
+category: Design System, Mobile-First & Motion Engineering
 status: Authoritative
 ---
 
-# ZYTI TRADE — DESIGN SYSTEM & HORIZONTAL MOTION FLOW SPECIFICATION
+# ZYTI TRADE — DESIGN SYSTEM & HORIZONTAL MOTION FLOW SPECIFICATION (MOBILE-FIRST)
 
 ## 1. FILOSOFÍA VISUAL: EDITORIAL MINIMALISTA & HIGH-PERFORMANCE
 ZYTI Trade rechaza las plantillas genéricas sobrecargadas con badges artificiales y cajitas de iconos repetitivas.
@@ -16,42 +16,88 @@ Se inspira en productos de diseño de autor (como Linear, Raycast y Scopebird), 
 
 ## 2. PALETA CROMÁTICA EXACTA Y PATRONES DE COLOR
 
-### A. Modo Claro (Warm Cream Editorial)
+### A. Modo Claro (Warm Cream Editorial — Tema Definitivo)
 - **Lienzo Base (Canvas & Body):** `#FBF9F4` (Marfil cálido sereno).
 - **Tarjetas Principales (Warm Card):** `#FFFFFF` con bisel fino `rgba(220, 214, 202, 0.7)` y sombra orgánica suave `box-shadow: 0 25px 50px -12px rgba(27, 24, 18, 0.08)`.
 - **Texto Principal (Headings):** `#020617` / `#0F172A` (Negro azabache absoluto de imprenta).
 - **Texto Secundario (Párrafos y Datos):** `#1E293B` (Carbón profundo con contraste 12:1).
 - **Acento Hero (Degradado Eléctrico Vanguardista):**
   `linear-gradient(135deg, #7C3AED 0%, #9333EA 45%, #2563EB 100%)`
-- **Botón Primario:** Amarillo Mostaza Cálido `#EAB308` (`hover: #CA8A04`) con texto negro.
-- **Botón Secundario:** Borde fino de trazo `#0F172A` sobre fondo transparente.
+- **Botón Primario Unificado:** Amarillo Mostaza Cálido `#EAB308` (`hover: #CA8A04`) con texto negro azabache (`#020617`), icono `Zap` y micro-rebote `active:scale-95`.
+- **Botón Secundario:** Borde fino de trazo `#0F172A` sobre fondo transparente con `hover:bg-slate-900/5`.
 - **Verde de Ejecución Óptima:** `#65A30D` (Verde oliva institucional).
 - **Rojo de Alerta de Spread:** `#DC2626` (Rojo carmesí puro).
 
-### B. Modo Oscuro (Dark Obsidian)
+### B. Modo Oscuro (Dark Obsidian — Disponible para Terminal)
 - **Lienzo Base:** `#0A0D14` (Obsidiana profundo).
 - **Tarjetas:** `#111726` con bisel `#1F293D` y sombra profunda.
 - **Texto:** `#F8FAFC` (Blanco limpio) y `#94A3B8` (Slate secundario).
 
 ---
 
-## 3. ARQUITECTURA DE NAVEGACIÓN HORIZONTAL FLUIDA
-En lugar del scroll vertical convencional:
-1. **Paneles Horizontales de Pantalla Completa:**
-   - Panel 1: **Hero & Trading Plan en Vivo** (`w-screen`).
-   - Panel 2: **Exchanges Soportados & Conectividad WSS** (`w-screen`).
-   - Panel 3: **Ecosistema de Servicios (Prop Firms, MultiExchange, Copy, Arbitraje)** (`w-screen`).
-2. **Control Multicanal:**
-   - Rueda del ratón / Trackpad sincronizada con scroll horizontal.
-   - Paginador horizontal en Navbar con indicadores interactivos (`01`, `02`, `03`) y botones anterior/siguiente.
-   - Snap fluido (`snap-x snap-mandatory`) para anclaje magnético perfecto.
+## 3. ARQUITECTURA MOBILE-FIRST OBLIGATORIA (REGLAS INVIOLABLES)
+
+Todo componente y pantalla de ZYTI Trade debe diseñarse bajo la estricta metodología **Mobile-First**:
+
+### A. Viewport Dinámico (`100dvh`) vs `100vh`
+- **Prohibido `h-screen` rígido:** En navegadores móviles (iOS Safari, Android Chrome), las barras de navegación dinámica del sistema recortan el contenido si se usa `h-screen` (`100vh`).
+- **Regla Estricta:** Usar siempre `h-[100dvh]` y `min-w-full w-screen`.
+
+### B. Scroll Interno Vertical en Paneles Horizontales
+- En pantallas móviles (ancho < 1024px), el alto vertical es limitado (600px - 850px).
+- **Regla Estricta:** Cada panel horizontal debe permitir scroll vertical interno:
+  `className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-20 sm:pt-24 lg:pt-16 pb-12 overflow-y-auto no-scrollbar"`
+- Esto garantiza que tarjetas, botones CTA y paginadores nunca queden amputados o inalcanzables en pantallas pequeñas.
+
+### C. Navegación Móvil Táctil (Drawer & Menú Hamburguesa)
+- **Ocultamiento de Menús Hover en Móvil:** Los dropdowns masivos de 15 items por hover de escritorio quedan terminantemente prohibidos en pantallas táctiles (`hidden lg:flex`).
+- **Header Móvil Compacto (`lg:hidden`):**
+  - Logo institucional ZYTI Trade.
+  - Conmutador rápido de idioma (ES / EN).
+  - Botón de Menú Hamburguesa táctil (`Menu` / `X` de Lucide) con target mínimo de 44x44px.
+- **Drawer / Hoja de Navegación Lateral:**
+  - Despliegue con desenfoque de cristal (`bg-[#fbf9f4]/98 backdrop-blur-xl`).
+  - Lista táctil de las 8 secciones numeradas (`01` a `08`), resaltando la pantalla activa.
+  - Al pulsar cualquier opción, se ejecuta `onNavigateSection(index)` y se cierra el menú con animación suave.
+  - Botón CTA prominente «Operar Ahora» en la parte inferior.
+
+### D. Escala Tipográfica Fluida
+- Títulos principales en móvil: `text-3xl sm:text-5xl lg:text-[66px]` (nunca forzar `text-6xl` directo en pantallas de 360-390px).
+- Subtítulos: `text-sm sm:text-base lg:text-lg`.
+- Botones de acción: `w-full sm:w-auto` en móvil para facilitar el tap con una sola mano.
+
+### E. Dimensionado Responsivo de Animaciones Lottie
+- En desktop: `w-52 h-52` o `w-56 h-56`.
+- En móvil: `w-28 h-28 sm:w-36 sm:h-36 lg:w-52 lg:h-52`. Evita desplazar las tarjetas de cotización o los planes fuera del área visible inmediata.
+
+### F. Grids Adaptativos (1 Columna en Móvil -> 2/3 en Desktop)
+- Exchanges y Prop Firms: `grid-cols-1 md:grid-cols-2` con controles de carrusel en la base.
+- Precios y Descargas: `grid-cols-1 md:grid-cols-3` con espaciado vertical óptimo (`gap-4 sm:gap-6`).
 
 ---
 
-## 4. SISTEMA DE MOTION Y ANIMACIONES
+## 4. ARQUITECTURA DE NAVEGACIÓN HORIZONTAL FLUIDA (DESKTOP & TOUCH SWIPE)
+1. **Paneles Horizontales de Pantalla Completa:**
+   - Panel 0: **Hero & Plan de Trading en Vivo** (`w-screen`).
+   - Panel 1: **Exchanges Soportados & Conectividad WSS** (16 Venues, Carrusel 4 en 4).
+   - Panel 2: **Prop Firms Auditadas** (16 Firmas, Carrusel 4 en 4).
+   - Panel 3: **Ecosistema de Servicios** (Prop Firms, MultiExchange, Copy, Arbitraje).
+   - Panel 4: **Precios Institucionales** (3 Planes + Toggle Pro Mensual/Anual + Lottie).
+   - Panel 5: **Seguridad Criptográfica** (Enclave Local AES-256 + Lottie Escudo).
+   - Panel 6: **Descargar Terminal** (Windows .exe, Android APK, Web PWA).
+   - Panel 7: **Footer Institucional** (Gobernanza, Telemetría, Links 01-07).
+2. **Control Multicanal:**
+   - Swipe táctil fluido nativo en móviles mediante `snap-x snap-mandatory`.
+   - Rueda del ratón / Trackpad sincronizada con scroll horizontal en escritorio.
+   - Paginador horizontal e indicadores de sección.
+
+---
+
+## 5. SISTEMA DE MOTION Y ANIMACIONES
 1. **Entrada de Secciones con Zoom (Zoom-in Reveal):**
-   - Transición de escala (`scale-95` a `scale-100`) con opacidad progresiva (`opacity-0` a `opacity-100`) y curva `cubic-bezier(0.16, 1, 0.3, 1)`.
+   - Transición de escala (`scale-95` a `scale-100`) con opacidad progresiva y curva `cubic-bezier(0.16, 1, 0.3, 1)`.
 2. **Levitación Orgánica (Float Physics):**
-   - Las tarjetas satélite de arbitraje y copy trading flotan sutilmente con keyframes de gravedad cero (`translateY(-6px)` con ciclo de 4 segundos).
-3. **Barra de Progreso Viva:**
-   - Animación de llenado suave del checklist de condiciones cumplidas.
+   - Tarjetas satélite flotan sutilmente con keyframes de gravedad cero (`translateY(-6px)` ciclo de 4s).
+   - En móvil, adaptadas para no salirse de los límites de pantalla (`relative sm:absolute`).
+3. **Barra de Progreso Inferior Dinámica:**
+   - Indicador dinámico de avance (`((activeSection + 1) / TOTAL_SCREENS) * 100%`).
