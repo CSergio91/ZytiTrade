@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ChevronDown, 
   Globe, 
@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
-import { ExchangeLottie } from './ExchangeLottie';
+import { LottieAnimation } from './LottieAnimation';
+import exchangeRadarData from '../assets/animations/exchange-radar.json';
 
 interface NavbarProps {
   currentLang: Language;
@@ -29,6 +30,32 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+
+  // Timers con margen de gracia (debounce) para que el menú nunca se cierre por movimientos accidentales
+  const exchangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const servicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleExchangeEnter = () => {
+    if (exchangeTimeoutRef.current) clearTimeout(exchangeTimeoutRef.current);
+    setExchangeOpen(true);
+  };
+
+  const handleExchangeLeave = () => {
+    exchangeTimeoutRef.current = setTimeout(() => {
+      setExchangeOpen(false);
+    }, 220); // 220ms de margen de gracia
+  };
+
+  const handleServicesEnter = () => {
+    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+    setServicesOpen(true);
+  };
+
+  const handleServicesLeave = () => {
+    servicesTimeoutRef.current = setTimeout(() => {
+      setServicesOpen(false);
+    }, 220); // 220ms de margen de gracia
+  };
 
   const t = translations[currentLang];
   const isLight = theme === 'light';
@@ -77,11 +104,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
         
-        {/* PANTALLA 1: MENU EXCHANGES (CON LOTTIE A LA IZQUIERDA Y 3 COLUMNAS DE A 5 ITEMS) */}
+        {/* PANTALLA 1: MENU EXCHANGES (HOVER SÓLIDO CON PUENTE INVISIBLE Y DEBOUNCE) */}
         <div 
-          className="relative"
-          onMouseEnter={() => setExchangeOpen(true)}
-          onMouseLeave={() => setExchangeOpen(false)}
+          className="relative py-2"
+          onMouseEnter={handleExchangeEnter}
+          onMouseLeave={handleExchangeLeave}
         >
           <button 
             onClick={() => onNavigateSection(1)}
@@ -95,9 +122,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
           </button>
 
-          {/* POPOVER CON ANIMACIÓN LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES */}
+          {/* POPOVER CON PUENTE INVISIBLE QUE PREVIENE LA PÉRDIDA DEL HOVER */}
           {exchangeOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
+            <div 
+              onMouseEnter={handleExchangeEnter}
+              onMouseLeave={handleExchangeLeave}
+              className={`absolute top-full left-0 mt-1 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
+            >
               
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
                 <div>
@@ -117,14 +148,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* CONTENEDOR FLEX: LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE 5 */}
-              <div className="flex gap-5">
+              <div className="flex gap-6 items-center">
                 
-                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE A LA IZQUIERDA SIN TEXTO NI CAJAS */}
+                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE A LA IZQUIERDA USANDO COMPONENTE REUTILIZABLE */}
                 <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
-                  <ExchangeLottie className="w-48 h-48" />
+                  <LottieAnimation animationData={exchangeRadarData} className="w-48 h-48" />
                 </div>
 
-                {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA CON SUS ICONOS OFICIALES */}
+                {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA CON SUS ICONOS OFICIALES Y SIN FONDOS */}
                 <div className="flex-1 grid grid-cols-3 gap-3">
                   
                   {/* COLUMNA 1 (5 ITEMS) */}
@@ -215,11 +246,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* PANTALLA 2: MENU SERVICIOS */}
+        {/* PANTALLA 2: MENU SERVICIOS (HOVER SÓLIDO CON PUENTE INVISIBLE) */}
         <div 
-          className="relative"
-          onMouseEnter={() => setServicesOpen(true)}
-          onMouseLeave={() => setServicesOpen(false)}
+          className="relative py-2"
+          onMouseEnter={handleServicesEnter}
+          onMouseLeave={handleServicesLeave}
         >
           <button 
             onClick={() => onNavigateSection(2)}
@@ -234,7 +265,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {servicesOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-88 rounded-3xl p-4 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
+            <div 
+              onMouseEnter={handleServicesEnter}
+              onMouseLeave={handleServicesLeave}
+              className={`absolute top-full left-0 mt-1 w-88 rounded-3xl p-4 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
+            >
               <div className="flex flex-col gap-1">
                 {servicesList.map((srv, idx) => (
                   <div 
@@ -332,7 +367,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {langOpen && (
-            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
+            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}>
               <button
                 onClick={() => { onLanguageChange('es'); setLangOpen(false); }}
                 className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'es' ? 'bg-slate-900 text-white' : (isLight ? 'hover:bg-[#f4efe5] text-slate-900' : 'hover:bg-slate-800 text-slate-200'))}

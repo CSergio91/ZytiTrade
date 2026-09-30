@@ -2,7 +2,8 @@ import React from 'react';
 import { Activity, ShieldCheck } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
-import { ExchangeLottie } from './ExchangeLottie';
+import { LottieAnimation } from './LottieAnimation';
+import exchangeRadarData from '../assets/animations/exchange-radar.json';
 
 interface ExchangesSectionProps {
   currentLang: Language;
@@ -66,7 +67,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
 
             {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE SIN TEXTO NI CAJAS */}
             <div className="mt-6 flex items-center justify-center bg-transparent border-none">
-              <ExchangeLottie className="w-52 h-52" />
+              <LottieAnimation animationData={exchangeRadarData} className="w-52 h-52" />
             </div>
           </div>
 

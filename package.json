@@ -12,6 +12,7 @@
     "@icons-pack/react-simple-icons": "^13.15.1",
     "@lottiefiles/dotlottie-react": "^0.19.16",
     "klinecharts": "^9.8.6",
+    "lottie-react": "^3.1.2",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
