@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BackgroundTradingChart } from './components/BackgroundTradingChart';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { ExchangesSection } from './components/ExchangesSection';
 import { ServicesSection } from './components/ServicesSection';
-import { Footer } from './components/Footer';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [activeSection, setActiveSection] = useState<number>(0);
+
   const getInitialLanguage = (): Language => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname.toLowerCase();
@@ -24,7 +26,7 @@ export const App: React.FC = () => {
   const handleLanguageChange = (newLang: Language) => {
     setCurrentLang(newLang);
     localStorage.setItem('zyti_lang', newLang);
-    window.history.replaceState(null, '', `/${newLang}`);
+    window.history.replaceState(null, '', '/' + newLang);
     document.documentElement.lang = newLang;
   };
 
@@ -44,6 +46,50 @@ export const App: React.FC = () => {
     localStorage.setItem('zyti_theme', nextTheme);
   };
 
+  const navigateToSection = (index: number) => {
+    setActiveSection(index);
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        left: index * window.innerWidth,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Convertir el scroll de rueda vertical del ratón en navegación horizontal fluida
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let isScrolling = false;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        container.scrollBy({
+          left: e.deltaY * 1.5,
+          behavior: 'auto'
+        });
+      }
+    };
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const index = Math.round(scrollLeft / window.innerWidth);
+      if (index !== activeSection) {
+        setActiveSection(index);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeSection]);
+
   useEffect(() => {
     document.documentElement.lang = currentLang;
   }, [currentLang]);
@@ -59,26 +105,37 @@ export const App: React.FC = () => {
   }, [theme]);
 
   return (
-    <div className={`relative min-h-screen font-sans ${theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900'}`}>
-      {/* 1. GRÁFICO DE FONDO SUTIL */}
+    <div className={'relative h-screen w-screen overflow-hidden font-sans ' + (theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900')}>
+      {/* 1. GRÁFICO DE FONDO */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. CONTENIDO PRINCIPAL */}
-      <div className="relative z-10 min-h-screen">
-        <Navbar 
-          currentLang={currentLang} 
-          onLanguageChange={handleLanguageChange}
-          theme={theme}
-          onThemeToggle={handleThemeToggle}
-        />
+      {/* 2. NAVBAR FIJO ARRIBA CON PAGINADOR */}
+      <Navbar 
+        currentLang={currentLang} 
+        onLanguageChange={handleLanguageChange}
+        theme={theme}
+        onThemeToggle={handleThemeToggle}
+        activeSection={activeSection}
+        onNavigateSection={navigateToSection}
+      />
 
+      {/* 3. CONTENEDOR DE NAVEGACIÓN HORIZONTAL FLUIDA */}
+      <main 
+        ref={containerRef}
+        className="relative z-10 flex flex-row overflow-x-auto snap-x snap-mandatory h-screen w-screen no-scrollbar"
+        style={{ scrollBehavior: 'smooth' }}
+      >
         <HeroSection currentLang={currentLang} />
-
         <ExchangesSection currentLang={currentLang} />
-
         <ServicesSection currentLang={currentLang} />
+      </main>
 
-        <Footer currentLang={currentLang} />
+      {/* 4. BARRA DE PROGRESO HORIZONTAL INFERIOR MINIMALISTA */}
+      <div className="fixed bottom-0 left-0 right-0 h-1 bg-[#ede8df]/60 dark:bg-slate-900/60 z-50">
+        <div 
+          className="h-full bg-slate-950 dark:bg-white transition-all duration-300 ease-out"
+          style={{ width: ((activeSection + 1) / 3) * 100 + '%' }}
+        />
       </div>
     </div>
   );

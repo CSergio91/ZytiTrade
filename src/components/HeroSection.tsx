@@ -15,43 +15,38 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
   const t = translations[currentLang].hero;
 
   return (
-    <section className="relative min-h-[90vh] pt-36 pb-20 px-6 lg:px-12 max-w-7xl mx-auto flex items-center">
-      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+      <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center animate-zoom-in">
         
-        {/* COLUMNA IZQUIERDA: EDITORIAL */}
+        {/* COLUMNA IZQUIERDA */}
         <div className="lg:col-span-6 flex flex-col items-start z-10">
           
-          {/* TAG PILL SUPERIOR */}
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-8">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-6">
             {t.tag}
           </div>
 
-          {/* HEADLINE CON DEGRADADO MORADO MODERNO */}
-          <h1 className="text-5xl sm:text-6xl lg:text-[68px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.06]">
+          <h1 className="text-5xl sm:text-6xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.06]">
             {t.headlineStart}<br />
             <span className="text-gradient-purple font-black">{t.headlineHighlight}</span>
           </h1>
 
-          {/* SUBTÍTULO */}
-          <p className="mt-8 text-lg sm:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
+          <p className="mt-6 text-lg sm:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
             {t.subtitle}
           </p>
 
-          {/* BOTONES DE ACCIÓN */}
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <button className="flex items-center gap-2.5 px-7 py-4 text-sm font-bold text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer">
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <button className="flex items-center gap-2.5 px-7 py-3.5 text-sm font-bold text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95">
               <Download className="w-4 h-4 stroke-[2.5]" />
               <span>{t.ctaPrimary}</span>
             </button>
 
-            <button className="flex items-center gap-2 px-6 py-4 text-sm font-bold text-slate-900 dark:text-white bg-transparent hover:bg-slate-900/5 dark:hover:bg-white/5 rounded-2xl border border-slate-900 dark:border-slate-300 transition-all cursor-pointer">
+            <button className="flex items-center gap-2 px-6 py-3.5 text-sm font-bold text-slate-900 dark:text-white bg-transparent hover:bg-slate-900/5 dark:hover:bg-white/5 rounded-2xl border border-slate-900 dark:border-slate-300 transition-all cursor-pointer transform hover:scale-105 active:scale-95">
               <Eye className="w-4 h-4" />
               <span>{t.ctaSecondary}</span>
             </button>
           </div>
 
-          {/* CONECTORES */}
-          <div className="mt-12 flex items-center gap-3">
+          <div className="mt-8 flex items-center gap-3">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider mr-1">
               {t.connectorsLabel}
             </span>
@@ -68,11 +63,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
 
         </div>
 
-        {/* COLUMNA DERECHA: TARJETAS EDITORIALES TOTALMENTE TRADUCIDAS */}
+        {/* COLUMNA DERECHA: TARJETAS CON LEVITACIÓN ORGÁNICA */}
         <div className="lg:col-span-6 relative flex items-center justify-center">
           
-          {/* ALERTA SATÉLITE 1: ARBITRAJE */}
-          <div className="absolute -top-6 left-2 sm:-left-4 z-20 satellite-card rounded-2xl p-4 max-w-[220px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {/* ALERTA SATÉLITE 1: LEVITACIÓN ORGÁNICA LENTA */}
+          <div className="absolute -top-8 left-2 sm:-left-4 z-20 satellite-card rounded-2xl p-4 max-w-[220px] animate-float">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#fee2e2] text-[#dc2626] shrink-0 mt-0.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -91,8 +86,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             </div>
           </div>
 
-          {/* ALERTA SATÉLITE 2: COPY TRADING */}
-          <div className="absolute -bottom-6 -right-2 sm:-right-4 z-20 satellite-card rounded-2xl p-4 max-w-[230px] animate-in fade-in slide-in-from-top-2 duration-300">
+          {/* ALERTA SATÉLITE 2: LEVITACIÓN EN DESFASE */}
+          <div className="absolute -bottom-8 -right-2 sm:-right-4 z-20 satellite-card rounded-2xl p-4 max-w-[230px] animate-float-reverse">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#dcfce7] text-[#16a34a] shrink-0 mt-0.5">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -111,8 +106,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             </div>
           </div>
 
-          {/* TARJETA PRINCIPAL: TRADING PLAN */}
-          <div className="w-full max-w-[420px] warm-card rounded-3xl p-6 sm:p-7 relative z-10">
+          {/* TARJETA PRINCIPAL */}
+          <div className="w-full max-w-[420px] warm-card rounded-3xl p-6 sm:p-7 relative z-10 shadow-2xl transition-transform duration-300 hover:scale-[1.02]">
             
             <div className="flex items-baseline justify-between mb-1">
               <h3 className="text-xl font-black text-slate-950 dark:text-white">
@@ -128,7 +123,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             </p>
 
             <div className="w-full h-2 rounded-full bg-[#ede8df] dark:bg-[#1f293d] overflow-hidden mb-6">
-              <div className="h-full bg-[#65a30d] rounded-full w-[80%]" />
+              <div className="h-full bg-[#65a30d] rounded-full w-[80%] transition-all duration-1000 ease-out" />
             </div>
 
             <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-[#fbf9f4] dark:bg-[#0e1420] border border-[#ede8df] dark:border-[#1f293d] mb-6 text-center">
@@ -180,7 +175,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
 
               <div className="flex items-center justify-between text-slate-900 dark:text-white font-bold p-1 rounded-lg bg-[#f4edd9]/60 dark:bg-amber-950/30">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-4 h-4 rounded-full border-2 border-[#ca8a04] flex items-center justify-center shrink-0" />
+                  <div className="w-4 h-4 rounded-full border-2 border-[#ca8a04] flex items-center justify-center shrink-0 animate-pulse" />
                   <span>{t.planCard.task4}</span>
                 </div>
                 <span className="font-mono text-[10px] text-[#ca8a04]">+$1,420</span>

@@ -3,7 +3,9 @@ import {
   ChevronDown, 
   Globe, 
   Sun,
-  Moon
+  Moon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 
@@ -12,9 +14,18 @@ interface NavbarProps {
   onLanguageChange: (lang: Language) => void;
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
+  activeSection: number;
+  onNavigateSection: (index: number) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, theme, onThemeToggle }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  currentLang, 
+  onLanguageChange, 
+  theme, 
+  onThemeToggle,
+  activeSection,
+  onNavigateSection
+}) => {
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -22,22 +33,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
   const t = translations[currentLang];
   const isLight = theme === 'light';
 
-  const exchangesList = [
-    t.exchangesMenu.binance,
-    t.exchangesMenu.bybit,
-    t.exchangesMenu.okx,
-    t.exchangesMenu.kraken,
-    t.exchangesMenu.coinbase,
-    t.exchangesMenu.bitget,
-    t.exchangesMenu.kucoin,
-    t.exchangesMenu.gate,
-  ];
-
-  const servicesList = [
-    t.servicesMenu.propFirms,
-    t.servicesMenu.multiExchange,
-    t.servicesMenu.copyTrading,
-    t.servicesMenu.arbitrage,
+  const sections = [
+    { id: 0, label: '01 ' + (currentLang === 'es' ? 'Terminal' : 'Terminal') },
+    { id: 1, label: '02 ' + t.nav.exchanges },
+    { id: 2, label: '03 ' + t.nav.services },
   ];
 
   return (
@@ -48,8 +47,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
     }`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
         
-        {/* LOGO LIMPIO */}
-        <a href={'/' + currentLang} className="flex items-center gap-3 cursor-pointer shrink-0">
+        {/* LOGO */}
+        <button 
+          onClick={() => onNavigateSection(0)}
+          className="flex items-center gap-3 cursor-pointer shrink-0 border-none bg-transparent"
+        >
           <img 
             src="/logo-zyti.png" 
             alt="ZYTI Trade Logo" 
@@ -58,92 +60,58 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
           <span className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-950' : 'text-white'}`}>
             ZYTI <span className={`font-light ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Trade</span>
           </span>
-        </a>
+        </button>
 
-        {/* NAVEGACIÓN CENTRAL 100% CLARA EN MODO CLARO */}
-        <div className={`flex items-center gap-8 text-sm font-bold ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
-          
-          {/* MENU EXCHANGES */}
-          <div 
-            className="relative"
-            onMouseEnter={() => setExchangeOpen(true)}
-            onMouseLeave={() => setExchangeOpen(false)}
-          >
-            <button className={`flex items-center gap-1.5 transition-colors cursor-pointer py-2 ${
-              isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400'
-            }`}>
-              <span>{t.nav.exchanges}</span>
-              <ChevronDown className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
+        {/* NAVEGACIÓN HORIZONTAL EDITORIAL EN EL NAVBAR */}
+        <div className="flex items-center gap-2 sm:gap-3 p-1 rounded-2xl bg-[#ede8df]/60 dark:bg-slate-900/60 border border-[#ede8df] dark:border-slate-800">
+          {sections.map((sec) => (
+            <button
+              key={sec.id}
+              onClick={() => onNavigateSection(sec.id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeSection === sec.id
+                  ? (isLight ? 'bg-white text-slate-950 shadow-sm' : 'bg-slate-800 text-white shadow-sm')
+                  : (isLight ? 'text-slate-600 hover:text-slate-950 hover:bg-white/50' : 'text-slate-400 hover:text-white hover:bg-slate-800/50')
+              }`}
+            >
+              {sec.label}
             </button>
-
-            {exchangeOpen && (
-              <div className={`absolute top-full left-0 mt-1 w-72 rounded-2xl p-2 shadow-2xl animate-in fade-in duration-150 z-50 border ${
-                isLight ? 'bg-white border-[#ede8df] text-slate-900' : 'bg-[#111726] border-[#1f293d] text-white'
-              }`}>
-                <div className="flex flex-col gap-0.5">
-                  {exchangesList.map((ex, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-2.5 rounded-xl transition-colors cursor-pointer flex flex-col ${
-                        isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`text-sm font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{ex.name}</span>
-                      <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{ex.desc}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* MENU SERVICIOS */}
-          <div 
-            className="relative"
-            onMouseEnter={() => setServicesOpen(true)}
-            onMouseLeave={() => setServicesOpen(false)}
-          >
-            <button className={`flex items-center gap-1.5 transition-colors cursor-pointer py-2 ${
-              isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400'
-            }`}>
-              <span>{t.nav.services}</span>
-              <ChevronDown className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
-            </button>
-
-            {servicesOpen && (
-              <div className={`absolute top-full left-0 mt-1 w-84 rounded-2xl p-2 shadow-2xl animate-in fade-in duration-150 z-50 border ${
-                isLight ? 'bg-white border-[#ede8df] text-slate-900' : 'bg-[#111726] border-[#1f293d] text-white'
-              }`}>
-                <div className="flex flex-col gap-1">
-                  {servicesList.map((srv, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-3 rounded-xl transition-colors cursor-pointer flex flex-col ${
-                        isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className={`text-sm font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{srv.title}</span>
-                      <span className={`text-xs font-medium leading-snug mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{srv.desc}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <a href="#security" className={`transition-colors ${isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400'}`}>
-            {t.nav.security}
-          </a>
-
-          <a href="#download" className={`transition-colors ${isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400'}`}>
-            {t.nav.download}
-          </a>
+          ))}
         </div>
 
-        {/* ACCIONES DERECHA EN MODO CLARO TOTAL */}
+        {/* ACCIONES DERECHA */}
         <div className="flex items-center gap-3 shrink-0">
           
-          {/* THEME TOGGLE LUMINOSO */}
+          {/* BOTONES ANTERIOR / SIGUIENTE HORIZONTAL */}
+          <div className="hidden sm:flex items-center gap-1">
+            <button
+              onClick={() => onNavigateSection(Math.max(0, activeSection - 1))}
+              disabled={activeSection === 0}
+              title="Sección Anterior"
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                activeSection === 0 
+                  ? 'opacity-30 cursor-not-allowed border-transparent' 
+                  : (isLight ? 'bg-white border-[#ede8df] text-slate-800 hover:bg-[#f4efe5]' : 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700')
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => onNavigateSection(Math.min(2, activeSection + 1))}
+              disabled={activeSection === 2}
+              title="Sección Siguiente"
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                activeSection === 2 
+                  ? 'opacity-30 cursor-not-allowed border-transparent' 
+                  : (isLight ? 'bg-white border-[#ede8df] text-slate-800 hover:bg-[#f4efe5]' : 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700')
+              }`}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* THEME TOGGLE */}
           <button
             onClick={onThemeToggle}
             aria-label="Toggle Theme"
