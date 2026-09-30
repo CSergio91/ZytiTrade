@@ -44,7 +44,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
           </h1>
 
           {/* SUBTÍTULO EDITORIAL FLUIDO */}
-          <p className="mt-8 text-lg sm:text-xl text-slate-600 dark:text-slate-400 font-normal leading-relaxed max-w-lg">
+          <p className="mt-8 text-lg sm:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
             {isEs 
               ? 'El sistema operativo institucional para Binance, Bybit y firmas de fondeo. Ejecuta sin intermediarios, replica tus órdenes y audita cada trade.'
               : 'The institutional trading system for Binance, Bybit, and prop firms. Execute without middlemen, replicate cross-exchange trades, and audit risk.'}
@@ -68,7 +68,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
 
           {/* LOGOS DE EXCHANGES SUTILES AL PIE DEL HERO */}
           <div className="mt-12 flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-1">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider mr-1">
               Conectores:
             </span>
             <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-xl border border-[#ede8df] dark:border-slate-800">
@@ -97,7 +97,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
                 <span className="text-xs font-black text-slate-900 dark:text-white leading-tight">
                   Spread de Arbitraje
                 </span>
-                <span className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <span className="text-[11px] text-slate-800 dark:text-slate-200 font-semibold mt-1 leading-snug">
                   Bybit cotiza +$18.50 sobre Binance.
                 </span>
                 <button className="mt-2.5 px-2.5 py-1 text-[10px] font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-lg self-start">
@@ -117,7 +117,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
                 <span className="text-xs font-black text-slate-900 dark:text-white leading-tight">
                   Copy Trade Exitoso
                 </span>
-                <span className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <span className="text-[11px] text-slate-800 dark:text-slate-300 font-medium mt-1 leading-snug">
                   Orden replicada en 3 exchanges en 3.8ms.
                 </span>
                 <span className="mt-1 text-[10px] font-mono font-bold text-emerald-600">
@@ -140,7 +140,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </span>
             </div>
 
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-xs text-slate-800 dark:text-slate-300 font-semibold mb-4">
               8 de 10 condiciones de entrada cumplidas
             </p>
 
@@ -152,15 +152,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             {/* MÉTRICAS DE RESUMEN (COMPLETED / IN PROGRESS / UP NEXT) */}
             <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-[#fbf9f4] dark:bg-[#0e1420] border border-[#ede8df] dark:border-[#1f293d] mb-6 text-center">
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Llenadas</p>
+                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Llenadas</p>
                 <p className="text-xl font-black text-[#65a30d]">8</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Activas</p>
+                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Activas</p>
                 <p className="text-xl font-black text-[#ca8a04]">1</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pendientes</p>
+                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Pendientes</p>
                 <p className="text-xl font-black text-slate-700 dark:text-slate-300">3</p>
               </div>
             </div>
@@ -169,7 +169,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             <div className="flex flex-col gap-3 text-xs">
               
               {/* Tarea 1: Completada */}
-              <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -180,7 +180,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </div>
 
               {/* Tarea 2: Completada */}
-              <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -191,7 +191,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </div>
 
               {/* Tarea 3: Completada */}
-              <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
+              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -227,7 +227,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
                 Estado del Motor: Óptimo
               </span>
-              <span className="text-slate-400 font-mono text-[10px]">
+              <span className="text-slate-700 dark:text-slate-300 font-mono font-bold text-[10px]">
                 60 FPS Canvas
               </span>
             </div>

@@ -46,7 +46,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang })
         <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight">
           {isEs ? 'Todo el ecosistema en un solo lugar.' : 'The complete ecosystem in one place.'}
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+        <p className="text-base text-slate-800 dark:text-slate-200 font-medium mt-3 leading-relaxed">
           {isEs 
             ? 'Diseñado para eliminar la sobrecarga de herramientas y darte una terminal limpia y predecible.'
             : 'Designed to eliminate tool overload and give you a clean, predictable trading experience.'}
@@ -60,13 +60,13 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang })
             className="warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-400 transition-colors"
           >
             <div>
-              <span className="text-xs font-mono font-bold text-slate-400">
+              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
                 {srv.num}
               </span>
               <h3 className="text-lg font-bold text-slate-950 dark:text-white mt-3">
                 {srv.title}
               </h3>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              <p className="text-xs text-slate-800 dark:text-slate-300 font-medium mt-2 leading-relaxed">
                 {srv.desc}
               </p>
             </div>

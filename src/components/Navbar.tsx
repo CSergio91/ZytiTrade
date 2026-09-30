@@ -69,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
         </div>
 
         {/* NAVEGACIÓN CENTRAL EDITORIAL */}
-        <div className="flex items-center gap-8 text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div className="flex items-center gap-8 text-sm font-semibold text-slate-900 dark:text-slate-200">
           
           {/* MENU EXCHANGES (HOVER VERTICAL) */}
           <div 
@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
                       className="p-2.5 rounded-xl hover:bg-[#f4efe5] dark:hover:bg-slate-800 transition-colors cursor-pointer flex flex-col"
                     >
                       <span className="text-sm font-bold text-slate-950 dark:text-white">{ex.name}</span>
-                      <span className="text-xs text-slate-500">{ex.desc}</span>
+                      <span className="text-xs text-slate-700 dark:text-slate-400 font-medium">{ex.desc}</span>
                     </div>
                   ))}
                 </div>
@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
                       className="p-3 rounded-xl hover:bg-[#f4efe5] dark:hover:bg-slate-800 transition-colors cursor-pointer flex flex-col"
                     >
                       <span className="text-sm font-bold text-slate-950 dark:text-white">{srv.title}</span>
-                      <span className="text-xs text-slate-500 leading-snug mt-0.5">{srv.desc}</span>
+                      <span className="text-xs text-slate-700 dark:text-slate-400 font-medium leading-snug mt-0.5">{srv.desc}</span>
                     </div>
                   ))}
                 </div>

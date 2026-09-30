@@ -8,7 +8,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ currentLang }) => {
   return (
     <footer className="border-t border-[#ede8df] dark:border-[#1f293d] bg-[#fbf9f4] dark:bg-[#0a0d14] py-12 px-6 lg:px-12">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-slate-500">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-slate-800 dark:text-slate-300 font-medium">
         <div className="flex items-center gap-3">
           <img src="/logo-zyti.png" alt="ZYTI Trade Logo" className="w-7 h-7 object-contain" />
           <span className="font-bold text-slate-950 dark:text-white">ZYTI Trade</span>

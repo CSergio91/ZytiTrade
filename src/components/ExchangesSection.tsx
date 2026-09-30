@@ -23,7 +23,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
         <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight">
           Exchanges soportados de forma nativa.
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+        <p className="text-base text-slate-800 dark:text-slate-200 font-medium mt-3 leading-relaxed">
           Sin intermediarios ni servidores puente de terceros. Tus credenciales API se guardan cifradas localmente en tu propio cliente.
         </p>
       </div>
@@ -41,10 +41,10 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
                   {venue.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">{venue.type}</p>
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-1">{venue.type}</p>
             </div>
             
-            <div className="mt-5 pt-3 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono text-slate-500">
+            <div className="mt-5 pt-3 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
               <span>Latencia nativa</span>
               <span className="font-bold text-slate-900 dark:text-white">{venue.latency}</span>
             </div>
