@@ -40,18 +40,18 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         <button 
           type="button"
           onClick={onExit}
-          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold border border-[#ded5c5] transition-all cursor-pointer shadow-xs shrink-0"
+          className="terminal-home-btn items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold border border-[#ded5c5] transition-all cursor-pointer shadow-xs shrink-0"
           title={isEs ? 'Volver al Inicio' : 'Back to Home'}
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>{isEs ? 'Inicio' : 'Home'}</span>
         </button>
 
-        <div className="h-4 w-px bg-slate-300 hidden lg:block" />
+        <div className="terminal-header-separator h-4 w-px bg-slate-300" />
 
         {/* NAVEGACIÓN SUPERIOR EN ESCRITORIO (>= 1024px): MENÚ DE SECCIONES (HOVER O CLICK) */}
         <div 
-          className="relative hidden lg:block"
+          className="terminal-top-nav relative"
           onMouseEnter={() => setIsTopNavOpen(true)}
           onMouseLeave={() => setIsTopNavOpen(false)}
         >
@@ -101,7 +101,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           )}
         </div>
 
-        <div className="h-4 w-px bg-slate-300 hidden lg:block" />
+        <div className="terminal-header-separator h-4 w-px bg-slate-300" />
 
         {/* SELECTOR DE PARES DESPLEGABLE */}
         <div className="relative group shrink-0">
@@ -139,7 +139,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           </span>
         </div>
 
-        <div className="hidden xl:flex items-center gap-4 text-xs font-mono text-slate-600 pl-2">
+        <div className="terminal-stats-24h items-center gap-4 text-xs font-mono text-slate-600 pl-2">
           <span>24h High: <strong className="text-slate-900">${stats.high24h.toLocaleString()}</strong></span>
           <span>24h Low: <strong className="text-slate-900">${stats.low24h.toLocaleString()}</strong></span>
           <span>24h Vol: <strong className="text-slate-900">{stats.volume24h.toLocaleString()} BTC</strong></span>
@@ -148,7 +148,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
 
       {/* PARTE DERECHA: STATUS WORKER + USUARIO + SALIR (ESCRITORIO) / HAMBURGUESA (MÓVIL) */}
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold border border-emerald-200 shadow-xs">
+        <div className="terminal-worker-badge items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-mono font-bold border border-emerald-200 shadow-xs">
           <Cpu className="w-3 h-3 text-emerald-600 animate-pulse" />
           <span>Worker 60 FPS</span>
         </div>
@@ -164,7 +164,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         <button
           type="button"
           onClick={onToggleMobileNav}
-          className="lg:hidden p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-colors shadow-xs"
+          className="terminal-mobile-hamburger p-1.5 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-colors shadow-xs"
           title={isEs ? 'Menú ZYTI Trade' : 'ZYTI Trade Menu'}
         >
           <Menu className="w-4 h-4" />

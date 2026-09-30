@@ -27,7 +27,7 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   return (
     <>
       {/* 1. BARRA LATERAL EN ESCRITORIO (>= 1024px) */}
-      <aside className="hidden lg:flex flex-col w-12 h-full shrink-0 relative z-30 select-none">
+      <aside className="terminal-side-nav">
         {/* Contenedor base de 48px para reservar el espacio permanente en el layout */}
         <div className={`w-12 h-full ${navPosition === 'left' ? 'border-r' : 'border-l'} border-[#ded5c5] bg-[#fbf9f4]`} />
         
