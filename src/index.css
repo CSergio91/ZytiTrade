@@ -180,8 +180,29 @@ html:not(.dark) .warm-card h5 {
   font-weight: 900 !important;
 }
 
-html:not(.dark) .warm-card span:not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="bg-"]):not([class*="line-through"]) {
+html:not(.dark) .warm-card span:not([class*="text-emerald"]):not([class*="text-white"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="bg-"]):not([class*="line-through"]) {
   color: #0f172a !important;
+}
+
+/* Pro Billing Toggle */
+.billing-toggle-btn.active {
+  background-color: #020617 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.25) !important;
+}
+
+.billing-toggle-btn.active span {
+  color: #ffffff !important;
+}
+
+.billing-toggle-btn.inactive {
+  background-color: transparent !important;
+  color: #334155 !important;
+}
+
+.billing-toggle-btn.inactive:hover {
+  color: #020617 !important;
+  background-color: rgba(0, 0, 0, 0.04) !important;
 }
 
 html:not(.dark) .text-slate-700,
