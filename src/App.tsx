@@ -10,6 +10,7 @@ import { SecuritySection } from './components/SecuritySection';
 import { DownloadSection } from './components/DownloadSection';
 import { FooterSection } from './components/FooterSection';
 import { AuthModal } from './components/AuthModal';
+import { TradingTerminal } from './components/TradingTerminal';
 import { getStoredSession, UserSession } from './lib/supabase';
 import { Language } from './i18n/translations';
 
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeSection, setActiveSection] = useState<number>(0);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'landing' | 'terminal'>('landing');
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -99,6 +101,16 @@ export const App: React.FC = () => {
 
   const TOTAL_SCREENS = 8;
 
+  if (currentView === 'terminal') {
+    return (
+      <TradingTerminal 
+        currentLang={currentLang} 
+        user={currentUser} 
+        onExit={() => setCurrentView('landing')} 
+      />
+    );
+  }
+
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
       {/* GRÁFICO DE FONDO */}
@@ -150,7 +162,7 @@ export const App: React.FC = () => {
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
         currentLang={currentLang} 
-        onLoginSuccess={(u) => setCurrentUser(u)} 
+        onLoginSuccess={(u) => { setCurrentUser(u); setCurrentView('terminal'); }} 
       />
 
       {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}
