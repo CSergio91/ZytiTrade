@@ -119,3 +119,28 @@ Todo componente y pantalla de ZYTI Trade debe diseñarse bajo la estricta metodo
      - `.terminal-desktop-sidebar`: Visible exclusivamente en `>= 1024px`.
      - `.terminal-mobile-controls`: Oculto estrictamente (`display: none !important`) en `>= 1024px`.
 
+### B. Reglas Mandatarias para la Trading Terminal en Móviles (< 1024px):
+1. **Gráfico KLineCharts con Máxima Visibilidad:**
+   - El canvas de KLineCharts ocupa toda la altura disponible entre la cabecera superior y la barra de navegación inferior (`flex: 1 1 0%`).
+2. **Barra de Navegación Inferior Fija:**
+   - Barra de botones táctiles en la base (`h-13` / `52px`): *Operar*, *Order Book*, *Posiciones*.
+3. **Bottom Sheet Deslizante a Mitad de Pantalla (50dvh):**
+   - Al tocar cualquier botón, la sección se eleva desde la parte inferior cubriendo exactamente la mitad de la pantalla (`h-[50dvh]`).
+   - El 50% superior mantiene el gráfico interactivo visible en tiempo real.
+   - El usuario puede cerrar la hoja tocando de nuevo el botón activo, pulsando el botón de cierre (`X`) o el fondo translúcido superior para devolver el 100% del espacio al gráfico.
+
+### C. Arquitectura Obligatoria de Componentes Modulares y Reutilizables:
+1. **Desacoplamiento Estricto y Prohibición de Monolitos:**
+   - La Trading Terminal (`TradingTerminal.tsx`) debe ser un orquestador ligero y desacoplado (~150-250 líneas), centrado exclusivamente en inicializar el Canvas KLineCharts y gestionar el Web Worker de datos.
+   - Queda estrictamente prohibido acumular más de 300-400 líneas en un solo archivo de terminal; todo bloque funcional debe residir en componentes atómicos en `src/components/terminal/`.
+2. **Subcomponentes Atómicos Mandatarios (`src/components/terminal/`):**
+   - `TerminalHeader.tsx`: Cabecera institucional con par, precios 24h, estado del Worker, usuario y botón de salir siempre visible en escritorio.
+   - `TerminalToolbar.tsx`: Selector de temporalidades e indicadores con menús de 3 puntos (`...`), catálogo ampliado de 1s a anuales, favoritos con estrella ★ y persistencia en `localStorage`.
+   - `TerminalSideNav.tsx`: Navegación lateral ultra-slim en escritorio (expandible al hover sobre el gráfico sin empujar el canvas, con botón de cambio de posición izquierda/derecha) y drawer animado para móviles.
+   - `TerminalOrderBook.tsx`: Order Book L2 reutilizable con profundidad de compras y ventas.
+   - `TerminalOrderForm.tsx`: Formulario de órdenes (compra/venta, apalancamiento, market/limit) reutilizable.
+   - `TerminalPositions.tsx`: Tabla inferior de posiciones abiertas para escritorio.
+   - `TerminalMobileSheet.tsx`: Barra de navegación inferior móvil + hoja deslizante a mitad de pantalla (`50dvh`).
+   - `TerminalExchangeModal.tsx`: Pantallas cristalinas Glassmorphism superpuestas al gráfico.
+
+
