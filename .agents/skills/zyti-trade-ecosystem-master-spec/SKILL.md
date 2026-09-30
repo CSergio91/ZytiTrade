@@ -57,3 +57,8 @@ status: Authoritative
 - **Modo Lectura:** Streaming de datos de mercado vía WebSockets nativos con heartbeat ping/pong.
 - **Modo Ejecución:** Conectores CCXT Pro / REST firmados con HMAC-SHA256 para cada exchange.
 - **Rate Limit Optimizer:** Token-bucket throttler para evitar suspensiones de IP o API ban.
+
+## 5. REGLAS INVIOLABLES DE INTERNACIONALIZACION (i18n /es y /en)
+1. **Rutas URL Obligatorias:** Todas las vistas deben responder en `/es` (Espanol) y `/en` (Ingles).
+2. **Cero Textos Hardcodeados:** Ningun texto visible en la interfaz (botones, descripciones, titulos, alertas, tareas de checklist) puede quemarse en codigo sin su correspondiente par en `translations.ts`.
+3. **Persistencia y Redireccion:** La seleccion se almacena en `localStorage` y sincroniza la URL sin recargas bruscas.
