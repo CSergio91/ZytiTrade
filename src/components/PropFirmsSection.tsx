@@ -31,7 +31,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Reto Evaluatorio en 2 Fases' : '2-Step Evaluation Challenge',
-      coupon: 'ZYTI-FTMO (-10%)',
       affiliateUrl: 'https://ftmo.com/',
     },
     {
@@ -41,7 +40,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$300,000 USD',
       model: isEs ? '15% de Ganancia en Fase de Reto' : '15% Profit Share in Challenge',
-      coupon: 'ZYTI-NEXT (-10%)',
       affiliateUrl: 'https://fundednext.com/',
     },
     {
@@ -51,7 +49,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$100,000 USD',
       model: isEs ? 'Fondeo Inmediato Sin Desafío' : 'Direct Instant Funding',
-      coupon: 'ZYTI-MASTER (-10%)',
       affiliateUrl: 'https://wemastertrade.com/',
     },
     {
@@ -61,7 +58,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '100% Profit Split',
       maxCapital: '$4,000,000 USD',
       model: isEs ? 'Cuentas Fondeadas y Escalado Real' : 'Real Funded Accounts & Scaling',
-      coupon: 'ZYTI-5ERS (-10%)',
       affiliateUrl: 'https://the5ers.com/',
     },
 
@@ -73,7 +69,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$100,000 USD',
       model: isEs ? 'Pagos Cada 5 Días en Cripto' : '5-Day Payouts in Crypto',
-      coupon: 'ZYTI-PIPS (-10%)',
       affiliateUrl: 'https://fundingpips.com/',
     },
     {
@@ -83,7 +78,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Retiros en 8 Días y E8 Track' : '8-Day Payouts & E8 Track',
-      coupon: 'ZYTI-E8 (-10%)',
       affiliateUrl: 'https://e8markets.com/',
     },
     {
@@ -93,7 +87,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? '0% Comisiones de Ejecución MT5' : 'Zero Commissions on MT5',
-      coupon: 'ZYTI-ALPHA (-10%)',
       affiliateUrl: 'https://alphacapitalgroup.uk/',
     },
     {
@@ -103,7 +96,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '95% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Desafíos Sin Límite de Tiempo' : 'No Time Limit Challenges',
-      coupon: 'ZYTI-GOAT (-10%)',
       affiliateUrl: 'https://goatfundedtrader.com/',
     },
 
@@ -115,7 +107,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$150,000 USD',
       model: isEs ? 'Trading Combine Futuros CME' : 'Official CME Futures Combine',
-      coupon: 'ZYTI-TOPSTEP (-10%)',
       affiliateUrl: 'https://www.topstep.com/',
     },
     {
@@ -125,7 +116,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$300,000 USD',
       model: isEs ? 'Futuros con NinjaTrader & Tradovate' : 'NinjaTrader & Tradovate Futures',
-      coupon: 'ZYTI-APEX (-10%)',
       affiliateUrl: 'https://apextraderfunding.com/',
     },
     {
@@ -135,7 +125,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$300,000 USD',
       model: isEs ? 'Evaluaciones de 1 y 2 Pasos' : '1 & 2 Step Evaluations',
-      coupon: 'ZYTI-FX (-10%)',
       affiliateUrl: 'https://myfundedfx.com/',
     },
     {
@@ -145,7 +134,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Retiros en Cripto Procesados en 24h' : '24h Crypto Payouts Processed',
-      coupon: 'ZYTI-AQUA (-10%)',
       affiliateUrl: 'https://aquafunded.com/',
     },
 
@@ -157,7 +145,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Fondeo Inmediato & Terminal ZYTI Nativa' : 'Instant Funding & Native ZYTI OS',
-      coupon: 'ZYTI-GLOBAL (-10%)',
       affiliateUrl: 'https://globalcityfunding.com/',
     },
     {
@@ -167,7 +154,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$200,000 USD',
       model: isEs ? 'Cuentas con Broker STP Real' : 'Real STP Broker Accounts',
-      coupon: 'ZYTI-FUNDER (-10%)',
       affiliateUrl: 'https://funderpro.com/',
     },
     {
@@ -177,7 +163,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '80% Profit Split',
       maxCapital: '$2,000,000 USD',
       model: isEs ? 'Mesa Institucional de Londres' : 'London Dealing Desk Portfolio',
-      coupon: 'ZYTI-CTI (-10%)',
       affiliateUrl: 'https://citytradersimperium.com/',
     },
     {
@@ -187,7 +172,6 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
       split: '90% Profit Split',
       maxCapital: '$300,000 USD',
       model: isEs ? 'Fondeo Dinámico con Puntos XP' : 'Dynamic XP Gamified Model',
-      coupon: 'ZYTI-PIPFARM (-10%)',
       affiliateUrl: 'https://pipfarm.com/',
     },
   ];
@@ -285,10 +269,11 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
                       </span>
                     </div>
 
-                    {/* CUPÓN DE DESCUENTO PROMO */}
+                    {/* CAPITAL MÁXIMO DISPONIBLE */}
                     <div className="my-2.5">
-                      <span className="text-xs font-mono font-bold text-amber-900 bg-[#fef3c7] px-3 py-1.5 rounded-xl border border-amber-200/80 inline-block">
-                        ★ {firm.coupon}
+                      <span className="text-xs font-mono font-bold text-slate-900 bg-[#ede5d6]/80 px-3 py-1.5 rounded-xl border border-slate-300/60 inline-flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold">{isEs ? 'Capital Máximo:' : 'Max Capital:'}</span>
+                        <span className="font-black text-slate-950">{firm.maxCapital}</span>
                       </span>
                     </div>
                   </div>

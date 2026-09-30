@@ -120,13 +120,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } text-slate-950`}>
         
-        {/* PANTALLA 1: MENU EXCHANGES */}
+        {/* PANTALLA 1: EXCHANGES */}
         <div 
           className="relative py-2"
           onMouseEnter={handleExchangeEnter}
           onMouseLeave={handleExchangeLeave}
         >
           <button 
+            type="button"
             onClick={() => onNavigateSection(1)}
             className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
               activeSection === 1 
@@ -138,14 +139,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
           </button>
 
-          {/* POPOVER CON CRISTAL LUMINOSO Y PUENTE INVISIBLE */}
+          {/* POPOVER CON CRISTAL LUMINOSO PARA EXCHANGES */}
           {exchangeOpen && (
             <div 
               onMouseEnter={handleExchangeEnter}
               onMouseLeave={handleExchangeLeave}
               className="absolute top-full left-0 mt-1 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-2xl before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']"
             >
-              
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
                 <div>
                   <h4 className="text-sm font-black text-slate-950">
@@ -156,25 +156,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
                   className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
-                  {currentLang === 'es' ? 'Ver pantalla completa (15 Venues) →' : 'View full screen (15 Venues) →'}
+                  {currentLang === 'es' ? 'Ver pantalla completa (16 Venues) →' : 'View full screen (16 Venues) →'}
                 </button>
               </div>
 
-              {/* CONTENEDOR FLEX: LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE 5 */}
               <div className="flex gap-6 items-center">
-                
-                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE */}
                 <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
                   <LottieAnimation animationData={exchangeRadarData} className="w-48 h-48" />
                 </div>
 
-                {/* 3 COLUMNAS DE 5 EXCHANGES: SIN ETIQUETAS DE TIER/COPY Y CON HOVER ULTRA VISIBLE */}
                 <div className="flex-1 grid grid-cols-3 gap-3">
-                  
-                  {/* COLUMNA 1 (5 ITEMS) */}
+                  {/* COLUMNA 1 */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col1Title}
@@ -200,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ))}
                   </div>
 
-                  {/* COLUMNA 2 (5 ITEMS) */}
+                  {/* COLUMNA 2 */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col2Title}
@@ -226,7 +222,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ))}
                   </div>
 
-                  {/* COLUMNA 3 (5 ITEMS) */}
+                  {/* COLUMNA 3 */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-500 px-2.5 pb-1">
                       {t.exchangesMenu.col3Title}
@@ -251,15 +247,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     ))}
                   </div>
-
                 </div>
-
               </div>
             </div>
           )}
         </div>
 
-        {/* MENU PROP FIRMS (DIRECTORIO AUDITADO DE FONDEO) */}
+        {/* PANTALLA 2: PROP FIRMS (FOCALIZADO ÚNICAMENTE EN activeSection === 2) */}
         <div 
           className="relative py-2"
           onMouseEnter={handlePropFirmsEnter}
@@ -267,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <button 
             type="button"
-            onClick={() => onNavigateSection(6)}
+            onClick={() => onNavigateSection(2)}
             className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
               activeSection === 2 
                 ? 'text-blue-600 font-black' 
@@ -299,11 +293,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => { onNavigateSection(2); setPropFirmsOpen(false); }}
                   className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
-                  {currentLang === 'es' ? 'Ver comparador de fondeo →' : 'View prop firm comparator →'}
+                  {currentLang === 'es' ? 'Ver pantalla completa de Prop Firms →' : 'View full Prop Firms screen →'}
                 </button>
               </div>
 
-              {/* 3 COLUMNAS DE 5 PROP FIRMS CADA UNA */}
               <div className="grid grid-cols-3 gap-3">
                 {/* COLUMNA 1 */}
                 <div className="flex flex-col gap-1">
@@ -387,16 +380,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* PANTALLA 2: MENU SERVICIOS */}
+        {/* PANTALLA 3: MENU SERVICIOS (FOCALIZADO ÚNICAMENTE EN activeSection === 3) */}
         <div 
           className="relative py-2"
           onMouseEnter={handleServicesEnter}
           onMouseLeave={handleServicesLeave}
         >
           <button 
-            onClick={() => onNavigateSection(2)}
+            type="button"
+            onClick={() => onNavigateSection(3)}
             className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
-              activeSection === 2 
+              activeSection === 3 
                 ? 'text-blue-600 font-black' 
                 : 'text-slate-950 hover:text-blue-600'
             }`}
@@ -421,6 +415,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => { onNavigateSection(3); setServicesOpen(false); }}
                   className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
@@ -429,12 +424,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               <div className="flex gap-6 items-center">
-                {/* ANIMACIÓN LOTTIE OFICIAL DE SERVICIOS */}
                 <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
                   <LottieAnimation animationData={servicesAnimationData} className="w-48 h-48" />
                 </div>
 
-                {/* 4 SERVICIOS CLAVE: HOVER CLARO Y VISIBLE CON FONDO CÁLIDO */}
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {servicesList.map((srv, idx) => (
                     <div 
@@ -464,20 +457,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* PANTALLA 3: PRECIOS */}
+        {/* PANTALLA 4: PRECIOS (activeSection === 4) */}
         <button 
-          onClick={() => onNavigateSection(3)}
-          className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
-            activeSection === 6
-              ? 'text-blue-600 font-black'
-              : 'text-slate-950 hover:text-blue-600'
-          }`}
-        >
-          {t.nav.pricing}
-        </button>
-
-        {/* PANTALLA 4: SEGURIDAD */}
-        <button 
+          type="button"
           onClick={() => onNavigateSection(4)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 4
@@ -485,14 +467,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               : 'text-slate-950 hover:text-blue-600'
           }`}
         >
-          {t.nav.security}
+          {t.nav.pricing}
         </button>
 
-        {/* PANTALLA 5: DESCARGAR / APPS */}
+        {/* PANTALLA 5: SEGURIDAD (activeSection === 5) */}
         <button 
+          type="button"
           onClick={() => onNavigateSection(5)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 5
+              ? 'text-blue-600 font-black'
+              : 'text-slate-950 hover:text-blue-600'
+          }`}
+        >
+          {t.nav.security}
+        </button>
+
+        {/* PANTALLA 6: DESCARGAR (activeSection === 6) */}
+        <button 
+          type="button"
+          onClick={() => onNavigateSection(6)}
+          className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
+            activeSection === 6
               ? 'text-blue-600 font-black'
               : 'text-slate-950 hover:text-blue-600'
           }`}
