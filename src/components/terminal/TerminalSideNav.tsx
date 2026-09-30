@@ -22,6 +22,8 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   onCloseMobileNav,
   onExit
 }) => {
+  const [isClickedExpanded, setIsClickedExpanded] = React.useState(false);
+
   return (
     <>
       {/* 1. BARRA LATERAL EN ESCRITORIO (>= 1024px) */}
@@ -29,9 +31,11 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
         {/* Contenedor base de 48px para reservar el espacio de navegación */}
         <div className={`w-12 h-full ${navPosition === 'left' ? 'border-r' : 'border-l'} border-[#ded5c5] bg-[#fbf9f4]`} />
         
-        {/* Menú flotante al hover que vuela por encima del gráfico sin redimensionarlo ni empujarlo */}
+        {/* Menú flotante al hover o al click que vuela por encima del gráfico sin redimensionarlo ni empujarlo */}
         <div 
-          className={`absolute top-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} h-full w-12 hover:w-56 bg-[#fbf9f4]/95 backdrop-blur-xl border-[#ded5c5] transition-all duration-300 ease-out overflow-hidden shadow-xs hover:shadow-2xl flex flex-col justify-between py-3 px-1.5 group z-40`}
+          className={`absolute top-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} h-full ${
+            isClickedExpanded ? 'w-56 shadow-2xl' : 'w-12 hover:w-56 shadow-xs hover:shadow-2xl'
+          } bg-[#fbf9f4]/95 backdrop-blur-xl border-[#ded5c5] transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between py-3 px-1.5 group z-40`}
         >
           {/* SECCIONES */}
           <div className="space-y-1.5">
@@ -45,7 +49,7 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
               <div className="w-6 h-6 flex items-center justify-center shrink-0">
                 <ArrowLeftRight className="w-4 h-4 text-slate-600" />
               </div>
-              <span className="text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                 {navPosition === 'left' ? (isEs ? 'Mover a Derecha' : 'Move to Right') : (isEs ? 'Mover a Izquierda' : 'Move to Left')}
               </span>
             </button>
@@ -55,7 +59,10 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
             {/* SECCIÓN 1: EXCHANGE */}
             <button
               type="button"
-              onClick={() => onSelectSection(activeSection === 'exchange' ? 'none' : 'exchange')}
+              onClick={() => {
+                onSelectSection(activeSection === 'exchange' ? 'none' : 'exchange');
+                setIsClickedExpanded(!isClickedExpanded);
+              }}
               className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all cursor-pointer ${
                 activeSection === 'exchange'
                   ? 'bg-amber-100 text-amber-950 font-black shadow-xs'
@@ -66,7 +73,7 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
               <div className="w-6 h-6 flex items-center justify-center shrink-0">
                 <Repeat className={`w-4 h-4 ${activeSection === 'exchange' ? 'text-amber-600' : 'text-slate-700'}`} />
               </div>
-              <span className="text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                 Exchange
               </span>
             </button>
@@ -83,7 +90,7 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
               <div className="w-6 h-6 flex items-center justify-center shrink-0">
                 <LogOut className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                 {isEs ? 'Cerrar Sesión' : 'Log Out'}
               </span>
             </button>

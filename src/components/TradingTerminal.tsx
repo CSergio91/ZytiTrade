@@ -681,6 +681,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         supportedPairs={SUPPORTED_PAIRS}
         stats={stats}
         isMobileNavOpen={isMobileNavOpen}
+        activeSection={activeSection}
+        onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
         onSelectPair={handleSelectPair}
         onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)}
         onExit={onExit}
