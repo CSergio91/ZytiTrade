@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Lock, Network, KeyRound, EyeOff, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Zap, ArrowRight, Lock, Network, KeyRound, EyeOff, CheckCircle2 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { LottieAnimation } from './LottieAnimation';
 import securityShieldData from '../assets/animations/security-shield.json';
@@ -63,11 +63,22 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
             </div>
 
             {/* ANIMACIÓN LOTTIE OFICIAL (ESCUDO Y ENCLAVE SEGURO, 100% TRANSPARENTE) */}
-            <div className="mt-4 flex items-center justify-center bg-transparent border-none">
+            <div className="mt-3 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={securityShieldData} 
-                className="w-56 h-56 sm:w-64 sm:h-64" 
+                className="w-52 h-52 sm:w-56 sm:h-56" 
               />
+            </div>
+
+            {/* BOTÓN CTA ACTIVO */}
+            <div className="mt-3 flex items-center">
+              <button 
+                className="flex items-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95"
+              >
+                <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+                <span>{currentLang === 'es' ? 'Operar Ahora' : 'Trade Now'}</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
           </div>
 

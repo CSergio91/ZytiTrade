@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, Layers, Zap } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { LottieAnimation } from './LottieAnimation';
 import servicesAnimationData from '../assets/animations/services-network.json';
@@ -44,11 +44,22 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang, i
             </div>
 
             {/* ANIMACIÓN LOTTIE REUTILIZABLE (100% TRANSPARENTE, SIN TEXTOS NI FONDOS OPACOS) */}
-            <div className="mt-4 flex items-center justify-center bg-transparent border-none">
+            <div className="mt-3 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation 
                 animationData={servicesAnimationData} 
-                className="w-56 h-56 sm:w-64 sm:h-64" 
+                className="w-52 h-52 sm:w-56 sm:h-56" 
               />
+            </div>
+
+            {/* BOTÓN CTA ACTIVO */}
+            <div className="mt-3 flex items-center">
+              <button 
+                className="flex items-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95"
+              >
+                <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
+                <span>{currentLang === 'es' ? 'Operar Ahora' : 'Trade Now'}</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
           </div>
 

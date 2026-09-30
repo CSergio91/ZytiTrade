@@ -1,5 +1,6 @@
 import React from 'react';
 import { 
+  Zap,
   Download, 
   Eye, 
   Check, 
@@ -36,7 +37,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <button className="flex items-center gap-2.5 px-7 py-3.5 text-sm font-bold text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95">
-              <Download className="w-4 h-4 stroke-[2.5]" />
+              <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.ctaPrimary}</span>
             </button>
 

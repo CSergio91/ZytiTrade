@@ -8,8 +8,8 @@ export const translations = {
       security: 'Seguridad',
       pricing: 'Precios',
       download: 'Descargar',
-      signIn: 'Acceder',
-      launchTerminal: 'Lanzar Terminal',
+      signIn: 'Operar Ahora',
+      launchTerminal: 'Operar Ahora',
     },
     exchangesMenu: {
       title: 'Exchanges Soportados',
@@ -63,7 +63,7 @@ export const translations = {
       headlineStart: 'Opera lo que planeas.',
       headlineHighlight: 'Nada más.',
       subtitle: 'El sistema operativo institucional para Binance, Bybit y firmas de fondeo. Ejecuta sin intermediarios, replica tus órdenes y audita cada trade.',
-      ctaPrimary: 'Lanzar Terminal',
+      ctaPrimary: 'Operar Ahora',
       ctaSecondary: 'Ver demo en vivo',
       connectorsLabel: 'Conectores:',
       planCard: {
@@ -310,7 +310,7 @@ export const translations = {
       headlineStart: 'Trade what you planned.',
       headlineHighlight: 'Nothing else.',
       subtitle: 'The institutional trading system for Binance, Bybit, and prop firms. Execute without middlemen, replicate cross-exchange orders, and audit every trade.',
-      ctaPrimary: 'Launch Terminal',
+      ctaPrimary: 'Trade Now',
       ctaSecondary: 'View live demo',
       connectorsLabel: 'Connectors:',
       planCard: {

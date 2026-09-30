@@ -372,27 +372,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {langOpen && (
-            <div className="absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-950 shadow-xl border border-slate-200 before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']">
+            <div className="absolute top-full mt-2 w-36 rounded-2xl p-1.5 z-50 right-0 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']">
               <button
+                type="button"
                 onClick={() => { onLanguageChange('es'); setLangOpen(false); }}
-                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'es' ? 'bg-slate-950 text-white' : 'hover:bg-[#ede5d6]/70 text-slate-950')}
+                className={`w-full text-left px-3 py-2 text-xs font-black rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                  currentLang === 'es' 
+                    ? 'bg-slate-950 shadow-sm' 
+                    : 'hover:bg-[#ede5d6] text-slate-900'
+                }`}
               >
-                <span>Español</span>
-                {currentLang === 'es' && <span className="text-[10px]">✓</span>}
+                <span style={{ color: currentLang === 'es' ? '#ffffff' : '#0f172a' }}>Español</span>
+                {currentLang === 'es' && <span style={{ color: '#ffffff' }} className="text-xs font-black">✓</span>}
               </button>
               <button
+                type="button"
                 onClick={() => { onLanguageChange('en'); setLangOpen(false); }}
-                className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'en' ? 'bg-slate-950 text-white' : 'hover:bg-[#ede5d6]/70 text-slate-950')}
+                className={`w-full text-left px-3 py-2 text-xs font-black rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                  currentLang === 'en' 
+                    ? 'bg-slate-950 shadow-sm' 
+                    : 'hover:bg-[#ede5d6] text-slate-900'
+                }`}
               >
-                <span>English</span>
-                {currentLang === 'en' && <span className="text-[10px]">✓</span>}
+                <span style={{ color: currentLang === 'en' ? '#ffffff' : '#0f172a' }}>English</span>
+                {currentLang === 'en' && <span style={{ color: '#ffffff' }} className="text-xs font-black">✓</span>}
               </button>
             </div>
           )}
         </div>
 
-        {/* BOTÓN SIGN IN */}
-        <button className={`font-black rounded-xl border transition-all cursor-pointer whitespace-nowrap bg-slate-950 border-slate-950 text-white hover:bg-slate-800 shadow-sm ${
+        {/* BOTÓN OPERAR AHORA: MISMO COLOR (#eab308) Y TEXTO QUE EN HERO */}
+        <button className={`font-black rounded-xl border-none transition-all cursor-pointer whitespace-nowrap bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 shadow-sm transform hover:scale-105 active:scale-95 ${
           isShifted ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'
         }`}>
           {t.nav.signIn}

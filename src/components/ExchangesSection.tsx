@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ShieldCheck } from 'lucide-react';
+import { Activity, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
 import { LottieAnimation } from './LottieAnimation';
@@ -66,8 +66,19 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
             </div>
 
             {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE SIN TEXTO NI CAJAS */}
-            <div className="mt-6 flex items-center justify-center bg-transparent border-none">
+            <div className="mt-4 flex items-center justify-center bg-transparent border-none">
               <LottieAnimation animationData={exchangeRadarData} className="w-52 h-52" />
+            </div>
+
+            {/* BOTÓN CTA ACTIVO */}
+            <div className="mt-3 flex items-center">
+              <button 
+                className="flex items-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95"
+              >
+                <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
+                <span>{isEs ? 'Operar Ahora' : 'Trade Now'}</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
           </div>
 
