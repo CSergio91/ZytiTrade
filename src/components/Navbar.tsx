@@ -97,8 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header 
       className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isShifted
-          ? 'top-2 left-3 right-3 w-auto h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border border-[#ede8df]/80 rounded-2xl flex items-center justify-between gap-3 md:top-3 md:left-6 md:right-auto md:rounded-2xl md:bg-white/80 md:border-[#ede8df] md:px-4 md:gap-6 md:shadow-sm'
-          : 'top-0 left-0 right-0 w-full h-16 md:h-20 px-4 md:px-6 lg:px-12 bg-transparent flex items-center justify-between shadow-none'
+          ? 'top-2 left-3 right-3 w-auto h-14 px-4 bg-[#fbf9f4]/95 backdrop-blur-md rounded-2xl flex items-center justify-between gap-3 shadow-sm lg:top-4 lg:left-8 lg:right-auto lg:bg-[#fbf9f4]/90 lg:rounded-2xl lg:shadow-md lg:px-5 lg:gap-6'
+          : 'top-0 left-0 right-0 w-full h-14 lg:h-20 px-4 lg:px-8 xl:px-12 bg-transparent flex items-center justify-between shadow-none'
       }`}>
       
       {/* 1. LOGO INSTITUCIONAL COMPLETO */}
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
-      <div className={`hidden md:flex items-center transition-all duration-300 font-bold ${
+      <div className={`hidden lg:flex items-center transition-all duration-300 font-bold ${
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } text-slate-950`}>
         
@@ -500,7 +500,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* 3. ACCIONES LATERALES (IDIOMA + ACCEDER) SIN BORDES */}
-      <div className={`flex items-center transition-all duration-300 shrink-0 ${
+      <div className={`hidden lg:flex items-center transition-all duration-300 shrink-0 ${
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
@@ -556,7 +556,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* 3. CONTROLES MÓVILES (BOTÓN HAMBURGUESA — EXCLUSIVO MÓVIL < 768px) */}
-      <div className="md:hidden flex items-center">
+      <div className="lg:hidden flex items-center">
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -569,7 +569,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* 4. DRAWER TÁCTIL MÓVIL FULL-WIDTH (OPTIMIZADO PARA IPHONE SE) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-2.5 top-15 z-50 md:hidden warm-card rounded-2xl p-4 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100dvh-68px)] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-x-2.5 top-15 z-50 lg:hidden warm-card rounded-2xl p-4 shadow-2xl border border-[#ded5c5] bg-[#fbf9f4]/98 backdrop-blur-2xl animate-zoom-in max-h-[calc(100dvh-68px)] overflow-y-auto no-scrollbar">
           
           {/* SELECTOR DE IDIOMA AMBER DE ALTO CONTRASTE (SIN TEXTO OSCURO SOBRE FONDO OSCURO) */}
           <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-[#ede8df]">

@@ -16,7 +16,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
   const t = translations[currentLang].hero;
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:items-center lg:justify-center snap-center px-4 sm:px-6 lg:px-12 pt-16 sm:pt-20 lg:pt-24 xl:pt-28 pb-8 lg:pb-12 overflow-y-auto lg:overflow-hidden no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-16 sm:pt-20 lg:pt-22 pb-8 lg:pb-10 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-8 items-center animate-zoom-in">
         
         {/* COLUMNA IZQUIERDA */}
