@@ -265,16 +265,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
-        {/* THEME TOGGLE */}
+        {/* THEME TOGGLE (100% SIN BORDES) */}
         <button
           onClick={onThemeToggle}
           aria-label="Toggle Theme"
-          className={`rounded-xl border transition-colors cursor-pointer flex items-center justify-center ${
-            isShifted ? 'p-2' : 'p-2.5'
+          className={`rounded-xl transition-colors cursor-pointer flex items-center justify-center border-none bg-transparent ${
+            isShifted ? 'p-1.5' : 'p-2'
           } ${
             isLight 
-              ? 'bg-white/80 border-[#ede8df] text-amber-500 hover:bg-[#f4efe5]' 
-              : 'bg-[#151d2e]/80 border-[#23304a] text-slate-200 hover:bg-slate-800'
+              ? 'text-amber-500 hover:bg-[#ede5d6]/50' 
+              : 'text-slate-200 hover:bg-slate-800/60'
           }`}
         >
           {isLight ? (
@@ -284,16 +284,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* SELECTOR IDIOMA */}
+        {/* SELECTOR IDIOMA (100% SIN BORDES) */}
         <div className="relative">
           <button 
             onClick={() => setLangOpen(!langOpen)}
-            className={`flex items-center gap-1.5 rounded-xl border transition-colors cursor-pointer ${
-              isShifted ? 'px-2.5 py-1.5 text-xs font-bold' : 'px-3 py-2 text-xs font-bold'
+            className={`flex items-center gap-1.5 rounded-xl transition-colors cursor-pointer border-none bg-transparent ${
+              isShifted ? 'px-2 py-1.5 text-xs font-bold' : 'px-2.5 py-2 text-xs font-bold'
             } ${
               isLight 
-                ? 'bg-white/80 border-[#ede8df] text-slate-900 hover:bg-[#f4efe5]' 
-                : 'bg-[#151d2e]/80 border-[#23304a] text-slate-200 hover:bg-slate-800'
+                ? 'text-slate-900 hover:bg-[#ede5d6]/50' 
+                : 'text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Globe className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
