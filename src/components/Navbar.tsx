@@ -121,36 +121,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* CONTENEDOR FLEX: LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE 5 */}
               <div className="flex gap-5">
                 
-                {/* LOTTIE ANIMATION EN EL SUBMENÚ A LA IZQUIERDA */}
-                <div className="w-56 shrink-0 rounded-2xl p-4 flex flex-col justify-between bg-[#fbf9f4] dark:bg-[#0c101a] border border-[#ede8df] dark:border-[#1f293d]">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        ● Direct Sockets
-                      </span>
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white dark:bg-white dark:text-slate-950">
-                        60 FPS
-                      </span>
-                    </div>
-
-                    <div className="w-full h-32 flex items-center justify-center my-1">
-                      <ExchangeLottie className="w-28 h-28" />
-                    </div>
-
-                    <h5 className="text-xs font-bold text-slate-950 dark:text-white">
-                      {currentLang === 'es' ? 'Enrutamiento Directo' : 'Direct Order Routing'}
-                    </h5>
-                    <p className="text-[11px] text-slate-700 dark:text-slate-400 font-medium leading-snug mt-1">
-                      {currentLang === 'es' 
-                        ? 'Conexión TLS nativa sin servidores proxy ni comisiones añadidas.' 
-                        : 'Native TLS connection without proxy servers or additional fees.'}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-[10px] font-mono text-slate-600 dark:text-slate-400">
-                    <span>15 Venues</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">1.2ms avg</span>
-                  </div>
+                {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE A LA IZQUIERDA SIN TEXTO NI CAJAS */}
+                <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
+                  <ExchangeLottie className="w-48 h-48" />
                 </div>
 
                 {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA CON SUS ICONOS OFICIALES */}

@@ -64,25 +64,9 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
               </p>
             </div>
 
-            {/* TARJETA RADAR LOTTIE */}
-            <div className="mt-6 warm-card rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-lg border border-[#ede8df] dark:border-[#1f293d]">
-              <div className="w-full flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  ● Multi-Venue WSS
-                </span>
-                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white dark:bg-white dark:text-slate-950">
-                  60 FPS
-                </span>
-              </div>
-
-              <div className="w-48 h-44 flex items-center justify-center">
-                <ExchangeLottie className="w-40 h-40" />
-              </div>
-
-              <div className="w-full pt-3 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-700 dark:text-slate-300 font-bold">15 Conectores</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">&lt; 1.5ms avg</span>
-              </div>
+            {/* ANIMACIÓN LOTTIE 100% TRANSPARENTE SIN TEXTO NI CAJAS */}
+            <div className="mt-6 flex items-center justify-center bg-transparent border-none">
+              <ExchangeLottie className="w-52 h-52" />
             </div>
           </div>
 

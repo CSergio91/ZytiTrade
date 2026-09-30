@@ -13,12 +13,12 @@ export const ExchangeLottie: React.FC<ExchangeLottieProps> = ({
   height = '100%' 
 }) => {
   return (
-    <div className={`flex items-center justify-center overflow-hidden ${className}`}>
+    <div className={`flex items-center justify-center overflow-hidden bg-transparent ${className}`}>
       <DotLottieReact
         src="/animations/exchange-radar.lottie"
         loop
         autoplay
-        style={{ width, height }}
+        style={{ width, height, backgroundColor: 'transparent' }}
       />
     </div>
   );
