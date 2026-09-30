@@ -39,23 +39,23 @@ export const translations = {
       ]
     },
     servicesMenu: {
-      title: 'Servicios',
-      subtitle: 'Infraestructura de trading para firmas y operadores',
+      title: 'Servicios de la Terminal',
+      subtitle: 'Herramientas operativas reales para traders independientes y escritorios',
       propFirms: {
-        title: 'Pasarela para Prop Firms',
-        desc: 'Aprovisionamiento de cuentas vía REST API y Webhooks en tiempo real para auditorías de drawdown y challenges.',
+        title: 'Directorio y Comparador de Prop Firms',
+        desc: 'Explora y audita las firmas de fondeo más reputadas de la industria, compara sus reglas de drawdown y opera cuentas fondeadas desde ZYTI Trade.',
       },
       multiExchange: {
         title: 'Trading MultiExchange',
-        desc: 'Unifica balances, órdenes abiertas y posiciones de múltiples cuentas en una interfaz sin fricciones.',
+        desc: 'Unifica balances, órdenes abiertas y posiciones de múltiples cuentas (Binance, Bybit, OKX) en una sola interfaz sin fricciones.',
       },
       copyTrading: {
-        title: 'Copy Trading entre Exchanges',
-        desc: 'Replica operaciones de Binance a Bybit u OKX en menos de 5ms utilizando claves cifradas en local.',
+        title: 'Copy Trading Cross-Exchange',
+        desc: 'Replica operaciones entre exchanges en menos de 5ms utilizando claves cifradas en local con cero custodia de capital.',
       },
       arbitrage: {
-        title: 'Arbitraje Algorítmico',
-        desc: 'Detección de spreads cruzados y ejecución sincronizada de dos patas en tiempo real.',
+        title: 'Arbitraje Algorítmico Cripto',
+        desc: 'Detección automática de spreads cruzados y ejecución sincronizada de dos patas en tiempo real sin riesgo de descalce.',
       },
     },
     hero: {
@@ -274,23 +274,23 @@ export const translations = {
       ]
     },
     servicesMenu: {
-      title: 'Services',
-      subtitle: 'Trading infrastructure for professional firms and operators',
+      title: 'Terminal Services',
+      subtitle: 'Real operational tools engineered for active traders and quantitative desks',
       propFirms: {
-        title: 'Prop Firm Gateway',
-        desc: 'API account provisioning & real-time Webhooks for risk auditors, evaluations, and challenges.',
+        title: 'Prop Firm Industry Directory',
+        desc: 'Explore and benchmark top industry prop firms, audit drawdown rules, and manage funded accounts directly within ZYTI Trade.',
       },
       multiExchange: {
         title: 'Multi-Exchange Trading',
-        desc: 'Consolidate balances, open orders, and positions across venues into a single frictionless workspace.',
+        desc: 'Consolidate balances, open orders, and positions across venues (Binance, Bybit, OKX) into a single frictionless workspace.',
       },
       copyTrading: {
         title: 'Cross-Exchange Copy Trading',
-        desc: 'Replicate trades from Binance to Bybit or OKX under 5ms using local zero-knowledge encrypted keys.',
+        desc: 'Replicate trades from one exchange to another under 5ms using local zero-knowledge encrypted keys with zero asset custody.',
       },
       arbitrage: {
-        title: 'Algorithmic Arbitrage',
-        desc: 'Cross-market spread detection and synchronized two-leg order execution in real time.',
+        title: 'Algorithmic Crypto Arbitrage',
+        desc: 'Real-time cross-market spread detection and automated synchronized two-leg order execution without execution lag.',
       },
     },
     hero: {

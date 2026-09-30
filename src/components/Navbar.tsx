@@ -9,6 +9,7 @@ import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
 import { LottieAnimation } from './LottieAnimation';
 import exchangeRadarData from '../assets/animations/exchange-radar.json';
+import servicesAnimationData from '../assets/animations/services-network.json';
 
 interface NavbarProps {
   currentLang: Language;
@@ -268,21 +269,54 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div 
               onMouseEnter={handleServicesEnter}
               onMouseLeave={handleServicesLeave}
-              className={`absolute top-full left-0 mt-1 w-88 rounded-3xl p-4 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
+              className={`absolute top-full left-0 mt-1 w-[780px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-['']`}
             >
-              <div className="flex flex-col gap-1">
-                {servicesList.map((srv, idx) => (
-                  <div 
-                    key={idx}
-                    onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
-                    className={`p-3 rounded-2xl transition-colors cursor-pointer flex flex-col ${
-                      isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
-                    }`}
-                  >
-                    <span className={`text-sm font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{srv.title}</span>
-                    <span className={`text-xs font-medium leading-snug mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{srv.desc}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
+                <div>
+                  <h4 className="text-sm font-black text-slate-950 dark:text-white">
+                    {t.servicesMenu.title}
+                  </h4>
+                  <p className="text-xs text-slate-700 dark:text-slate-400 font-medium">
+                    {t.servicesMenu.subtitle}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
+                  className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none"
+                >
+                  {currentLang === 'es' ? 'Ver sección de servicios →' : 'View services section →'}
+                </button>
+              </div>
+
+              <div className="flex gap-6 items-center">
+                {/* ANIMACIÓN LOTTIE OFICIAL DE SERVICIOS A LA IZQUIERDA (100% TRANSPARENTE, SIN TEXTO NI CAJAS) */}
+                <div className="w-52 shrink-0 flex items-center justify-center p-1 bg-transparent border-none">
+                  <LottieAnimation animationData={servicesAnimationData} className="w-48 h-48" />
+                </div>
+
+                {/* 4 SERVICIOS CLAVE A LA DERECHA */}
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {servicesList.map((srv, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
+                      className={`p-3 rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
+                        isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-mono font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+                            0${idx + 1}
+                          </span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        </div>
+                        <span className={`text-xs font-black ${isLight ? 'text-slate-950' : 'text-white'}`}>{srv.title}</span>
+                        <p className={`text-[11px] font-medium leading-relaxed mt-1 line-clamp-2 ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>{srv.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
