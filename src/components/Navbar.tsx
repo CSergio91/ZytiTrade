@@ -253,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* PANTALLA 3: SEGURIDAD */}
+        {/* PANTALLA 3: PRECIOS */}
         <button 
           onClick={() => onNavigateSection(3)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
@@ -262,14 +262,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
           }`}
         >
-          {t.nav.security}
+          {t.nav.pricing}
         </button>
 
-        {/* PANTALLA 4: DESCARGAR / APPS */}
+        {/* PANTALLA 4: SEGURIDAD */}
         <button 
           onClick={() => onNavigateSection(4)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
             activeSection === 4
+              ? 'text-blue-600 dark:text-blue-400'
+              : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
+          }`}
+        >
+          {t.nav.security}
+        </button>
+
+        {/* PANTALLA 5: DESCARGAR / APPS */}
+        <button 
+          onClick={() => onNavigateSection(5)}
+          className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
+            activeSection === 5
               ? 'text-blue-600 dark:text-blue-400'
               : (isLight ? 'text-slate-900 hover:text-blue-600' : 'text-slate-200 hover:text-blue-400')
           }`}

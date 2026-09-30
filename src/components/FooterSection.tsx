@@ -85,15 +85,21 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ currentLang, isAct
             </button>
             <button 
               onClick={() => onNavigateSection(3)} 
-              className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+              className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              04. {navT.security}
+              04. {navT.pricing || 'Precios'}
             </button>
             <button 
               onClick={() => onNavigateSection(4)} 
-              className="text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+              className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
             >
-              05. {navT.download} & Apps
+              05. {navT.security}
+            </button>
+            <button 
+              onClick={() => onNavigateSection(5)} 
+              className="text-left text-xs font-medium text-slate-900 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+            >
+              06. {navT.download} & Apps
             </button>
           </div>
 

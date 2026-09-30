@@ -6,6 +6,7 @@ export const translations = {
       exchanges: 'Exchanges',
       services: 'Servicios',
       security: 'Seguridad',
+      pricing: 'Precios',
       download: 'Descargar',
       signIn: 'Acceder',
       launchTerminal: 'Lanzar Terminal',
@@ -102,6 +103,87 @@ export const translations = {
       subtitle: 'Diseñado para eliminar la sobrecarga de herramientas y darte una terminal limpia y predecible.',
       learnMore: 'Conocer más',
     },
+    pricingSection: {
+      tag: '/planes-y-suscripciones',
+      title: 'Precios Transparentes para Cada Nivel de Operativa.',
+      subtitle: 'Elige la potencia que necesita tu operativa: desde traders individuales hasta escritorios cuantitativos y firmas de fondeo.',
+      monthlyLabel: 'Facturación Mensual',
+      annualLabel: 'Facturación Anual',
+      discountBadge: 'Ahorra 20% anual',
+      perMonth: '/mes',
+      plans: [
+        {
+          id: 'starter',
+          name: 'Starter Community',
+          desc: 'Para operadores individuales que buscan una terminal limpia, rápida y no custodial.',
+          priceMonthly: 0,
+          priceAnnual: 0,
+          badge: 'Gratis',
+          isPopular: false,
+          cta: 'Empezar Gratis',
+          features: [
+            'Terminal GPU Canvas a 60 FPS con KLineChart v10',
+            'Conexión a 2 Exchanges simultáneos (Binance / Bybit)',
+            'Libro de órdenes DOM y gráficos multitemporalidad',
+            'Cifrado local de llaves API en enclave de navegador',
+            'Cero custodia y cero rastreo de telemetría'
+          ]
+        },
+        {
+          id: 'pro',
+          name: 'Pro Trader',
+          desc: 'Para traders activos que ejecutan y replican órdenes en múltiples mercados.',
+          priceMonthly: 39,
+          priceAnnual: 29,
+          badge: 'Alto Rendimiento',
+          isPopular: false,
+          cta: 'Comenzar Pro Trader',
+          features: [
+            'Conectividad Multi-Exchange Ilimitada (15 Venues)',
+            'Motor de Copy Trading Cross-Exchange (< 3.5ms)',
+            'Apps Nativas Desktop para Windows, macOS y Linux',
+            'APK Oficial Android con push notifications en vivo',
+            'Trailing Stops dinámicos y gestión avanzada de riesgo',
+            'Workspaces sincronizados con persistencia local'
+          ]
+        },
+        {
+          id: 'institutional',
+          name: 'Institutional & Prop Desk',
+          desc: 'La suite completa para traders de prop firms, arbitrajistas algorítmicos y mesas de dinero.',
+          priceMonthly: 129,
+          priceAnnual: 99,
+          badge: 'Más Popular',
+          isPopular: true,
+          cta: 'Lanzar Desk Institucional',
+          features: [
+            'Todo lo incluido en el plan Pro Trader',
+            'Pasarela Oficial para Prop Firms y Challenges',
+            'Auditoría en tiempo real de Drawdown diario y máximo',
+            'Motor de Arbitraje Algorítmico y Spreads cruzados',
+            'Acceso a Webhooks privados y API de ejecución local',
+            'Soporte prioritario 24/7 y canal privado en Discord'
+          ]
+        },
+        {
+          id: 'enterprise',
+          name: 'Enterprise / Firm Provider',
+          desc: 'Para firmas de fondeo propietarias, fondos cuantitativos y academias profesionales.',
+          priceMonthly: 'A medida',
+          priceAnnual: 'A medida',
+          badge: 'Marca Blanca',
+          isPopular: false,
+          cta: 'Hablar con Ingeniería',
+          features: [
+            'Despliegue On-Premise con Docker Self-Hosted',
+            'Arquitectura Zero-Egress en infraestructura propia',
+            'Marca blanca integral (Dominio, logo y paleta corporativa)',
+            'Panel de auditoría para cientos de cuentas fondeadas',
+            'SLA del 99.99% y soporte de ingeniería dedicado'
+          ]
+        }
+      ]
+    },
     securitySection: {
       tag: '/zero-knowledge-security',
       title: 'Seguridad de Grado Institucional. Cero Custodia.',
@@ -159,6 +241,7 @@ export const translations = {
       exchanges: 'Exchanges',
       services: 'Services',
       security: 'Security',
+      pricing: 'Pricing',
       download: 'Download',
       signIn: 'Sign in',
       launchTerminal: 'Launch Terminal',
@@ -254,6 +337,87 @@ export const translations = {
       title: 'The complete ecosystem in one place.',
       subtitle: 'Engineered to eliminate tool overload and give you a clean, predictable trading experience.',
       learnMore: 'Learn more',
+    },
+    pricingSection: {
+      tag: '/plans-and-subscriptions',
+      title: 'Transparent Pricing for Every Trading Stage.',
+      subtitle: 'Select the tier engineered for your operational scale: from individual traders to quantitative desks and prop firms.',
+      monthlyLabel: 'Monthly Billing',
+      annualLabel: 'Annual Billing',
+      discountBadge: 'Save 20% yearly',
+      perMonth: '/mo',
+      plans: [
+        {
+          id: 'starter',
+          name: 'Starter Community',
+          desc: 'For individual traders seeking a clean, ultra-responsive, non-custodial terminal.',
+          priceMonthly: 0,
+          priceAnnual: 0,
+          badge: 'Free',
+          isPopular: false,
+          cta: 'Get Started Free',
+          features: [
+            '60 FPS GPU Canvas Terminal powered by KLineChart v10',
+            'Concurrent connection to 2 venues (Binance & Bybit)',
+            'Real-time DOM orderbook & multi-timeframe charting',
+            'Client-side API key encryption in browser enclave',
+            'Zero asset custody & zero invasive telemetry'
+          ]
+        },
+        {
+          id: 'pro',
+          name: 'Pro Trader',
+          desc: 'For active operators executing and replicating orders across multiple liquidity pools.',
+          priceMonthly: 39,
+          priceAnnual: 29,
+          badge: 'High Performance',
+          isPopular: false,
+          cta: 'Start Pro Trader',
+          features: [
+            'Unlimited Multi-Exchange Connectivity (15 Venues)',
+            'Cross-Exchange Copy Trading Engine (< 3.5ms latency)',
+            'Native Desktop Apps for Windows, macOS, and Linux',
+            'Official Android APK with sub-5ms push notifications',
+            'Dynamic Trailing Stops and advanced sizing risk controls',
+            'Instant device workspace sync via local IndexedDB'
+          ]
+        },
+        {
+          id: 'institutional',
+          name: 'Institutional & Prop Desk',
+          desc: 'The complete command center for prop firm traders, algorithmic arbitrageurs, and capital allocators.',
+          priceMonthly: 129,
+          priceAnnual: 99,
+          badge: 'Most Popular',
+          isPopular: true,
+          cta: 'Launch Institutional Desk',
+          features: [
+            'Everything in Pro Trader, plus:',
+            'Official Gateway for Prop Firms & Evaluation Challenges',
+            'Real-time Daily and Maximum Drawdown risk audit engine',
+            'Cross-market Synthetic Arbitrage & spread execution',
+            'Private Webhook streaming & local REST execution API',
+            '24/7 Priority engineering support & VIP channel'
+          ]
+        },
+        {
+          id: 'enterprise',
+          name: 'Enterprise / Firm Provider',
+          desc: 'For proprietary trading firms, hedge funds, and institutions seeking dedicated deployments.',
+          priceMonthly: 'Custom',
+          priceAnnual: 'Custom',
+          badge: 'White Label',
+          isPopular: false,
+          cta: 'Contact Engineering',
+          features: [
+            'Self-Hosted Docker deployment on private infrastructure',
+            'Zero-Egress architecture guaranteeing complete data privacy',
+            'Comprehensive white-label (Custom domain, brand & styling)',
+            'Risk supervisory dashboard for hundreds of funded accounts',
+            '99.99% SLA commitment and dedicated lead architect'
+          ]
+        }
+      ]
     },
     securitySection: {
       tag: '/zero-knowledge-security',

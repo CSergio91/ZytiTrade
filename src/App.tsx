@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { ExchangesSection } from './components/ExchangesSection';
 import { ServicesSection } from './components/ServicesSection';
+import { PricingSection } from './components/PricingSection';
 import { SecuritySection } from './components/SecuritySection';
 import { DownloadSection } from './components/DownloadSection';
 import { FooterSection } from './components/FooterSection';
@@ -104,7 +105,7 @@ export const App: React.FC = () => {
     }
   }, [theme]);
 
-  const TOTAL_SCREENS = 6;
+  const TOTAL_SCREENS = 7;
 
   return (
     <div className={'relative h-screen w-screen overflow-hidden font-sans ' + (theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900')}>
@@ -136,14 +137,17 @@ export const App: React.FC = () => {
         {/* PANTALLA 2: SERVICIOS */}
         <ServicesSection currentLang={currentLang} isActive={activeSection === 2} />
 
-        {/* PANTALLA 3: SEGURIDAD */}
-        <SecuritySection currentLang={currentLang} isActive={activeSection === 3} />
+        {/* PANTALLA 3: PRECIOS */}
+        <PricingSection currentLang={currentLang} isActive={activeSection === 3} />
 
-        {/* PANTALLA 4: DESCARGAR */}
-        <DownloadSection currentLang={currentLang} isActive={activeSection === 4} />
+        {/* PANTALLA 4: SEGURIDAD */}
+        <SecuritySection currentLang={currentLang} isActive={activeSection === 4} />
 
-        {/* PANTALLA 5: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
-        <FooterSection currentLang={currentLang} isActive={activeSection === 5} onNavigateSection={navigateToSection} />
+        {/* PANTALLA 5: DESCARGAR */}
+        <DownloadSection currentLang={currentLang} isActive={activeSection === 5} />
+
+        {/* PANTALLA 6: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
+        <FooterSection currentLang={currentLang} isActive={activeSection === 6} onNavigateSection={navigateToSection} />
       </main>
 
       {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}
