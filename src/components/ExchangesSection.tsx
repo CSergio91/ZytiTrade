@@ -83,9 +83,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-                        <ExchangeLogo name={venue.name} size={18} />
-                      </div>
+                      <ExchangeLogo name={venue.name} size={28} />
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-bold text-slate-950 dark:text-white truncate">{venue.name}</span>
@@ -93,7 +91,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
                             {t.connected}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-medium truncate">{venue.type}</span>
+                        <span className="text-[10px] text-slate-900 dark:text-slate-300 font-semibold truncate">{venue.type}</span>
                       </div>
                     </div>
 

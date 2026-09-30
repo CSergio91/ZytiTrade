@@ -97,11 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* POPOVER CON ANIMACIÓN LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES */}
           {exchangeOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-6 shadow-2xl animate-in fade-in duration-200 z-50 backdrop-blur-2xl border transition-all ${
-              isLight 
-                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
-                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_25px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
-            }`}>
+            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-6 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
               
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
                 <div>
@@ -144,9 +140,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-                          <ExchangeLogo name={item.name} size={15} />
-                        </div>
+                        <ExchangeLogo name={item.name} size={22} />
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
@@ -173,9 +167,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-                          <ExchangeLogo name={item.name} size={15} />
-                        </div>
+                        <ExchangeLogo name={item.name} size={22} />
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
@@ -202,9 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-                          <ExchangeLogo name={item.name} size={15} />
-                        </div>
+                        <ExchangeLogo name={item.name} size={22} />
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
@@ -244,11 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {servicesOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-88 rounded-3xl p-3.5 shadow-2xl animate-in fade-in duration-200 z-50 backdrop-blur-2xl border transition-all ${
-              isLight 
-                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
-                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_25px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
-            }`}>
+            <div className={`absolute top-full left-0 mt-2 w-88 rounded-3xl p-4 z-50 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
               <div className="flex flex-col gap-1">
                 {servicesList.map((srv, idx) => (
                   <div 
@@ -334,11 +320,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {langOpen && (
-            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 shadow-2xl z-50 right-0 backdrop-blur-2xl border transition-all ${
-              isLight 
-                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_15px_35px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
-                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_20px_45px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
-            }`}>
+            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 z-50 right-0 glass-panel animate-in fade-in duration-200 text-slate-900 dark:text-white`}>
               <button
                 onClick={() => { onLanguageChange('es'); setLangOpen(false); }}
                 className={'w-full text-left px-3 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between cursor-pointer ' + (currentLang === 'es' ? 'bg-slate-900 text-white' : (isLight ? 'hover:bg-[#f4efe5] text-slate-900' : 'hover:bg-slate-800 text-slate-200'))}

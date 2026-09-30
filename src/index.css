@@ -126,3 +126,56 @@ html.dark .satellite-card {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ----------------------------------------------------
+   CRISTAL / GLASSMORPHISM INSTITUCIONAL CON DESENFOQUE
+   ---------------------------------------------------- */
+.glass-panel {
+  background: rgba(11, 16, 27, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+html:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ----------------------------------------------------
+   REGLAS DE MÁXIMO CONTRASTE EN MODO CLARO PARA CARDS
+   ---------------------------------------------------- */
+html:not(.dark) .warm-card,
+html:not(.dark) .satellite-card {
+  color: #020617 !important;
+}
+
+html:not(.dark) .warm-card p,
+html:not(.dark) .satellite-card p,
+html:not(.dark) p {
+  color: #0f172a !important;
+  font-weight: 500 !important;
+}
+
+html:not(.dark) .warm-card h1,
+html:not(.dark) .warm-card h2,
+html:not(.dark) .warm-card h3,
+html:not(.dark) .warm-card h4,
+html:not(.dark) .warm-card h5 {
+  color: #020617 !important;
+  font-weight: 900 !important;
+}
+
+html:not(.dark) .warm-card span:not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="bg-"]):not([class*="line-through"]) {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-slate-500 {
+  color: #0f172a !important;
+}
