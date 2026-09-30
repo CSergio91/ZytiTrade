@@ -1,6 +1,8 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Layers } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
+import { LottieAnimation } from './LottieAnimation';
+import servicesAnimationData from '../assets/animations/services-network.json';
 
 interface ServicesSectionProps {
   currentLang: Language;
@@ -19,50 +21,78 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-16 pt-16">
-      <div className="w-full max-w-6xl mx-auto">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+      <div className="w-full max-w-7xl mx-auto">
         
-        <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-4">
-            /services-and-architecture
-          </div>
-          <h2 className="text-4xl sm:text-5xl font-black text-slate-950 dark:text-white tracking-tight">
-            {t.title}
-          </h2>
-          <p className="text-base text-slate-800 dark:text-slate-200 font-medium mt-3 leading-relaxed">
-            {t.subtitle}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {services.map((s, idx) => (
-            <div 
-              key={idx}
-              style={{ animationDelay: s.delay }}
-              className={`warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg ${
-                isActive ? 'animate-card-in' : 'opacity-0'
-              }`}
-            >
-              <div>
-                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                  {s.num}
-                </span>
-                <h3 className="text-lg font-bold text-slate-950 dark:text-white mt-3">
-                  {s.title}
-                </h3>
-                <p className="text-xs text-slate-800 dark:text-slate-300 font-medium mt-2 leading-relaxed">
-                  {s.desc}
-                </p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          
+          {/* LADO IZQUIERDO: CABECERA EDITORIAL + ANIMACIÓN LOTTIE OFICIAL DE SERVICIOS */}
+          <div className={`lg:col-span-5 flex flex-col justify-between transition-all duration-500 ${
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}>
+            <div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
+                <Layers className="w-3.5 h-3.5" />
+                <span>{t.tag || '/soluciones-institucionales'}</span>
               </div>
-
-              <div className="mt-8 flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white cursor-pointer hover:gap-2 transition-all">
-                <span>{t.learnMore}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
+                {t.title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-200 font-medium mt-2 leading-relaxed">
+                {t.subtitle}
+              </p>
             </div>
-          ))}
+
+            {/* ANIMACIÓN LOTTIE REUTILIZABLE (100% TRANSPARENTE, SIN TEXTOS NI FONDOS OPACOS) */}
+            <div className="mt-4 flex items-center justify-center bg-transparent border-none">
+              <LottieAnimation 
+                animationData={servicesAnimationData} 
+                className="w-56 h-56 sm:w-64 sm:h-64" 
+              />
+            </div>
+          </div>
+
+          {/* LADO DERECHO: GRID 2x2 DE LOS 4 SERVICIOS CLAVE */}
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {services.map((s, idx) => (
+              <div 
+                key={idx}
+                style={{ animationDelay: s.delay }}
+                className={`warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-md ${
+                  isActive ? 'animate-card-in' : 'opacity-0'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-mono font-black text-slate-900 dark:text-white">
+                      {s.num}
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                  </div>
+
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 dark:text-white mt-1 tracking-tight">
+                    {s.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-300 font-medium mt-2 leading-relaxed">
+                    {s.desc}
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-3 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-950 dark:text-white group cursor-pointer">
+                  <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {t.learnMore}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
+
       </div>
     </section>
   );
 };
+
+export default ServicesSection;
