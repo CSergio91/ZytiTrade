@@ -98,11 +98,21 @@ const ZYTI_CHART_THEME: DeepPartial<Styles> = {
       }
     },
     tooltip: {
+      showRule: 'none' as any,
+      showType: 'standard' as any,
+      text: {
+        size: 9,
+        color: '#475569'
+      }
+    }
+  },
+  indicator: {
+    tooltip: {
       showRule: 'always' as any,
       showType: 'standard' as any,
       text: {
-        size: 11,
-        color: '#334155'
+        size: 9,
+        color: '#475569'
       }
     }
   },
@@ -400,6 +410,100 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     };
   }, []);
 
+  // 1.B Soporte de gestos táctiles para zoom en eje lateral (precio) e inferior (tiempo) en móviles
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+
+    let activeTouchAxis: 'yAxis' | 'xAxis' | null = null;
+    let startTouchX = 0;
+    let startTouchY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const rect = container.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Eje lateral derecho (Precio): zona derecha (últimos 70px)
+      const isRightAxis = x >= rect.width - 70;
+      // Eje inferior (Tiempo): base (últimos 36px)
+      const isBottomAxis = y >= rect.height - 36;
+
+      if (isRightAxis) {
+        activeTouchAxis = 'yAxis';
+        startTouchX = touch.clientX;
+        startTouchY = touch.clientY;
+        const synthDown = new MouseEvent('mousedown', {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          bubbles: true,
+          cancelable: true,
+          button: 0
+        });
+        container.dispatchEvent(synthDown);
+      } else if (isBottomAxis) {
+        activeTouchAxis = 'xAxis';
+        startTouchX = touch.clientX;
+        startTouchY = touch.clientY;
+        const synthDown = new MouseEvent('mousedown', {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          bubbles: true,
+          cancelable: true,
+          button: 0
+        });
+        container.dispatchEvent(synthDown);
+      } else {
+        activeTouchAxis = null;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!activeTouchAxis || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      const synthMove = new MouseEvent('mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        bubbles: true,
+        cancelable: true,
+        buttons: 1
+      });
+      container.dispatchEvent(synthMove);
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!activeTouchAxis) return;
+      const touch = e.changedTouches[0];
+      const synthUp = new MouseEvent('mouseup', {
+        clientX: touch ? touch.clientX : startTouchX,
+        clientY: touch ? touch.clientY : startTouchY,
+        bubbles: true,
+        cancelable: true,
+        button: 0
+      });
+      container.dispatchEvent(synthUp);
+      activeTouchAxis = null;
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+    container.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, []);
+
   // Handlers
   const handleSelectPair = (pair: string) => {
     setSelectedPair(pair);
@@ -424,6 +528,23 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const handleToggleIndicator = (name: string) => {
     const chart = chartInstanceRef.current;
     if (!chart) return;
+
+    if (name === 'OHLC') {
+      const willBeActive = !activeIndicators.includes('OHLC');
+      chart.setStyles({
+        candle: {
+          tooltip: {
+            showRule: willBeActive ? ('always' as any) : ('none' as any),
+            text: {
+              size: 9,
+              color: '#475569'
+            }
+          }
+        }
+      });
+      setActiveIndicators(willBeActive ? [...activeIndicators, 'OHLC'] : activeIndicators.filter((i) => i !== 'OHLC'));
+      return;
+    }
 
     const indOption = ALL_INDICATORS.find((i) => i.name === name);
     const targetPane = indOption?.paneId || (indOption?.category === 'main' ? 'candle_pane' : `pane_${name.toLowerCase()}`);
@@ -495,8 +616,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 2500);
   };
 
+  const bestBid = orderBook.bids[0]?.price || Number((stats.lastPrice * 0.9998).toFixed(2));
+  const bestAsk = orderBook.asks[0]?.price || Number((stats.lastPrice * 1.0002).toFixed(2));
+
   const handleQuickTrade = (quickSide: 'buy' | 'sell') => {
-    const currentP = stats.lastPrice;
+    // Comprar se ejecuta al Ask, Vender se ejecuta al Bid
+    const currentP = quickSide === 'buy' ? bestAsk : bestBid;
     const defaultAmount = 1000;
     const sizeNumber = defaultAmount / currentP;
     
@@ -515,8 +640,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setPositions([newPos, ...positions]);
     setOrderSuccess(
       isEs
-        ? `¡Orden 1-Toque ${quickSide === 'buy' ? 'LONG' : 'SHORT'} ejecutada!`
-        : `1-Tap ${quickSide === 'buy' ? 'LONG' : 'SHORT'} order filled!`
+        ? `¡Orden 1-Toque ${quickSide === 'buy' ? 'COMPRA (Ask)' : 'VENTA (Bid)'} ejecutada a $${currentP.toLocaleString()}!`
+        : `1-Tap ${quickSide === 'buy' ? 'BUY (Ask)' : 'SELL (Bid)'} filled at $${currentP.toLocaleString()}!`
     );
     setTimeout(() => setOrderSuccess(null), 2500);
   };
@@ -641,6 +766,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           positions={positions}
           quickTradeEnabled={quickTradeEnabled}
           lastPrice={stats.lastPrice}
+          bestBid={bestBid}
+          bestAsk={bestAsk}
           selectedPair={selectedPair}
           onQuickTrade={handleQuickTrade}
           setActiveSheet={setMobileSheet}

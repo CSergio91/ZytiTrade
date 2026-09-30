@@ -45,6 +45,7 @@ export interface IndicatorOption {
 
 export const ALL_INDICATORS: IndicatorOption[] = [
   // Gráfico Principal (Superpuestos)
+  { name: 'OHLC', label: 'Info Vela (OHLC)', category: 'main', paneId: 'candle_pane', description: 'Apertura, máximo, mínimo, cierre y volumen de cada vela' },
   { name: 'MA', label: 'Media Móvil Simple', category: 'main', paneId: 'candle_pane', description: 'Moving Average sobre el precio' },
   { name: 'EMA', label: 'Media Móvil Exponencial', category: 'main', paneId: 'candle_pane', description: 'Mayor ponderación a precios recientes' },
   { name: 'SMA', label: 'Simple Moving Average', category: 'main', paneId: 'candle_pane', description: 'Promedio móvil suavizado' },

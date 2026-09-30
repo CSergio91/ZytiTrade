@@ -509,6 +509,13 @@ html:not(.dark) .text-slate-500 {
     min-height: 0 !important;
     width: 100% !important;
     position: relative !important;
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  #trading-terminal-chart,
+  #trading-terminal-chart * {
+    touch-action: none !important;
   }
   .terminal-desktop-positions {
     display: none !important;

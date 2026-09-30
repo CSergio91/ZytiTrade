@@ -8,6 +8,8 @@ interface TerminalMobileSheetProps {
   positions: PositionItem[];
   quickTradeEnabled: boolean;
   lastPrice: number;
+  bestBid: number;
+  bestAsk: number;
   selectedPair: string;
   onQuickTrade: (side: 'buy' | 'sell') => void;
   setActiveSheet: (sheet: 'order' | 'book' | 'positions' | null) => void;
@@ -22,6 +24,8 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   positions,
   quickTradeEnabled,
   lastPrice,
+  bestBid,
+  bestAsk,
   selectedPair,
   onQuickTrade,
   setActiveSheet,
@@ -41,33 +45,43 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
       {quickTradeEnabled && (
         <div 
           className={`lg:hidden terminal-mobile-only terminal-floating-quicktrade fixed ${
-            activeSheet ? 'bottom-[52dvh]' : 'bottom-16'
-          } left-3 right-3 z-30 flex items-center gap-2.5 animate-zoom-in transition-all duration-300 pointer-events-auto`}
+            activeSheet ? 'bottom-[51dvh]' : 'bottom-15'
+          } left-2 right-2 z-30 flex items-center gap-2 animate-zoom-in transition-all duration-300 pointer-events-auto`}
         >
-          {/* BOTÓN COMPRA RÁPIDA 1 TOQUE */}
+          {/* BOTÓN COMPRA RÁPIDA 1 TOQUE (AL ASK) */}
           <button
             type="button"
             onClick={() => onQuickTrade('buy')}
-            className="flex-1 py-2 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xl flex items-center justify-between text-xs font-black cursor-pointer border border-emerald-500/40 transition-all"
+            className="flex-1 py-1 px-2 rounded-xl bg-emerald-600/95 hover:bg-emerald-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-emerald-400/30 transition-all"
           >
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 fill-white" />
-              <span>{isEs ? `Comprar ${baseSymbol}` : `Buy ${baseSymbol}`}</span>
+            <div className="flex items-center gap-1 leading-tight">
+              <Zap className="w-3 h-3 fill-white text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-tight">
+                {isEs ? `Comprar ${baseSymbol}` : `Buy ${baseSymbol}`}
+              </span>
             </div>
-            <span className="font-mono text-[10px] opacity-90">${lastPrice.toLocaleString()}</span>
+            <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-emerald-100 mt-0.5">
+              <span>${bestAsk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="opacity-80 text-[8px] uppercase font-bold">Ask</span>
+            </div>
           </button>
 
-          {/* BOTÓN VENTA RÁPIDA 1 TOQUE */}
+          {/* BOTÓN VENTA RÁPIDA 1 TOQUE (AL BID) */}
           <button
             type="button"
             onClick={() => onQuickTrade('sell')}
-            className="flex-1 py-2 px-3 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white shadow-xl flex items-center justify-between text-xs font-black cursor-pointer border border-red-500/40 transition-all"
+            className="flex-1 py-1 px-2 rounded-xl bg-red-600/95 hover:bg-red-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-red-400/30 transition-all"
           >
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 fill-white" />
-              <span>{isEs ? `Vender ${baseSymbol}` : `Sell ${baseSymbol}`}</span>
+            <div className="flex items-center gap-1 leading-tight">
+              <Zap className="w-3 h-3 fill-white text-white shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-tight">
+                {isEs ? `Vender ${baseSymbol}` : `Sell ${baseSymbol}`}
+              </span>
             </div>
-            <span className="font-mono text-[10px] opacity-90">${lastPrice.toLocaleString()}</span>
+            <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-red-100 mt-0.5">
+              <span>${bestBid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="opacity-80 text-[8px] uppercase font-bold">Bid</span>
+            </div>
           </button>
         </div>
       )}
