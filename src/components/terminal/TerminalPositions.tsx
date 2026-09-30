@@ -13,7 +13,7 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
   positions,
   onClosePosition
 }) => {
-  // Estado desplegable del panel en escritorio (por defecto true o persistido)
+  // Estado desplegable del panel en escritorio
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('zyti_positions_expanded');
@@ -32,6 +32,10 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
       return next;
     });
   };
+
+  // Cálculo real dinámico de PnL no realizado
+  const totalPnL = positions.reduce((acc, p) => acc + (p.pnlUsdt ?? 0), 0);
+  const isProfit = totalPnL >= 0;
 
   return (
     <div className={`terminal-desktop-positions bg-white ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
@@ -59,8 +63,14 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-            PnL No Realizado: +442.78 USDT
+          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+            positions.length === 0
+              ? 'bg-slate-100 text-slate-600 border-slate-200'
+              : isProfit
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+          }`}>
+            PnL No Realizado: {positions.length === 0 ? '$0.00' : `${isProfit ? '+' : ''}$${totalPnL.toFixed(2)}`} USDT
           </span>
 
           <span className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 hidden sm:inline">
@@ -80,6 +90,7 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
                 <th className="pb-1 px-2">Tamaño</th>
                 <th className="pb-1 px-2">Entrada</th>
                 <th className="pb-1 px-2">Marca</th>
+                <th className="pb-1 px-2">SL / TP</th>
                 <th className="pb-1 px-2">PnL (%)</th>
                 <th className="pb-1 px-2 text-right">Acción</th>
               </tr>
@@ -98,6 +109,11 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
                   <td className="py-1 px-2 text-slate-600">{pos.size}</td>
                   <td className="py-1 px-2 font-bold text-slate-800">${pos.entry.toLocaleString()}</td>
                   <td className="py-1 px-2 text-slate-600">${pos.mark.toLocaleString()}</td>
+                  <td className="py-1 px-2 text-[10px] text-slate-600">
+                    <span className="text-red-600">SL: {pos.slPrice ? `$${pos.slPrice.toLocaleString()}` : '-'}</span>
+                    {' / '}
+                    <span className="text-emerald-600">TP: {pos.tpPrice ? `$${pos.tpPrice.toLocaleString()}` : '-'}</span>
+                  </td>
                   <td className={`py-1 px-2 font-bold ${pos.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
                     {pos.pnl} ({pos.pnlPercent})
                   </td>
@@ -117,8 +133,8 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
               ))}
               {positions.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-xs text-slate-400">
-                    {isEs ? 'No hay posiciones abiertas en este momento' : 'No open positions at this time'}
+                  <td colSpan={8} className="py-6 text-center text-xs text-slate-400">
+                    {isEs ? 'No hay posiciones abiertas en este momento' : 'No open positions right now'}
                   </td>
                 </tr>
               )}

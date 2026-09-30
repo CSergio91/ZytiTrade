@@ -10,6 +10,8 @@ interface TerminalHeaderProps {
   supportedPairs: string[];
   stats: MarketStats;
   isMobileNavOpen: boolean;
+  unrealizedPnL?: number;
+  positionsCount?: number;
   activeSection?: string;
   onSelectSection?: (section: 'none' | 'exchange' | string) => void;
   onSelectPair: (pair: string) => void;
@@ -23,12 +25,16 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   selectedPair,
   supportedPairs,
   stats,
+  unrealizedPnL = 0,
+  positionsCount = 0,
   onSelectPair,
   onToggleMobileNav
 }) => {
+  const isPnlProfit = unrealizedPnL >= 0;
+
   return (
     <header className="h-12 sm:h-14 border-b border-[#ded5c5] bg-[#fbf9f4] px-3 sm:px-4 flex items-center justify-between shrink-0 z-30">
-      {/* PARTE IZQUIERDA: SELECTOR DE PAR + PRECIO EN VIVO */}
+      {/* PARTE IZQUIERDA: SELECTOR DE PAR + PRECIO EN VIVO + PNL EN VIVO */}
       <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
         {/* SELECTOR DE PARES DESPLEGABLE */}
         <div className="relative group shrink-0">
@@ -64,6 +70,18 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           <span className={`text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded ${stats.change24h >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
             {stats.change24h >= 0 ? '+' : ''}{stats.change24h}%
           </span>
+        </div>
+
+        {/* PNL NO REALIZADO SIEMPRE VISIBLE EN MÓVIL Y ESCRITORIO */}
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-mono font-bold shrink-0 ${
+          positionsCount === 0
+            ? 'bg-slate-100 text-slate-500 border-slate-200'
+            : isPnlProfit
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs'
+              : 'bg-red-50 text-red-700 border-red-200 shadow-xs'
+        }`}>
+          <span className="text-[9px] text-slate-500">{isEs ? 'PnL' : 'PnL'}:</span>
+          <span>{positionsCount === 0 ? '$0.00' : `${isPnlProfit ? '+' : ''}$${unrealizedPnL.toFixed(2)}`}</span>
         </div>
 
         <div className="terminal-stats-24h items-center gap-4 text-xs font-mono text-slate-600 pl-2">

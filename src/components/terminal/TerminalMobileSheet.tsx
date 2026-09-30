@@ -39,6 +39,9 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
   const baseSymbol = selectedPair.split('/')[0];
 
+  const totalPnL = positions.reduce((acc, p) => acc + (p.pnlUsdt ?? 0), 0);
+  const isPnlProfit = totalPnL >= 0;
+
   return (
     <div className="terminal-mobile-only lg:hidden">
       {/* 1. BOTONES FLOTANTES DE OPERAR CON 1 TOQUE (EXCLUSIVO MÓVIL < 1024px) */}
@@ -130,15 +133,24 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
               : 'text-slate-600 hover:text-slate-950'
           }`}
         >
-          <div className="relative">
+          <div className="relative flex items-center">
             <Layers className={`w-4 h-4 ${activeSheet === 'positions' ? 'text-amber-600' : 'text-slate-500'}`} />
             {positions.length > 0 && (
-              <span className="absolute -top-1 -right-2 px-1 py-0.1 bg-emerald-500 text-white rounded-full text-[8px] font-mono font-bold leading-none">
+              <span className={`ml-1 px-1 py-0.2 rounded-full text-[8px] font-mono font-bold leading-none ${
+                isPnlProfit ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+              }`}>
                 {positions.length}
               </span>
             )}
           </div>
-          <span>{isEs ? 'Posiciones' : 'Positions'}</span>
+          <div className="flex items-center gap-1 text-[10px]">
+            <span>{isEs ? 'Posiciones' : 'Positions'}</span>
+            {positions.length > 0 && (
+              <span className={`text-[9px] font-mono font-bold ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                {isPnlProfit ? '+' : ''}${totalPnL.toFixed(1)}
+              </span>
+            )}
+          </div>
         </button>
       </nav>
 
@@ -163,6 +175,14 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                   {activeSheet === 'positions' && (isEs ? `Posiciones Abiertas (${positions.length})` : `Open Positions (${positions.length})`)}
                 </h4>
               </div>
+
+              {activeSheet === 'positions' && positions.length > 0 && (
+                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                  isPnlProfit ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                }`}>
+                  PnL: {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)} USDT
+                </span>
+              )}
 
               <button
                 type="button"
@@ -194,6 +214,12 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                         <div className="text-[10px] text-slate-500 mt-0.5">
                           Entrada: ${pos.entry.toLocaleString()} • Tam: {pos.size}
                         </div>
+                        {(pos.slPrice || pos.tpPrice) && (
+                          <div className="text-[9.5px] mt-0.5 text-slate-500">
+                            {pos.slPrice && <span className="text-red-600 font-semibold">SL: ${pos.slPrice.toLocaleString()} </span>}
+                            {pos.tpPrice && <span className="text-emerald-600 font-semibold">• TP: ${pos.tpPrice.toLocaleString()}</span>}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className={`font-bold ${pos.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>

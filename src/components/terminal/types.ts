@@ -70,8 +70,18 @@ export interface PositionItem {
   symbol: string;
   side: 'LONG' | 'SHORT';
   size: string;
+  sizeUnits: number;
   entry: number;
   mark: number;
+  slPrice?: number;
+  tpPrice?: number;
+  riskPercent?: number;
+  slPercent?: number;
+  tpPercent?: number;
+  leverage: number;
+  collateralUsdt: number;
+  pnlUsdt: number;
+  pnlPercentNum: number;
   pnl: string;
   pnlPercent: string;
   isProfit: boolean;
