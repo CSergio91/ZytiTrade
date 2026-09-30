@@ -4,23 +4,25 @@ import { translations, Language } from '../i18n/translations';
 
 interface ServicesSectionProps {
   currentLang: Language;
+  isActive: boolean;
 }
 
-export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang }) => {
+export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang, isActive }) => {
   const t = translations[currentLang].servicesSection;
   const srv = translations[currentLang].servicesMenu;
 
   const services = [
-    { num: '01', title: srv.propFirms.title, desc: srv.propFirms.desc },
-    { num: '02', title: srv.multiExchange.title, desc: srv.multiExchange.desc },
-    { num: '03', title: srv.copyTrading.title, desc: srv.copyTrading.desc },
-    { num: '04', title: srv.arbitrage.title, desc: srv.arbitrage.desc },
+    { num: '01', title: srv.propFirms.title, desc: srv.propFirms.desc, delay: '0ms' },
+    { num: '02', title: srv.multiExchange.title, desc: srv.multiExchange.desc, delay: '60ms' },
+    { num: '03', title: srv.copyTrading.title, desc: srv.copyTrading.desc, delay: '120ms' },
+    { num: '04', title: srv.arbitrage.title, desc: srv.arbitrage.desc, delay: '180ms' },
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
-      <div className="w-full max-w-7xl mx-auto animate-zoom-in">
-        <div className="max-w-xl mb-10">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pl-24 sm:pl-32 lg:pl-40 pt-8">
+      <div className="w-full max-w-6xl mx-auto">
+        
+        <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-4">
             /services-and-architecture
           </div>
@@ -36,7 +38,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang })
           {services.map((s, idx) => (
             <div 
               key={idx}
-              className="warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg"
+              style={{ animationDelay: s.delay }}
+              className={`warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg ${
+                isActive ? 'animate-card-in' : 'opacity-0'
+              }`}
             >
               <div>
                 <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">

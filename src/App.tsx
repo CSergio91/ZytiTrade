@@ -56,18 +56,15 @@ export const App: React.FC = () => {
     }
   };
 
-  // Convertir el scroll de rueda vertical del ratón en navegación horizontal fluida
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    let isScrolling = false;
 
     const handleWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         e.preventDefault();
         container.scrollBy({
-          left: e.deltaY * 1.5,
+          left: e.deltaY * 1.4,
           behavior: 'auto'
         });
       }
@@ -106,10 +103,10 @@ export const App: React.FC = () => {
 
   return (
     <div className={'relative h-screen w-screen overflow-hidden font-sans ' + (theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900')}>
-      {/* 1. GRÁFICO DE FONDO */}
+      {/* GRÁFICO DE FONDO */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. NAVBAR FIJO ARRIBA CON PAGINADOR */}
+      {/* NAVBAR QUE SE COMPRIME ANIMADAMENTE HACIA LA IZQUIERDA AL HACER SCROLL */}
       <Navbar 
         currentLang={currentLang} 
         onLanguageChange={handleLanguageChange}
@@ -119,18 +116,18 @@ export const App: React.FC = () => {
         onNavigateSection={navigateToSection}
       />
 
-      {/* 3. CONTENEDOR DE NAVEGACIÓN HORIZONTAL FLUIDA */}
+      {/* VIEWPORT SLIDER HORIZONTAL */}
       <main 
         ref={containerRef}
         className="relative z-10 flex flex-row overflow-x-auto snap-x snap-mandatory h-screen w-screen no-scrollbar"
         style={{ scrollBehavior: 'smooth' }}
       >
         <HeroSection currentLang={currentLang} />
-        <ExchangesSection currentLang={currentLang} />
-        <ServicesSection currentLang={currentLang} />
+        <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} />
+        <ServicesSection currentLang={currentLang} isActive={activeSection === 2} />
       </main>
 
-      {/* 4. BARRA DE PROGRESO HORIZONTAL INFERIOR MINIMALISTA */}
+      {/* PROGRESS BAR INFERIOR */}
       <div className="fixed bottom-0 left-0 right-0 h-1 bg-[#ede8df]/60 dark:bg-slate-900/60 z-50">
         <div 
           className="h-full bg-slate-950 dark:bg-white transition-all duration-300 ease-out"

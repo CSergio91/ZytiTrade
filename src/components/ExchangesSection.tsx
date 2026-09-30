@@ -3,25 +3,28 @@ import { translations, Language } from '../i18n/translations';
 
 interface ExchangesSectionProps {
   currentLang: Language;
+  isActive: boolean;
 }
 
-export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang }) => {
+export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang, isActive }) => {
   const t = translations[currentLang].exchangesSection;
   const ex = translations[currentLang].exchangesMenu;
 
   const venues = [
-    { name: ex.binance.name, type: ex.binance.desc, latency: '1.2ms' },
-    { name: ex.bybit.name, type: ex.bybit.desc, latency: '1.8ms' },
-    { name: ex.okx.name, type: ex.okx.desc, latency: '2.1ms' },
-    { name: ex.kraken.name, type: ex.kraken.desc, latency: '3.4ms' },
-    { name: ex.coinbase.name, type: ex.coinbase.desc, latency: '4.2ms' },
-    { name: ex.bitget.name, type: ex.bitget.desc, latency: '2.0ms' },
+    { name: ex.binance.name, type: ex.binance.desc, latency: '1.2ms', delay: '0ms' },
+    { name: ex.bybit.name, type: ex.bybit.desc, latency: '1.8ms', delay: '50ms' },
+    { name: ex.okx.name, type: ex.okx.desc, latency: '2.1ms', delay: '100ms' },
+    { name: ex.kraken.name, type: ex.kraken.desc, latency: '3.4ms', delay: '150ms' },
+    { name: ex.coinbase.name, type: ex.coinbase.desc, latency: '4.2ms', delay: '200ms' },
+    { name: ex.bitget.name, type: ex.bitget.desc, latency: '2.0ms', delay: '250ms' },
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
-      <div className="w-full max-w-7xl mx-auto animate-zoom-in">
-        <div className="max-w-xl mb-10">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pl-24 sm:pl-32 lg:pl-40 pt-8">
+      <div className="w-full max-w-6xl mx-auto">
+        
+        {/* CABECERA CON ANIMACIÓN SUAVE */}
+        <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-4">
             /venues-and-latency
           </div>
@@ -33,11 +36,15 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
           </p>
         </div>
 
+        {/* GRID DE EXCHANGES CON ENTRADA ESCALONADA (STAGGERED) ÁGIL */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {venues.map((venue, idx) => (
             <div 
               key={idx}
-              className="warm-card rounded-2xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg"
+              style={{ animationDelay: venue.delay }}
+              className={`warm-card rounded-2xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg ${
+                isActive ? 'animate-card-in' : 'opacity-0'
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
