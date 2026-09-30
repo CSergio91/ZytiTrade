@@ -1,5 +1,8 @@
 import React from 'react';
+import { Activity, ShieldCheck } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
+import { ExchangeLogo } from './ExchangeLogo';
+import { ExchangeLottie } from './ExchangeLottie';
 
 interface ExchangesSectionProps {
   currentLang: Language;
@@ -42,49 +45,84 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
     <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
       <div className="w-full max-w-7xl mx-auto">
         
-        {/* CABECERA */}
-        <div className={`max-w-xl mb-8 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
-            /15-venues-in-columns-of-5
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight">
-            {t.title}
-          </h2>
-          <p className="text-sm text-slate-800 dark:text-slate-200 font-medium mt-2 leading-relaxed">
-            {t.subtitle}
-          </p>
-        </div>
-
-        {/* 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES CADA UNA */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {columns.map((col, colIdx) => (
-            <div key={colIdx} className="flex flex-col gap-3">
-              {col.map((venue, idx) => (
-                <div 
-                  key={idx}
-                  style={{ animationDelay: `${(colIdx * 5 + idx) * 35}ms` }}
-                  className={`warm-card rounded-2xl px-5 py-3.5 flex items-center justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-0.5 shadow-sm ${
-                    isActive ? 'animate-card-in' : 'opacity-0'
-                  }`}
-                >
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-950 dark:text-white">{venue.name}</span>
-                      <span className="text-[9px] font-mono font-bold text-[#65a30d] bg-[#f4edd9] dark:bg-[#1a2512] px-1.5 py-0.5 rounded">
-                        {t.connected}
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">{venue.type}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-950 dark:text-white shrink-0 ml-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>{venue.latency}</span>
-                  </div>
-                </div>
-              ))}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* LADO IZQUIERDO: CABECERA + ANIMACIÓN LOTTIE DEL RADAR DE ENRUTAMIENTO */}
+          <div className={`lg:col-span-4 flex flex-col justify-between transition-all duration-500 ${
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}>
+            <div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
+                <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                <span>{t.tag || '/venues-conectados'}</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
+                {t.title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium mt-2 leading-relaxed">
+                {t.subtitle}
+              </p>
             </div>
-          ))}
+
+            {/* TARJETA RADAR LOTTIE */}
+            <div className="mt-6 warm-card rounded-3xl p-5 flex flex-col items-center justify-center relative overflow-hidden shadow-lg border border-[#ede8df] dark:border-[#1f293d]">
+              <div className="w-full flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  ● Multi-Venue WSS
+                </span>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+                  60 FPS
+                </span>
+              </div>
+
+              <div className="w-48 h-44 flex items-center justify-center">
+                <ExchangeLottie className="w-40 h-40" />
+              </div>
+
+              <div className="w-full pt-3 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-700 dark:text-slate-300 font-bold">15 Conectores</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">&lt; 1.5ms avg</span>
+              </div>
+            </div>
+          </div>
+
+          {/* LADO DERECHO: 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES CADA UNA */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {columns.map((col, colIdx) => (
+              <div key={colIdx} className="flex flex-col gap-2.5">
+                {col.map((venue, idx) => (
+                  <div 
+                    key={idx}
+                    style={{ animationDelay: `${(colIdx * 5 + idx) * 30}ms` }}
+                    className={`warm-card rounded-2xl px-4 py-3 flex items-center justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-0.5 shadow-sm ${
+                      isActive ? 'animate-card-in' : 'opacity-0'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                        <ExchangeLogo name={venue.name} size={18} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-950 dark:text-white truncate">{venue.name}</span>
+                          <span className="text-[8px] font-mono font-bold text-[#65a30d] bg-[#f4edd9] dark:bg-[#1a2512] px-1 py-0.5 rounded">
+                            {t.connected}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-medium truncate">{venue.type}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-slate-950 dark:text-white shrink-0 ml-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>{venue.latency}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
         </div>
 
       </div>

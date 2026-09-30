@@ -6,6 +6,8 @@ import {
   Moon
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
+import { ExchangeLogo } from './ExchangeLogo';
+import { ExchangeLottie } from './ExchangeLottie';
 
 interface NavbarProps {
   currentLang: Language;
@@ -75,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
         
-        {/* PANTALLA 1: MENU EXCHANGES (CON DROPDOWN EN 3 COLUMNAS DE A 5 ITEMS) */}
+        {/* PANTALLA 1: MENU EXCHANGES (CON LOTTIE A LA IZQUIERDA Y 3 COLUMNAS DE A 5 ITEMS) */}
         <div 
           className="relative"
           onMouseEnter={() => setExchangeOpen(true)}
@@ -93,11 +95,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
           </button>
 
-          {/* POPOVER CON 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES */}
+          {/* POPOVER CON ANIMACIÓN LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES */}
           {exchangeOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-[720px] rounded-3xl p-5 shadow-2xl animate-in fade-in duration-150 z-50 border backdrop-blur-xl ${
+            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-5 shadow-2xl animate-in fade-in duration-150 z-50 border backdrop-blur-xl ${
               isLight ? 'bg-white/98 border-[#ede8df] text-slate-900 shadow-slate-200/80' : 'bg-[#111726]/98 border-[#1f293d] text-white shadow-black/80'
             }`}>
+              
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#ede8df] dark:border-[#1f293d]">
                 <div>
                   <h4 className="text-sm font-black text-slate-950 dark:text-white">
@@ -111,83 +114,135 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
                   className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none"
                 >
-                  {currentLang === 'es' ? 'Ver pantalla completa →' : 'View full screen →'}
+                  {currentLang === 'es' ? 'Ver pantalla completa (15 Venues) →' : 'View full screen (15 Venues) →'}
                 </button>
               </div>
 
-              {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* CONTENEDOR FLEX: LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE 5 */}
+              <div className="flex gap-5">
                 
-                {/* COLUMNA 1 (5 ITEMS) */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
-                    {t.exchangesMenu.col1Title}
-                  </span>
-                  {col1.map((item, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                      className={`p-2.5 rounded-xl transition-all cursor-pointer flex flex-col ${
-                        isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                          {item.badge}
-                        </span>
-                      </div>
-                      <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                {/* LOTTIE ANIMATION EN EL SUBMENÚ A LA IZQUIERDA */}
+                <div className="w-56 shrink-0 rounded-2xl p-4 flex flex-col justify-between bg-[#fbf9f4] dark:bg-[#0c101a] border border-[#ede8df] dark:border-[#1f293d]">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        ● Direct Sockets
+                      </span>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+                        60 FPS
+                      </span>
                     </div>
-                  ))}
+
+                    <div className="w-full h-32 flex items-center justify-center my-1">
+                      <ExchangeLottie className="w-28 h-28" />
+                    </div>
+
+                    <h5 className="text-xs font-bold text-slate-950 dark:text-white">
+                      {currentLang === 'es' ? 'Enrutamiento Directo' : 'Direct Order Routing'}
+                    </h5>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-400 font-medium leading-snug mt-1">
+                      {currentLang === 'es' 
+                        ? 'Conexión TLS nativa sin servidores proxy ni comisiones añadidas.' 
+                        : 'Native TLS connection without proxy servers or additional fees.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-[10px] font-mono text-slate-600 dark:text-slate-400">
+                    <span>15 Venues</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">1.2ms avg</span>
+                  </div>
                 </div>
 
-                {/* COLUMNA 2 (5 ITEMS) */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
-                    {t.exchangesMenu.col2Title}
-                  </span>
-                  {col2.map((item, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                      className={`p-2.5 rounded-xl transition-all cursor-pointer flex flex-col ${
-                        isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                          {item.badge}
-                        </span>
+                {/* 3 COLUMNAS DE 5 EXCHANGES CADA UNA CON SUS ICONOS OFICIALES */}
+                <div className="flex-1 grid grid-cols-3 gap-3">
+                  
+                  {/* COLUMNA 1 (5 ITEMS) */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                      {t.exchangesMenu.col1Title}
+                    </span>
+                    {col1.map((item, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
+                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
+                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                          <ExchangeLogo name={item.name} size={15} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
+                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                              {item.badge}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                        </div>
                       </div>
-                      <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                {/* COLUMNA 3 (5 ITEMS) */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
-                    {t.exchangesMenu.col3Title}
-                  </span>
-                  {col3.map((item, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
-                      className={`p-2.5 rounded-xl transition-all cursor-pointer flex flex-col ${
-                        isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                          {item.badge}
-                        </span>
+                  {/* COLUMNA 2 (5 ITEMS) */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                      {t.exchangesMenu.col2Title}
+                    </span>
+                    {col2.map((item, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
+                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
+                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                          <ExchangeLogo name={item.name} size={15} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
+                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                              {item.badge}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                        </div>
                       </div>
-                      <span className={`text-[11px] font-medium mt-0.5 ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* COLUMNA 3 (5 ITEMS) */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400 px-2">
+                      {t.exchangesMenu.col3Title}
+                    </span>
+                    {col3.map((item, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
+                        className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
+                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                          <ExchangeLogo name={item.name} size={15} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-950' : 'text-white'}`}>{item.name}</span>
+                            <span className="text-[8px] font-mono font-bold px-1 rounded bg-[#ede5d6] dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                              {item.badge}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>{item.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                 </div>
 
               </div>
@@ -260,12 +315,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* 3. ACCIONES LATERALES (TEMA + IDIOMA + ACCEDER) */}
+      {/* 3. ACCIONES LATERALES (TEMA + IDIOMA + ACCEDER) SIN BORDES */}
       <div className={`flex items-center transition-all duration-300 shrink-0 ${
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
-        {/* THEME TOGGLE (100% SIN BORDES) */}
+        {/* THEME TOGGLE: 100% SIN BORDES */}
         <button
           onClick={onThemeToggle}
           aria-label="Toggle Theme"
@@ -284,7 +339,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* SELECTOR IDIOMA (100% SIN BORDES) */}
+        {/* SELECTOR IDIOMA: 100% SIN BORDES */}
         <div className="relative">
           <button 
             onClick={() => setLangOpen(!langOpen)}
