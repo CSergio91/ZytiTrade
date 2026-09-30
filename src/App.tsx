@@ -18,7 +18,7 @@ export const App: React.FC = () => {
       if (stored === 'es' || stored === 'en') return stored;
       if (navigator.language.startsWith('es')) return 'es';
     }
-    return 'en';
+    return 'es'; // Español por defecto
   };
 
   const [currentLang, setCurrentLang] = useState<Language>(getInitialLanguage);
@@ -30,13 +30,13 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema: por defecto siempre LIGHT (Blanco Puro) a menos que esté en localStorage
+  // 2. Tema: SIEMPRE MODO CLARO (LIGHT) POR DEFECTO
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
-      if (stored === 'light' || stored === 'dark') return stored;
+      if (stored === 'dark') return 'dark';
     }
-    return 'light'; // MODO CLARO BLANCO PURO POR DEFECTO
+    return 'light'; // MODO CLARO (BLANCO PURO) POR DEFECTO ABSOLUTO
   };
 
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
@@ -54,18 +54,20 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
+      document.body.style.backgroundColor = '#090d16';
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.style.backgroundColor = '#ffffff';
     }
   }, [theme]);
 
   return (
-    <div className="relative min-h-screen bg-white dark:bg-[#090d16] font-sans selection:bg-blue-600 selection:text-white">
-      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: 100% BLANCO PURO O DARK OBSIDIAN */}
+    <div className={`relative min-h-screen font-sans ${theme === 'dark' ? 'bg-[#090d16] text-white' : 'bg-white text-slate-900'}`}>
+      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. CAPA SUPERIOR: EN LIGHT ES 100% TRANSPARENTE SIN VELOS GRISES */}
-      <div className="relative z-10 min-h-screen bg-transparent dark:bg-slate-950/75 dark:backdrop-blur-md transition-colors duration-200">
+      {/* 2. CAPA SUPERIOR: EN LIGHT ES 100% BLANCO TRANSPARENTE LIMPIO */}
+      <div className={`relative z-10 min-h-screen ${theme === 'dark' ? 'bg-slate-950/70 backdrop-blur-md' : 'bg-transparent'}`}>
         {/* BARRA DE NAVEGACIÓN */}
         <Navbar 
           currentLang={currentLang} 
