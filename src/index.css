@@ -257,3 +257,67 @@ html:not(.dark) .text-slate-500 {
     display: flex !important;
   }
 }
+
+
+/* AUTH_MODAL_GRID_RULES */
+/* ----------------------------------------------------
+   MODAL DE AUTENTICACIÓN: SPLIT LAYOUT INFALIBLE
+   Desktop (>= 1024px y 1920px+): 2 columnas estrictas
+   Mobile (< 1024px): Columna única ultra-compacta
+   ---------------------------------------------------- */
+@media (min-width: 1024px) {
+  .auth-modal-window {
+    max-width: 960px !important;
+    width: 90vw !important;
+    max-height: 88vh !important;
+  }
+  .auth-modal-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    min-height: 490px !important;
+  }
+  .auth-modal-left {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    border-right: 1px solid #ded5c5 !important;
+    border-bottom: none !important;
+    padding: 2.25rem !important;
+  }
+  .auth-modal-right {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 2.25rem !important;
+  }
+}
+
+@media (min-width: 1920px) {
+  .auth-modal-window {
+    max-width: 1040px !important;
+    width: 80vw !important;
+  }
+  .auth-modal-grid {
+    min-height: 520px !important;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .auth-modal-window {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 96dvh !important;
+  }
+  .auth-modal-grid {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .auth-modal-left {
+    border-bottom: 1px solid #ded5c5 !important;
+    border-right: none !important;
+    padding: 0.65rem 0.85rem !important;
+  }
+  .auth-modal-right {
+    padding: 0.75rem 0.85rem 1.15rem 0.85rem !important;
+  }
+}
