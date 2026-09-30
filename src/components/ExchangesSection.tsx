@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Cpu, ArrowUpRight } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 
 interface ExchangesSectionProps {
@@ -22,39 +22,39 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
 
   return (
     <section id="exchanges" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="glass-card rounded-3xl p-6 sm:p-10 border border-white/80 shadow-xl">
+      <div className="glass-card rounded-3xl p-6 sm:p-10 border border-white/80 dark:border-slate-800 shadow-xl">
         <div className="max-w-2xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-900">
             <Cpu className="w-3.5 h-3.5" />
             <span>Multi-Exchange Connectivity</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {t.exchangesMenu.title}
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 mt-2">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-2">
             {t.exchangesMenu.subtitle}
           </p>
         </div>
 
-        {/* GRID VERTICAL / HORIZONTAL DE EXCHANGES */}
+        {/* GRID DE EXCHANGES */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {venues.map((venue, idx) => (
             <div 
               key={idx}
-              className="p-4 rounded-2xl bg-white/70 hover:bg-white/95 border border-slate-100 hover:border-blue-200 transition-all shadow-xs group"
+              className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/60 hover:bg-white/95 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all shadow-xs group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                <span className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {venue.name}
                 </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
                   {venue.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium mb-3">{venue.type}</p>
-              <div className="flex items-center justify-between text-[11px] font-mono pt-2 border-t border-slate-100 text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">{venue.type}</p>
+              <div className="flex items-center justify-between text-[11px] font-mono pt-2 border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
                 <span>{venue.api}</span>
-                <span className="font-bold text-blue-600">{venue.latency}</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{venue.latency}</span>
               </div>
             </div>
           ))}

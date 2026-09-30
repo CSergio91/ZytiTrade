@@ -8,7 +8,7 @@ import { Footer } from './components/Footer';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
-  // Detectar idioma inicial desde URL (/es o /en) o localStorage / navegador
+  // 1. Idioma
   const getInitialLanguage = (): Language => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname.toLowerCase();
@@ -30,21 +30,52 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
+  // 2. Tema Claro / Oscuro
+  const getInitialTheme = (): 'light' | 'dark' => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('zyti_theme');
+      if (stored === 'light' || stored === 'dark') return stored;
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    }
+    return 'light';
+  };
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
+
+  const handleThemeToggle = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    localStorage.setItem('zyti_theme', nextTheme);
+  };
+
   useEffect(() => {
     document.documentElement.lang = currentLang;
   }, [currentLang]);
 
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   return (
     <div className="relative min-h-screen font-sans selection:bg-blue-600 selection:text-white">
-      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW EN TONALIDAD CLARA */}
-      <BackgroundTradingChart />
+      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW CON REACCIÓN AL TEMA */}
+      <BackgroundTradingChart theme={theme} />
 
-      {/* 2. OVERLAY SUPERIOR CLARO TRANSPARENTE CON BACKDROP BLUR */}
-      <div className="relative z-10 min-h-screen bg-white/40 backdrop-blur-[6px]">
-        {/* BARRA DE NAVEGACIÓN CON MENÚS AL HOVER */}
-        <Navbar currentLang={currentLang} onLanguageChange={handleLanguageChange} />
+      {/* 2. OVERLAY SUPERIOR TRANSPARENTE CON BACKDROP BLUR (CLARO U OSCURO) */}
+      <div className="relative z-10 min-h-screen bg-white/40 dark:bg-slate-950/70 backdrop-blur-[6px] transition-colors duration-300">
+        {/* BARRA DE NAVEGACIÓN */}
+        <Navbar 
+          currentLang={currentLang} 
+          onLanguageChange={handleLanguageChange}
+          theme={theme}
+          onThemeToggle={handleThemeToggle}
+        />
 
-        {/* SECCIÓN HERO MINIMALISTA */}
+        {/* HERO SECTION */}
         <HeroSection currentLang={currentLang} />
 
         {/* SECCIÓN DE EXCHANGES */}
