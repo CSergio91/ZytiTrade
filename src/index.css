@@ -19,30 +19,30 @@
   }
 }
 
-/* Warm Card */
+/* Tarjeta Editorial Limpia sin Borde Duro */
 .warm-card {
   background: #ffffff;
-  border: 1px solid #ede8df;
-  box-shadow: 0 20px 40px -15px rgba(27, 24, 18, 0.07), 0 0 1px 1px rgba(27, 24, 18, 0.03);
+  border: 1px solid rgba(220, 214, 202, 0.6);
+  box-shadow: 0 25px 50px -12px rgba(27, 24, 18, 0.06);
 }
 
 html.dark .warm-card {
   background: #111726;
   border: 1px solid #1f293d;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Floating Satellite Card */
+/* Tarjetas Satélite Flotantes */
 .satellite-card {
   background: #ffffff;
-  border: 1px solid #ede8df;
-  box-shadow: 0 12px 30px -8px rgba(27, 24, 18, 0.1);
+  border: 1px solid rgba(220, 214, 202, 0.6);
+  box-shadow: 0 15px 35px -8px rgba(27, 24, 18, 0.08);
 }
 
 html.dark .satellite-card {
   background: #151d2e;
   border: 1px solid #23304a;
-  box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 15px 35px -8px rgba(0, 0, 0, 0.6);
 }
 
 /* Scrollbar */
@@ -51,15 +51,9 @@ html.dark .satellite-card {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #fbf9f4;
-}
-html.dark ::-webkit-scrollbar-track {
-  background: #0a0d14;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #dcd6cb;
   border-radius: 9999px;
-}
-html.dark ::-webkit-scrollbar-thumb {
-  background: #23304a;
 }

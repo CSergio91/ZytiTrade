@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLanguageChange, t
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 w-full z-50 border-b border-[#ede8df] dark:border-[#1f293d] bg-[#fbf9f4]/90 dark:bg-[#0a0d14]/90 backdrop-blur-md transition-colors duration-200">
+    <header className="fixed top-0 left-0 right-0 w-full z-50 bg-[#fbf9f4]/90 dark:bg-[#0a0d14]/90 backdrop-blur-md transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
         
         {/* LOGO LIMPIO */}
