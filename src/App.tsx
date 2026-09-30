@@ -4,6 +4,9 @@ import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { ExchangesSection } from './components/ExchangesSection';
 import { ServicesSection } from './components/ServicesSection';
+import { SecuritySection } from './components/SecuritySection';
+import { DownloadSection } from './components/DownloadSection';
+import { FooterSection } from './components/FooterSection';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -64,7 +67,7 @@ export const App: React.FC = () => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         e.preventDefault();
         container.scrollBy({
-          left: e.deltaY * 1.4,
+          left: e.deltaY * 1.3,
           behavior: 'auto'
         });
       }
@@ -101,12 +104,14 @@ export const App: React.FC = () => {
     }
   }, [theme]);
 
+  const TOTAL_SCREENS = 6;
+
   return (
     <div className={'relative h-screen w-screen overflow-hidden font-sans ' + (theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900')}>
       {/* GRÁFICO DE FONDO */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* NAVBAR QUE SE COMPRIME ANIMADAMENTE HACIA LA IZQUIERDA AL HACER SCROLL */}
+      {/* NAVBAR: SIN BORDE Y SIN FONDO INCLUSO CUANDO SE ACHICA AL HACER SCROLL */}
       <Navbar 
         currentLang={currentLang} 
         onLanguageChange={handleLanguageChange}
@@ -116,22 +121,36 @@ export const App: React.FC = () => {
         onNavigateSection={navigateToSection}
       />
 
-      {/* VIEWPORT SLIDER HORIZONTAL */}
+      {/* VIEWPORT SLIDER HORIZONTAL CON TODAS LAS PANTALLAS */}
       <main 
         ref={containerRef}
         className="relative z-10 flex flex-row overflow-x-auto snap-x snap-mandatory h-screen w-screen no-scrollbar"
         style={{ scrollBehavior: 'smooth' }}
       >
+        {/* PANTALLA 0: HERO / INICIO */}
         <HeroSection currentLang={currentLang} />
+
+        {/* PANTALLA 1: EXCHANGES */}
         <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} />
+
+        {/* PANTALLA 2: SERVICIOS */}
         <ServicesSection currentLang={currentLang} isActive={activeSection === 2} />
+
+        {/* PANTALLA 3: SEGURIDAD */}
+        <SecuritySection currentLang={currentLang} isActive={activeSection === 3} />
+
+        {/* PANTALLA 4: DESCARGAR */}
+        <DownloadSection currentLang={currentLang} isActive={activeSection === 4} />
+
+        {/* PANTALLA 5: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
+        <FooterSection currentLang={currentLang} isActive={activeSection === 5} onNavigateSection={navigateToSection} />
       </main>
 
-      {/* PROGRESS BAR INFERIOR */}
+      {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}
       <div className="fixed bottom-0 left-0 right-0 h-1 bg-[#ede8df]/60 dark:bg-slate-900/60 z-50">
         <div 
           className="h-full bg-slate-950 dark:bg-white transition-all duration-300 ease-out"
-          style={{ width: ((activeSection + 1) / 3) * 100 + '%' }}
+          style={{ width: ((activeSection + 1) / TOTAL_SCREENS) * 100 + '%' }}
         />
       </div>
     </div>

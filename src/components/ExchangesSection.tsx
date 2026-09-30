@@ -8,59 +8,85 @@ interface ExchangesSectionProps {
 
 export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang, isActive }) => {
   const t = translations[currentLang].exchangesSection;
-  const ex = translations[currentLang].exchangesMenu;
+  const isEs = currentLang === 'es';
 
-  const venues = [
-    { name: ex.binance.name, type: ex.binance.desc, latency: '1.2ms', delay: '0ms' },
-    { name: ex.bybit.name, type: ex.bybit.desc, latency: '1.8ms', delay: '50ms' },
-    { name: ex.okx.name, type: ex.okx.desc, latency: '2.1ms', delay: '100ms' },
-    { name: ex.kraken.name, type: ex.kraken.desc, latency: '3.4ms', delay: '150ms' },
-    { name: ex.coinbase.name, type: ex.coinbase.desc, latency: '4.2ms', delay: '200ms' },
-    { name: ex.bitget.name, type: ex.bitget.desc, latency: '2.0ms', delay: '250ms' },
+  // 15 Exchanges organizados en 3 columnas de exactamente 5 exchanges cada una
+  const columns = [
+    // COLUMNA 1 (5 Exchanges Tier-1 Principales)
+    [
+      { name: 'Binance', type: isEs ? 'Spot & Futuros USD-M' : 'Spot & USD-M Futures', latency: '1.2ms' },
+      { name: 'Bybit', type: isEs ? 'Perpetuos USDT API v5' : 'USDT Perpetuals API v5', latency: '1.8ms' },
+      { name: 'OKX', type: isEs ? 'Swaps & Opciones' : 'Swaps & Options', latency: '2.1ms' },
+      { name: 'Kraken', type: isEs ? 'Spot EUR/USD Banking' : 'EUR/USD Banking Spot', latency: '3.4ms' },
+      { name: 'Coinbase Advanced', type: isEs ? 'Liquidez Institucional Prime' : 'Prime Institutional Liquidity', latency: '4.2ms' },
+    ],
+    // COLUMNA 2 (5 Exchanges Derivados y Copy Trading)
+    [
+      { name: 'Bitget', type: isEs ? 'Derivados & Copy Trading API' : 'Derivatives & Copy API', latency: '2.0ms' },
+      { name: 'KuCoin', type: isEs ? 'Más de 700 Altcoins' : '700+ Altcoin Markets', latency: '2.8ms' },
+      { name: 'Gate.io', type: isEs ? 'Mercados Globales y Spot' : 'Global Spot Markets', latency: '3.1ms' },
+      { name: 'BingX', type: isEs ? 'Contratos Estándar & Perpetuos' : 'Standard & Perpetual Contracts', latency: '2.4ms' },
+      { name: 'MEXC Global', type: isEs ? 'Cero Comisiones en Spot' : 'Zero Fee Spot Markets', latency: '2.9ms' },
+    ],
+    // COLUMNA 3 (5 Exchanges Descentralizados y Alta Frecuencia)
+    [
+      { name: 'dYdX v4', type: isEs ? 'Perpetuos On-Chain Cosmos' : 'On-Chain Cosmos Perpetuals', latency: '1.9ms' },
+      { name: 'Hyperliquid', type: isEs ? 'L1 Nativa para Derivados' : 'Native L1 for Derivatives', latency: '1.1ms' },
+      { name: 'Vertex Protocol', type: isEs ? 'Orderbook Híbrido Arbitrum' : 'Hybrid Arbitrum Orderbook', latency: '1.5ms' },
+      { name: 'Bitfinex', type: isEs ? 'Libro de Órdenes Profundo' : 'Deep Institutional Orderbook', latency: '3.6ms' },
+      { name: 'Prop Firms Direct', type: isEs ? 'Pasarela de Evaluación & Fondeo' : 'Evaluation & Prop Gateway', latency: '0.8ms' },
+    ]
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-16 pt-16">
-      <div className="w-full max-w-6xl mx-auto">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pt-16">
+      <div className="w-full max-w-7xl mx-auto">
         
-        <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-4">
-            /venues-and-latency
+        {/* CABECERA */}
+        <div className={`max-w-xl mb-8 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
+            /15-venues-in-columns-of-5
           </div>
-          <h2 className="text-4xl sm:text-5xl font-black text-slate-950 dark:text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 dark:text-white tracking-tight">
             {t.title}
           </h2>
-          <p className="text-base text-slate-800 dark:text-slate-200 font-medium mt-3 leading-relaxed">
+          <p className="text-sm text-slate-800 dark:text-slate-200 font-medium mt-2 leading-relaxed">
             {t.subtitle}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {venues.map((venue, idx) => (
-            <div 
-              key={idx}
-              style={{ animationDelay: venue.delay }}
-              className={`warm-card rounded-2xl p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-lg ${
-                isActive ? 'animate-card-in' : 'opacity-0'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg font-bold text-slate-950 dark:text-white">{venue.name}</span>
-                  <span className="text-[10px] font-mono font-bold text-[#65a30d] bg-[#f4edd9] dark:bg-[#1a2512] px-2.5 py-1 rounded-full">
-                    {t.connected}
-                  </span>
+        {/* 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES CADA UNA */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {columns.map((col, colIdx) => (
+            <div key={colIdx} className="flex flex-col gap-3">
+              {col.map((venue, idx) => (
+                <div 
+                  key={idx}
+                  style={{ animationDelay: `${(colIdx * 5 + idx) * 35}ms` }}
+                  className={`warm-card rounded-2xl px-5 py-3.5 flex items-center justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-0.5 shadow-sm ${
+                    isActive ? 'animate-card-in' : 'opacity-0'
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-950 dark:text-white">{venue.name}</span>
+                      <span className="text-[9px] font-mono font-bold text-[#65a30d] bg-[#f4edd9] dark:bg-[#1a2512] px-1.5 py-0.5 rounded">
+                        {t.connected}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">{venue.type}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-950 dark:text-white shrink-0 ml-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>{venue.latency}</span>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium mt-1">{venue.type}</p>
-              </div>
-              
-              <div className="mt-6 pt-4 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
-                <span>{t.latencyLabel}</span>
-                <span className="text-sm font-black text-slate-950 dark:text-white">{venue.latency}</span>
-              </div>
+              ))}
             </div>
           ))}
         </div>
+
       </div>
     </section>
   );
