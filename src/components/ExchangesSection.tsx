@@ -1,5 +1,4 @@
 import React from 'react';
-import { Cpu } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 
 interface ExchangesSectionProps {
@@ -10,55 +9,47 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang 
   const t = translations[currentLang];
 
   const venues = [
-    { name: 'Binance', type: 'Spot & Futures', latency: '1.2ms', api: 'Native WSS', status: 'Optimal' },
-    { name: 'Bybit', type: 'USDT Perpetuals', latency: '1.8ms', api: 'API v5 Direct', status: 'Optimal' },
-    { name: 'OKX', type: 'Swaps & Options', latency: '2.1ms', api: 'Push Streaming', status: 'Optimal' },
-    { name: 'Kraken', type: 'Spot EUR/USD', latency: '3.4ms', api: 'REST + WSS', status: 'Optimal' },
-    { name: 'Coinbase', type: 'Institutional Prime', latency: '4.2ms', api: 'Direct FIX / API', status: 'Optimal' },
-    { name: 'Bitget', type: 'Copy Derivatives', latency: '2.0ms', api: 'Low-Latency Socket', status: 'Optimal' },
-    { name: 'KuCoin', type: '700+ Altcoins', latency: '3.1ms', api: 'Level 2 DOM', status: 'Optimal' },
-    { name: 'Gate.io', type: 'Global Liquidity', latency: '3.6ms', api: 'Native Gateway', status: 'Optimal' },
+    { name: 'Binance', type: 'Spot & Futuros USD-M', latency: '1.2ms', status: 'Conectado' },
+    { name: 'Bybit', type: 'Perpetuos USDT API v5', latency: '1.8ms', status: 'Conectado' },
+    { name: 'OKX', type: 'Swaps & Opciones', latency: '2.1ms', status: 'Conectado' },
+    { name: 'Kraken', type: 'Spot EUR/USD', latency: '3.4ms', status: 'Conectado' },
+    { name: 'Coinbase', type: 'Prime Liquidity', latency: '4.2ms', status: 'Conectado' },
+    { name: 'Bitget', type: 'Copy Trading API', latency: '2.0ms', status: 'Conectado' },
   ];
 
   return (
-    <section id="exchanges" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="glass-crystal rounded-3xl p-6 sm:p-10 border border-white/80 dark:border-slate-800 shadow-xl">
-        <div className="max-w-2xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-900">
-            <Cpu className="w-3.5 h-3.5" />
-            <span>Multi-Exchange Connectivity</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            {t.exchangesMenu.title}
-          </h2>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-2">
-            {t.exchangesMenu.subtitle}
-          </p>
-        </div>
+    <section id="security" className="py-20 px-6 lg:px-12 max-w-7xl mx-auto border-t border-[#ede8df] dark:border-[#1f293d]">
+      <div className="max-w-xl mb-12">
+        <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+          Exchanges soportados de forma nativa.
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+          Sin intermediarios ni servidores puente de terceros. Tus credenciales API se guardan cifradas localmente en tu propio cliente.
+        </p>
+      </div>
 
-        {/* GRID DE EXCHANGES */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {venues.map((venue, idx) => (
-            <div 
-              key={idx}
-              className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/60 hover:bg-white/95 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-all shadow-xs group"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {venue.name}
-                </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {venues.map((venue, idx) => (
+          <div 
+            key={idx}
+            className="warm-card rounded-2xl p-5 flex flex-col justify-between hover:border-slate-400 transition-colors"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-base font-bold text-slate-950 dark:text-white">{venue.name}</span>
+                <span className="text-[10px] font-mono font-bold text-[#65a30d] bg-[#f4edd9] dark:bg-[#1a2512] px-2 py-0.5 rounded-full">
                   {venue.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">{venue.type}</p>
-              <div className="flex items-center justify-between text-[11px] font-mono pt-2 border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                <span>{venue.api}</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">{venue.latency}</span>
-              </div>
+              <p className="text-xs text-slate-500 mt-1">{venue.type}</p>
             </div>
-          ))}
-        </div>
+            
+            <div className="mt-5 pt-3 border-t border-[#ede8df] dark:border-[#1f293d] flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>Latencia nativa</span>
+              <span className="font-bold text-slate-900 dark:text-white">{venue.latency}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

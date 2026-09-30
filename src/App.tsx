@@ -8,7 +8,6 @@ import { Footer } from './components/Footer';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
-  // 1. Idioma
   const getInitialLanguage = (): Language => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname.toLowerCase();
@@ -29,7 +28,6 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema: por defecto siempre LIGHT
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
@@ -53,25 +51,20 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
-      document.body.style.backgroundColor = '#090d16';
+      document.body.style.backgroundColor = '#0a0d14';
     } else {
       document.documentElement.classList.remove('dark');
-      document.body.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#fbf9f4';
     }
   }, [theme]);
 
   return (
-    <div className={`relative min-h-screen font-sans ${theme === 'dark' ? 'bg-[#090d16] text-white' : 'bg-white text-slate-900'}`}>
-      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW */}
+    <div className={`relative min-h-screen font-sans ${theme === 'dark' ? 'bg-[#0a0d14] text-white' : 'bg-[#fbf9f4] text-slate-900'}`}>
+      {/* 1. GRÁFICO DE FONDO SUTIL */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. OVERLAY SEMITRANSPARENTE EQUILIBRADO CON BLUR (Permite ver el gráfico sin oscurecer) */}
-      <div className={`relative z-10 min-h-screen pt-16 transition-colors duration-250 ${
-        theme === 'dark' 
-          ? 'bg-slate-950/60 backdrop-blur-[8px]' 
-          : 'bg-white/55 backdrop-blur-[7px]'
-      }`}>
-        {/* BARRA DE NAVEGACIÓN FIJA ARRIBA DE LADO A LADO */}
+      {/* 2. CONTENIDO PRINCIPAL */}
+      <div className="relative z-10 min-h-screen">
         <Navbar 
           currentLang={currentLang} 
           onLanguageChange={handleLanguageChange}
@@ -79,16 +72,12 @@ export const App: React.FC = () => {
           onThemeToggle={handleThemeToggle}
         />
 
-        {/* HERO SECTION */}
         <HeroSection currentLang={currentLang} />
 
-        {/* SECCIÓN DE EXCHANGES */}
         <ExchangesSection currentLang={currentLang} />
 
-        {/* SECCIÓN DE SERVICIOS */}
         <ServicesSection currentLang={currentLang} />
 
-        {/* FOOTER */}
         <Footer currentLang={currentLang} />
       </div>
     </div>

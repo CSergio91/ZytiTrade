@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Layers, Repeat, Zap, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 
 interface ServicesSectionProps {
@@ -7,80 +7,76 @@ interface ServicesSectionProps {
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang }) => {
-  const t = translations[currentLang].servicesMenu;
+  const isEs = currentLang === 'es';
 
   const services = [
     {
-      title: t.propFirms.title,
-      badge: t.propFirms.badge,
-      desc: t.propFirms.desc,
-      icon: ShieldCheck,
-      gradient: 'from-indigo-500 to-purple-600',
+      num: '01',
+      title: isEs ? 'Pasarela para Prop Firms' : 'Prop Firm Gateway',
+      desc: isEs 
+        ? 'Aprovisionamiento de cuentas vía REST API y Webhooks en tiempo real para auditorías de drawdown y challenges.'
+        : 'API account provisioning & real-time Webhooks for risk auditors, challenges and evaluations.',
     },
     {
-      title: t.multiExchange.title,
-      badge: t.multiExchange.badge,
-      desc: t.multiExchange.desc,
-      icon: Layers,
-      gradient: 'from-blue-500 to-cyan-600',
+      num: '02',
+      title: isEs ? 'Trading MultiExchange' : 'Multi-Exchange Trading',
+      desc: isEs
+        ? 'Unifica balances, órdenes abiertas y posiciones de múltiples cuentas en una interfaz sin fricciones.'
+        : 'Consolidate balances, open orders and positions across venues into a single clean workspace.',
     },
     {
-      title: t.copyTrading.title,
-      badge: t.copyTrading.badge,
-      desc: t.copyTrading.desc,
-      icon: Repeat,
-      gradient: 'from-emerald-500 to-teal-600',
+      num: '03',
+      title: isEs ? 'Copy Trading entre Exchanges' : 'Cross-Venue Copy Trading',
+      desc: isEs
+        ? 'Replica operaciones de Binance a Bybit u OKX en menos de 5ms utilizando claves cifradas en local.'
+        : 'Replicate trades from Binance to Bybit or OKX under 5ms using local encrypted API keys.',
     },
     {
-      title: t.arbitrage.title,
-      badge: t.arbitrage.badge,
-      desc: t.arbitrage.desc,
-      icon: Zap,
-      gradient: 'from-amber-500 to-orange-600',
+      num: '04',
+      title: isEs ? 'Arbitraje Algorítmico' : 'Algorithmic Arbitrage',
+      desc: isEs
+        ? 'Detección de spreads cruzados y ejecución sincronizada de dos patas en tiempo real.'
+        : 'Cross-market price discrepancy detection with synchronized execution in real time.',
     },
   ];
 
   return (
-    <section id="services" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="text-center max-w-2xl mx-auto mb-12">
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-white tracking-tight">
-          {t.title}
+    <section id="download" className="py-20 px-6 lg:px-12 max-w-7xl mx-auto border-t border-[#ede8df] dark:border-[#1f293d]">
+      <div className="max-w-xl mb-12">
+        <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+          {isEs ? 'Todo el ecosistema en un solo lugar.' : 'The complete ecosystem in one place.'}
         </h2>
-        <p className="mt-3 text-base text-slate-600 dark:text-slate-300">
-          {t.subtitle}
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+          {isEs 
+            ? 'Diseñado para eliminar la sobrecarga de herramientas y darte una terminal limpia y predecible.'
+            : 'Designed to eliminate tool overload and give you a clean, predictable trading experience.'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {services.map((srv, idx) => {
-          const IconComp = srv.icon;
-          return (
-            <div 
-              key={idx}
-              className="glass-crystal rounded-3xl p-6 border border-white/90 dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
-            >
-              <div>
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${srv.gradient} text-white flex items-center justify-center shadow-md mb-5`}>
-                  <IconComp className="w-6 h-6" />
-                </div>
-                <div className="inline-block text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 mb-2">
-                  {srv.badge}
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {srv.title}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                  {srv.desc}
-                </p>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:gap-2 transition-all">
-                <span>Explorar</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
+        {services.map((srv, idx) => (
+          <div 
+            key={idx}
+            className="warm-card rounded-3xl p-6 flex flex-col justify-between hover:border-slate-400 transition-colors"
+          >
+            <div>
+              <span className="text-xs font-mono font-bold text-slate-400">
+                {srv.num}
+              </span>
+              <h3 className="text-lg font-bold text-slate-950 dark:text-white mt-3">
+                {srv.title}
+              </h3>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                {srv.desc}
+              </p>
             </div>
-          );
-        })}
+
+            <div className="mt-8 flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white cursor-pointer hover:gap-2 transition-all">
+              <span>{isEs ? 'Conocer más' : 'Learn more'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
