@@ -250,6 +250,26 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   });
 
+  // Botones flotantes de 1 toque (quick trade) para móviles
+  const [quickTradeEnabled, setQuickTradeEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_quick_trade');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleQuickTrade = () => {
+    setQuickTradeEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('zyti_quick_trade', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // Estadísticas del par desde el Worker
   const [stats, setStats] = useState<MarketStats>({
     symbol: 'BTC/USDT',
@@ -462,6 +482,32 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 2500);
   };
 
+  const handleQuickTrade = (quickSide: 'buy' | 'sell') => {
+    const currentP = stats.lastPrice;
+    const defaultAmount = 1000;
+    const sizeNumber = defaultAmount / currentP;
+    
+    const newPos: PositionItem = {
+      id: Date.now(),
+      symbol: selectedPair,
+      side: quickSide === 'buy' ? 'LONG' : 'SHORT',
+      size: sizeNumber.toFixed(4) + ' ' + selectedPair.split('/')[0],
+      entry: currentP,
+      mark: currentP,
+      pnl: '0.00 USDT',
+      pnlPercent: '0.00%',
+      isProfit: true
+    };
+
+    setPositions([newPos, ...positions]);
+    setOrderSuccess(
+      isEs
+        ? `¡Orden 1-Toque ${quickSide === 'buy' ? 'LONG' : 'SHORT'} ejecutada!`
+        : `1-Tap ${quickSide === 'buy' ? 'LONG' : 'SHORT'} order filled!`
+    );
+    setTimeout(() => setOrderSuccess(null), 2500);
+  };
+
   const renderOrderForm = () => (
     <TerminalOrderForm
       isEs={isEs}
@@ -471,6 +517,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       amount={amount}
       leverage={leverage}
       orderSuccess={orderSuccess}
+      quickTradeEnabled={quickTradeEnabled}
+      onToggleQuickTrade={toggleQuickTrade}
       setSide={setSide}
       setOrderType={setOrderType}
       setAmount={setAmount}
@@ -547,17 +595,6 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
           />
 
-          {/* MÓVIL (< 1024px): BARRA DE BOTONES INFERIOR + HOJA A MITAD DE PANTALLA (50dvh) */}
-          <TerminalMobileSheet
-            isEs={isEs}
-            activeSheet={mobileSheet}
-            positions={positions}
-            setActiveSheet={setMobileSheet}
-            renderOrderForm={renderOrderForm}
-            renderOrderBook={renderOrderBook}
-            onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
-          />
-
         </div>
 
         {/* DESKTOP (>= 1024px): PANEL LATERAL ESTRECHO (280px) */}
@@ -582,7 +619,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
       </div>
 
-      {/* 3. PANTALLA CRISTALINA GLASSMORPHISM PARA LA SECCIÓN EXCHANGE */}
+      {/* 3. MÓVIL (< 1024px): BARRA DE BOTONES INFERIOR FIJA + HOJA A MITAD DE PANTALLA (50dvh) + BOTONES 1-TOQUE */}
+      <TerminalMobileSheet
+        isEs={isEs}
+        activeSheet={mobileSheet}
+        positions={positions}
+        quickTradeEnabled={quickTradeEnabled}
+        lastPrice={stats.lastPrice}
+        selectedPair={selectedPair}
+        onQuickTrade={handleQuickTrade}
+        setActiveSheet={setMobileSheet}
+        renderOrderForm={renderOrderForm}
+        renderOrderBook={renderOrderBook}
+        onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
+      />
+
+      {/* 4. PANTALLA CRISTALINA GLASSMORPHISM PARA LA SECCIÓN EXCHANGE */}
       {activeSection === 'exchange' && (
         <TerminalExchangeModal
           isEs={isEs}

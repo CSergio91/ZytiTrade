@@ -9,6 +9,8 @@ interface TerminalOrderFormProps {
   amount: string;
   leverage: number;
   orderSuccess: string | null;
+  quickTradeEnabled: boolean;
+  onToggleQuickTrade: () => void;
   setSide: (side: 'buy' | 'sell') => void;
   setOrderType: (type: 'market' | 'limit') => void;
   setAmount: (amount: string) => void;
@@ -24,6 +26,8 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
   amount,
   leverage,
   orderSuccess,
+  quickTradeEnabled,
+  onToggleQuickTrade,
   setSide,
   setOrderType,
   setAmount,
@@ -129,6 +133,29 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
             <span>{orderSuccess}</span>
           </div>
         )}
+
+        {/* CHECKBOX BOTONES FLOTANTES DE 1 TOQUE (MÓVIL) */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+              <span>{isEs ? 'Botones Flotantes (1 Toque)' : '1-Tap Floating Buttons'}</span>
+            </span>
+            <span className="text-[9px] text-slate-400">
+              {isEs ? 'Habilita comprar y vender directo sobre el gráfico' : 'Trade directly over chart on mobile'}
+            </span>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={quickTradeEnabled}
+              onChange={onToggleQuickTrade}
+              className="sr-only peer"
+            />
+            <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-amber-500 cursor-pointer" />
+          </label>
+        </div>
 
         {/* BOTÓN DISPARADOR */}
         <button

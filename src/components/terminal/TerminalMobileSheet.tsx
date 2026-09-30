@@ -6,6 +6,10 @@ interface TerminalMobileSheetProps {
   isEs: boolean;
   activeSheet: 'order' | 'book' | 'positions' | null;
   positions: PositionItem[];
+  quickTradeEnabled: boolean;
+  lastPrice: number;
+  selectedPair: string;
+  onQuickTrade: (side: 'buy' | 'sell') => void;
   setActiveSheet: (sheet: 'order' | 'book' | 'positions' | null) => void;
   renderOrderForm: () => React.ReactNode;
   renderOrderBook: () => React.ReactNode;
@@ -16,6 +20,10 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   isEs,
   activeSheet,
   positions,
+  quickTradeEnabled,
+  lastPrice,
+  selectedPair,
+  onQuickTrade,
   setActiveSheet,
   renderOrderForm,
   renderOrderBook,
@@ -25,10 +33,47 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
     setActiveSheet(activeSheet === tab ? null : tab);
   };
 
+  const baseSymbol = selectedPair.split('/')[0];
+
   return (
     <>
-      {/* 1. BARRA INFERIOR FIJA DE BOTONES (MÓVIL < 1024px) */}
-      <nav className="lg:hidden h-13 border-t border-[#ded5c5] bg-white shrink-0 flex items-center justify-around px-2 z-30 shadow-md">
+      {/* 1. BOTONES FLOTANTES DE OPERAR CON 1 TOQUE (SI ESTÁ HABILITADO POR EL CHECKBOX) */}
+      {quickTradeEnabled && (
+        <div 
+          className={`lg:hidden fixed ${
+            activeSheet ? 'bottom-[52dvh]' : 'bottom-16'
+          } left-3 right-3 z-30 flex items-center gap-2.5 animate-zoom-in transition-all duration-300 pointer-events-auto`}
+        >
+          {/* BOTÓN COMPRA RÁPIDA 1 TOQUE */}
+          <button
+            type="button"
+            onClick={() => onQuickTrade('buy')}
+            className="flex-1 py-2 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xl flex items-center justify-between text-xs font-black cursor-pointer border border-emerald-500/40 transition-all"
+          >
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 fill-white" />
+              <span>{isEs ? `Comprar ${baseSymbol}` : `Buy ${baseSymbol}`}</span>
+            </div>
+            <span className="font-mono text-[10px] opacity-90">${lastPrice.toLocaleString()}</span>
+          </button>
+
+          {/* BOTÓN VENTA RÁPIDA 1 TOQUE */}
+          <button
+            type="button"
+            onClick={() => onQuickTrade('sell')}
+            className="flex-1 py-2 px-3 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white shadow-xl flex items-center justify-between text-xs font-black cursor-pointer border border-red-500/40 transition-all"
+          >
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 fill-white" />
+              <span>{isEs ? `Vender ${baseSymbol}` : `Sell ${baseSymbol}`}</span>
+            </div>
+            <span className="font-mono text-[10px] opacity-90">${lastPrice.toLocaleString()}</span>
+          </button>
+        </div>
+      )}
+
+      {/* 2. BARRA DE NAVEGACIÓN INFERIOR FIJA (MÓVIL < 1024px) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-14 border-t border-[#ded5c5] bg-white flex items-center justify-around px-2 shadow-2xl select-none">
         {/* BOTÓN OPERAR */}
         <button
           type="button"
@@ -83,19 +128,19 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
         </button>
       </nav>
 
-      {/* 2. HOJA DESLIZANTE A MITAD DE PANTALLA (50dvh) CUANDO SE ABRE UNA OPCIÓN */}
+      {/* 3. HOJA MODAL DESLIZANTE A MITAD DE PANTALLA (50dvh) */}
       {activeSheet && (
-        <div className="lg:hidden fixed inset-0 z-40 flex flex-col justify-end">
-          {/* Backdrop que cubre la mitad superior del gráfico (permite cerrarlo tocando) */}
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          {/* Backdrop sobre el 50% superior del gráfico que permite cerrarlo tocando */}
           <div 
-            className="flex-1 bg-black/25 backdrop-blur-[1px] transition-opacity animate-fadeIn"
+            className="flex-1 bg-black/40 backdrop-blur-[1px] transition-opacity"
             onClick={() => setActiveSheet(null)}
           />
 
           {/* Panel inferior que ocupa la mitad de la pantalla */}
-          <div className="h-[52dvh] max-h-[550px] bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
+          <div className="h-[50dvh] max-h-[500px] bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up-sheet">
             {/* Header del sheet con barra de arrastre y botón cerrar */}
-            <div className="px-4 py-2.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
+            <div className="px-4 py-2 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-4 bg-amber-500 rounded-full" />
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">
@@ -116,7 +161,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             </div>
 
             {/* Contenido scrolleable de la hoja */}
-            <div className="flex-1 overflow-y-auto no-scrollbar p-3">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-3 pb-8">
               {activeSheet === 'order' && renderOrderForm()}
               {activeSheet === 'book' && renderOrderBook()}
               {activeSheet === 'positions' && (

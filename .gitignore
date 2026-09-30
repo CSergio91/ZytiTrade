@@ -1,16 +1,24 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 .pnpm-store/
 .yarn/
 
 # Environment Variables & Secrets (CRITICAL)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.pem
 *.key
 *.cert
+*.id_rsa
+*.p8
+*.p12
 credentials.json
+service-account*.json
+
+# Vercel & Deployments
+.vercel/
+
 
 # Build Outputs
 dist/
