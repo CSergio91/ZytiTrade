@@ -97,11 +97,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* POPOVER CON ANIMACIÓN LOTTIE A LA IZQUIERDA + 3 COLUMNAS DE EXACTAMENTE 5 EXCHANGES */}
           {exchangeOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-5 shadow-2xl animate-in fade-in duration-150 z-50 border backdrop-blur-xl ${
-              isLight ? 'bg-white/98 border-[#ede8df] text-slate-900 shadow-slate-200/80' : 'bg-[#111726]/98 border-[#1f293d] text-white shadow-black/80'
+            <div className={`absolute top-full left-0 mt-2 w-[920px] rounded-3xl p-6 shadow-2xl animate-in fade-in duration-200 z-50 backdrop-blur-2xl border transition-all ${
+              isLight 
+                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
+                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_25px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
             }`}>
               
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#ede8df] dark:border-[#1f293d]">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-900/10 dark:border-white/10">
                 <div>
                   <h4 className="text-sm font-black text-slate-950 dark:text-white">
                     {t.exchangesMenu.title}
@@ -139,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
                         className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
@@ -168,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
                         className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
@@ -197,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         key={idx}
                         onClick={() => { onNavigateSection(1); setExchangeOpen(false); }}
                         className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 ${
-                          isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                          isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                         }`}
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
@@ -242,8 +244,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {servicesOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-88 rounded-3xl p-3 shadow-2xl animate-in fade-in duration-150 z-50 border backdrop-blur-xl ${
-              isLight ? 'bg-white/98 border-[#ede8df] text-slate-900 shadow-slate-200/80' : 'bg-[#111726]/98 border-[#1f293d] text-white shadow-black/80'
+            <div className={`absolute top-full left-0 mt-2 w-88 rounded-3xl p-3.5 shadow-2xl animate-in fade-in duration-200 z-50 backdrop-blur-2xl border transition-all ${
+              isLight 
+                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
+                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_25px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
             }`}>
               <div className="flex flex-col gap-1">
                 {servicesList.map((srv, idx) => (
@@ -251,7 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={idx}
                     onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
                     className={`p-3 rounded-2xl transition-colors cursor-pointer flex flex-col ${
-                      isLight ? 'hover:bg-[#f4efe5]' : 'hover:bg-slate-800'
+                      isLight ? 'hover:bg-slate-900/5 hover:backdrop-blur-sm' : 'hover:bg-white/10 hover:backdrop-blur-sm'
                     }`}
                   >
                     <span className={`text-sm font-bold ${isLight ? 'text-slate-950' : 'text-white'}`}>{srv.title}</span>
@@ -330,8 +334,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {langOpen && (
-            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1 shadow-2xl z-50 border right-0 backdrop-blur-xl ${
-              isLight ? 'bg-white border-[#ede8df]' : 'bg-[#111726] border-[#1f293d]'
+            <div className={`absolute top-full mt-2 w-32 rounded-2xl p-1.5 shadow-2xl z-50 right-0 backdrop-blur-2xl border transition-all ${
+              isLight 
+                ? 'bg-white/75 border-white/80 text-slate-900 shadow-[0_15px_35px_rgba(0,0,0,0.08)] ring-1 ring-black/5' 
+                : 'bg-[#0b101b]/75 border-white/10 text-white shadow-[0_20px_45px_rgba(0,0,0,0.6)] ring-1 ring-white/10'
             }`}>
               <button
                 onClick={() => { onLanguageChange('es'); setLangOpen(false); }}
