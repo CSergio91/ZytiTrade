@@ -112,22 +112,28 @@ Todo componente y pantalla de ZYTI Trade debe diseñarse bajo la estricta metodo
    - A la izquierda: **Gráfico KLineCharts Dominante** (`flex-1`, ocupando entre el 78% y 82% del ancho de pantalla).
    - A la derecha: **Panel Lateral Estrecho de Trading** con ancho fijo estricto (`w-[270px]` a `w-[290px]`), alojando el Order Book L2 compacto y el widget de ejecución de órdenes sin saturar la pantalla.
    - En la base izquierda: **Panel de Posiciones y Órdenes** con altura compacta (`h-32` a `h-36`).
-2. **Prohibición Terminante de Controles Móviles en Escritorio:**
-   - Queda estrictamente prohibido renderizar pestañas táctiles móviles (*Operar / Order Book / Posiciones*) o layouts de columna única apilada en resoluciones `>= 1024px`.
-3. **Blindaje de Estilos con Media Queries Explícitas:**
+2. **Prohibición Terminante de Controles Móviles y Botones Flotantes en Escritorio:**
+   - Queda estrictamente prohibido renderizar pestañas táctiles móviles (*Operar / Order Book / Posiciones*), botones flotantes de comprar/vender (Quick Trade), o el checkbox de activación de botones flotantes en el formulario de órdenes en resoluciones `>= 1024px`.
+   - En escritorio, toda la operativa se realiza exclusivamente en el panel lateral institucional (`.terminal-desktop-sidebar`).
+3. **Blindaje de Estilos con Media Queries Explícitas y Desmontaje en React:**
    - Para evitar inconsistencias de especificidad o fallos de compilación en utilidades de Tailwind, se deben blindar las reglas de escritorio en CSS puro con `@media (min-width: 1024px)` y `!important` en las clases estructurales:
      - `.terminal-desktop-sidebar`: Visible exclusivamente en `>= 1024px`.
-     - `.terminal-mobile-controls`: Oculto estrictamente (`display: none !important`) en `>= 1024px`.
+     - `.terminal-mobile-controls`, `.terminal-mobile-only`, `.terminal-floating-quicktrade`, `.terminal-mobile-sheet`, `.terminal-mobile-bottom-nav`: Ocultos estrictamente (`display: none !important; visibility: hidden !important; pointer-events: none !important;`) en `>= 1024px`.
+   - En React, los componentes móviles (`TerminalMobileSheet`) y el selector de botones flotantes deben estar condicionados a `!isDesktop` para no inyectarse en el DOM de escritorio bajo ninguna circunstancia.
 
 ### B. Reglas Mandatarias para la Trading Terminal en Móviles (< 1024px):
-1. **Gráfico KLineCharts con Máxima Visibilidad:**
-   - El canvas de KLineCharts ocupa toda la altura disponible entre la cabecera superior y la barra de navegación inferior (`flex: 1 1 0%`).
+1. **Gráfico con Máxima Visibilidad:**
+   - El canvas ocupa toda la altura disponible entre la cabecera superior y la barra de navegación inferior (`flex: 1 1 0%`).
 2. **Barra de Navegación Inferior Fija:**
-   - Barra de botones táctiles en la base (`h-13` / `52px`): *Operar*, *Order Book*, *Posiciones*.
+   - Barra de botones táctiles en la base (`h-14`): *Operar*, *Order Book*, *Posiciones*.
 3. **Bottom Sheet Deslizante a Mitad de Pantalla (50dvh):**
    - Al tocar cualquier botón, la sección se eleva desde la parte inferior cubriendo exactamente la mitad de la pantalla (`h-[50dvh]`).
    - El 50% superior mantiene el gráfico interactivo visible en tiempo real.
    - El usuario puede cerrar la hoja tocando de nuevo el botón activo, pulsando el botón de cierre (`X`) o el fondo translúcido superior para devolver el 100% del espacio al gráfico.
+4. **Botones Flotantes de 1 Toque (Quick Trade - Exclusivo Móvil):**
+   - Habilitables únicamente en móviles mediante el interruptor dentro del formulario de la hoja modal.
+   - Flotan sobre el gráfico a `bottom-16` (o `bottom-[52dvh]` si la hoja está abierta) para compra y venta instantánea con 1 toque.
+   - **NUNCA DEBEN EXISTIR NI RENDERIZARSE EN ESCRITORIO.**
 
 ### C. Arquitectura Obligatoria de Componentes Modulares y Reutilizables:
 1. **Desacoplamiento Estricto y Prohibición de Monolitos:**

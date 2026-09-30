@@ -270,6 +270,19 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     });
   };
 
+  // Detección reactiva de escritorio (>= 1024px)
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => {
+    return typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Estadísticas del par desde el Worker
   const [stats, setStats] = useState<MarketStats>({
     symbol: 'BTC/USDT',
@@ -518,6 +531,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       leverage={leverage}
       orderSuccess={orderSuccess}
       quickTradeEnabled={quickTradeEnabled}
+      isDesktop={isDesktop}
       onToggleQuickTrade={toggleQuickTrade}
       setSide={setSide}
       setOrderType={setOrderType}
@@ -619,20 +633,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
       </div>
 
-      {/* 3. MÓVIL (< 1024px): BARRA DE BOTONES INFERIOR FIJA + HOJA A MITAD DE PANTALLA (50dvh) + BOTONES 1-TOQUE */}
-      <TerminalMobileSheet
-        isEs={isEs}
-        activeSheet={mobileSheet}
-        positions={positions}
-        quickTradeEnabled={quickTradeEnabled}
-        lastPrice={stats.lastPrice}
-        selectedPair={selectedPair}
-        onQuickTrade={handleQuickTrade}
-        setActiveSheet={setMobileSheet}
-        renderOrderForm={renderOrderForm}
-        renderOrderBook={renderOrderBook}
-        onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
-      />
+      {/* 3. MÓVIL EXCLUSIVO (< 1024px): BARRA DE BOTONES INFERIOR FIJA + HOJA A MITAD DE PANTALLA (50dvh) + BOTONES 1-TOQUE */}
+      {!isDesktop && (
+        <TerminalMobileSheet
+          isEs={isEs}
+          activeSheet={mobileSheet}
+          positions={positions}
+          quickTradeEnabled={quickTradeEnabled}
+          lastPrice={stats.lastPrice}
+          selectedPair={selectedPair}
+          onQuickTrade={handleQuickTrade}
+          setActiveSheet={setMobileSheet}
+          renderOrderForm={renderOrderForm}
+          renderOrderBook={renderOrderBook}
+          onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
+        />
+      )}
 
       {/* 4. PANTALLA CRISTALINA GLASSMORPHISM PARA LA SECCIÓN EXCHANGE */}
       {activeSection === 'exchange' && (

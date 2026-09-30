@@ -449,9 +449,16 @@ html:not(.dark) .text-slate-500 {
   .terminal-desktop-positions {
     display: flex !important;
     flex-direction: column !important;
-    height: 140px !important;
     flex-shrink: 0 !important;
     border-top: 1px solid #ded5c5 !important;
+    transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  .terminal-desktop-positions.is-collapsed {
+    height: 34px !important;
+    overflow: hidden !important;
+  }
+  .terminal-desktop-positions.is-expanded {
+    height: 160px !important;
   }
   .terminal-desktop-sidebar {
     display: flex !important;
@@ -464,8 +471,19 @@ html:not(.dark) .text-slate-500 {
     gap: 0.65rem !important;
     overflow-y: auto !important;
   }
-  .terminal-mobile-controls {
+  .terminal-mobile-controls,
+  .terminal-mobile-only,
+  .terminal-floating-quicktrade,
+  .terminal-mobile-sheet,
+  .terminal-mobile-bottom-nav {
     display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
   }
 }
 

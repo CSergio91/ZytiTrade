@@ -36,11 +36,11 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   const baseSymbol = selectedPair.split('/')[0];
 
   return (
-    <>
-      {/* 1. BOTONES FLOTANTES DE OPERAR CON 1 TOQUE (SI ESTÁ HABILITADO POR EL CHECKBOX) */}
+    <div className="terminal-mobile-only lg:hidden">
+      {/* 1. BOTONES FLOTANTES DE OPERAR CON 1 TOQUE (EXCLUSIVO MÓVIL < 1024px) */}
       {quickTradeEnabled && (
         <div 
-          className={`lg:hidden fixed ${
+          className={`lg:hidden terminal-mobile-only terminal-floating-quicktrade fixed ${
             activeSheet ? 'bottom-[52dvh]' : 'bottom-16'
           } left-3 right-3 z-30 flex items-center gap-2.5 animate-zoom-in transition-all duration-300 pointer-events-auto`}
         >
@@ -73,7 +73,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
       )}
 
       {/* 2. BARRA DE NAVEGACIÓN INFERIOR FIJA (MÓVIL < 1024px) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-14 border-t border-[#ded5c5] bg-white flex items-center justify-around px-2 shadow-2xl select-none">
+      <nav className="lg:hidden terminal-mobile-only terminal-mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 h-14 border-t border-[#ded5c5] bg-white flex items-center justify-around px-2 shadow-2xl select-none">
         {/* BOTÓN OPERAR */}
         <button
           type="button"
@@ -130,7 +130,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
       {/* 3. HOJA MODAL DESLIZANTE A MITAD DE PANTALLA (50dvh) */}
       {activeSheet && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="lg:hidden terminal-mobile-only terminal-mobile-sheet fixed inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop sobre el 50% superior del gráfico que permite cerrarlo tocando */}
           <div 
             className="flex-1 bg-black/40 backdrop-blur-[1px] transition-opacity"
@@ -206,6 +206,6 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
