@@ -151,7 +151,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
   };
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-14 sm:pt-16 lg:pt-18 pb-3 lg:pb-5 overflow-y-auto no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-start lg:justify-center snap-center px-4 sm:px-6 lg:px-10 xl:px-12 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto no-scrollbar">
       <div className="w-full max-w-7xl mx-auto">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">

@@ -96,10 +96,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header 
-      className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] border-none shadow-none ${
         isShifted
-          ? 'top-2 left-3 right-3 w-auto h-14 px-4 bg-[#fbf9f4]/95 backdrop-blur-md rounded-2xl flex items-center justify-between gap-3 shadow-sm lg:top-4 lg:left-8 lg:right-auto lg:bg-[#fbf9f4]/90 lg:rounded-2xl lg:shadow-md lg:px-5 lg:gap-6'
-          : 'top-0 left-0 right-0 w-full h-14 lg:h-20 px-4 lg:px-8 xl:px-12 bg-transparent flex items-center justify-between shadow-none'
+          ? 'top-2 left-3 right-3 w-auto h-14 px-4 bg-[#fbf9f4]/95 backdrop-blur-md rounded-2xl flex items-center justify-between gap-3 lg:top-4 lg:left-8 lg:right-auto lg:bg-[#fbf9f4]/90 lg:rounded-2xl lg:px-5 lg:gap-6 border-none shadow-none'
+          : 'top-0 left-0 right-0 w-full h-14 lg:h-20 px-4 lg:px-8 xl:px-12 bg-transparent flex items-center justify-between border-none shadow-none'
       }`}>
       
       {/* 1. LOGO INSTITUCIONAL COMPLETO */}
@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
-      <div className={`hidden lg:flex items-center gap-8 transition-all duration-300 font-bold text-sm ${
+      <div className={`nav-desktop-menu items-center gap-8 transition-all duration-300 font-bold text-sm ${
         isShifted ? '' : ''
       } text-slate-950`}>
         
@@ -507,7 +507,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* 3. ACCIONES LATERALES (IDIOMA + ACCEDER) SIN BORDES */}
-      <div className={`hidden lg:flex items-center transition-all duration-300 shrink-0 ${
+      <div className={`nav-desktop-actions items-center transition-all duration-300 shrink-0 ${
         isShifted ? 'gap-2.5' : 'gap-3.5'
       }`}>
         
@@ -563,7 +563,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* 3. CONTROLES MÓVILES (BOTÓN HAMBURGUESA — EXCLUSIVO MÓVIL < 768px) */}
-      <div className="lg:hidden flex items-center">
+      <div className="nav-mobile-toggle items-center">
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -228,3 +228,32 @@ html:not(.dark) .text-slate-600,
 html:not(.dark) .text-slate-500 {
   color: #0f172a !important;
 }
+
+/* ----------------------------------------------------
+   REGLAS INFALIBLES DE VISIBILIDAD DE NAVEGACIÓN
+   Desktop (>= 1024px): Menú de texto visible, hamburguesa oculta
+   Mobile (< 1024px): Menú de texto oculto, hamburguesa visible
+   ---------------------------------------------------- */
+@media (min-width: 1024px) {
+  .nav-desktop-menu {
+    display: flex !important;
+  }
+  .nav-desktop-actions {
+    display: flex !important;
+  }
+  .nav-mobile-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .nav-desktop-menu {
+    display: none !important;
+  }
+  .nav-desktop-actions {
+    display: none !important;
+  }
+  .nav-mobile-toggle {
+    display: flex !important;
+  }
+}

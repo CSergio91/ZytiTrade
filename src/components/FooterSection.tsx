@@ -13,7 +13,7 @@ export const FooterSection: React.FC<FooterSectionProps> = ({ currentLang, isAct
   const navT = translations[currentLang].nav;
 
   return (
-    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-end snap-center px-4 sm:px-6 lg:px-12 pb-8 pt-20 sm:pt-24 lg:pt-28 overflow-y-auto lg:overflow-hidden no-scrollbar">
+    <section className="min-w-full w-screen h-[100dvh] flex flex-col justify-end snap-center px-4 sm:px-6 lg:px-12 pb-8 pt-20 sm:pt-22 lg:pt-24 xl:pt-26 pb-4 sm:pb-6 overflow-y-auto lg:overflow-hidden no-scrollbar">
       <div 
         className={`w-full max-w-7xl mx-auto warm-card rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isActive ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-32 opacity-0 scale-95'
