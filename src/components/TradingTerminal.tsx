@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { init, dispose, Chart, DeepPartial, Styles } from 'klinecharts';
 import { Language } from '../i18n/translations';
 import { UserSession } from '../lib/supabase';
 import { MarketStats, OrderBookPayload } from '../workers/marketData.worker';
 
 import { 
-  PositionItem, 
   DEFAULT_FAV_TIMEFRAMES, 
   DEFAULT_FAV_INDICATORS, 
   ALL_INDICATORS 
 } from './terminal/types';
+import { 
+  TradingEngine, 
+  PositionItem, 
+  OrderRequest, 
+  AccountMetrics,
+  generateTradeId 
+} from '../core/trading';
 import { TerminalHeader } from './terminal/TerminalHeader';
 import { TerminalToolbar } from './terminal/TerminalToolbar';
 import { TerminalSideNav } from './terminal/TerminalSideNav';
@@ -19,6 +25,8 @@ import { TerminalPositions } from './terminal/TerminalPositions';
 import { TerminalMobileSheet } from './terminal/TerminalMobileSheet';
 import { TerminalExchangeModal } from './terminal/TerminalExchangeModal';
 import { PositionChartOverlay } from './terminal/PositionChartOverlay';
+import { TerminalToast, ToastNotification } from './terminal/TerminalToast';
+import { playOrderFilledSound } from '../utils/audioAlerts';
 
 interface TradingTerminalProps {
   currentLang: Language;
@@ -207,10 +215,19 @@ const ZYTI_CHART_THEME: DeepPartial<Styles> = {
         borderSize: 1,
         borderColor: '#0f172a',
         borderRadius: 3,
-        backgroundColor: '#0f172a'
       }
     }
   }
+};
+
+// Generador de ID robusto compatible con HTTP en móviles y túneles locales
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {}
+  }
+  return 'pos_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
 };
 
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
@@ -327,6 +344,23 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [tpPercent, setTpPercent] = useState<number>(4);
   const [orderMode, setOrderMode] = useState<'amount' | 'risk'>('amount');
 
+  // Sistema de notificaciones Toast sonoras para TP, SL y ejecución
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+  const addToast = useCallback((toast: Omit<ToastNotification, 'id'>) => {
+    const newToast: ToastNotification = {
+      ...toast,
+      id: generateTradeId()
+    };
+    setToasts((prev) => [...prev.slice(-3), newToast]);
+  }, []);
+
+  const addToastRef = useRef(addToast);
+  addToastRef.current = addToast;
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -372,66 +406,57 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
           setPositions((prevPositions) => {
             if (prevPositions.length === 0) return prevPositions;
-            let balanceDelta = 0;
-            const updatedPositions: PositionItem[] = [];
+            
+            const evaluation = TradingEngine.evaluatePositionsOnTick(
+              prevPositions,
+              currentP,
+              payload.stats.symbol
+            );
 
-            for (const pos of prevPositions) {
-              if (pos.symbol !== payload.stats.symbol) {
-                updatedPositions.push(pos);
-                continue;
+            // Despachar Toasts y alertas sonoras de TP o SL
+            evaluation.events.forEach((evt) => {
+              if (evt.type === 'TP_HIT') {
+                addToastRef.current({
+                  type: 'tp',
+                  title: isEs ? '¡Take Profit Alcanzado!' : 'Take Profit Triggered!',
+                  message: isEs
+                    ? `Operación ${evt.position.side} en ${evt.position.symbol} cerrada exitosamente.`
+                    : `${evt.position.side} trade on ${evt.position.symbol} closed successfully.`,
+                  symbol: evt.position.symbol,
+                  pnlUsdt: evt.realizedPnL,
+                  pnlPercent: evt.position.pnlPercentNum,
+                  price: evt.price
+                });
+                setOrderSuccess(
+                  isEs
+                    ? `¡Take Profit alcanzado en ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                    : `Take Profit hit on ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                );
+                setTimeout(() => setOrderSuccess(null), 4000);
+              } else if (evt.type === 'SL_HIT') {
+                addToastRef.current({
+                  type: 'sl',
+                  title: isEs ? 'Stop Loss Ejecutado' : 'Stop Loss Triggered',
+                  message: isEs
+                    ? `Operación ${evt.position.side} en ${evt.position.symbol} cerrada para proteger capital.`
+                    : `${evt.position.side} trade on ${evt.position.symbol} closed to protect capital.`,
+                  symbol: evt.position.symbol,
+                  pnlUsdt: evt.realizedPnL,
+                  pnlPercent: evt.position.pnlPercentNum,
+                  price: evt.price
+                });
+                setOrderSuccess(
+                  isEs
+                    ? `Stop Loss ejecutado en ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                    : `Stop Loss triggered on ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                );
+                setTimeout(() => setOrderSuccess(null), 4000);
               }
-              const isLong = pos.side === 'LONG';
+            });
 
-              // 1. Verificación Take Profit
-              if (pos.tpPrice) {
-                const hitTP = isLong ? currentP >= pos.tpPrice : currentP <= pos.tpPrice;
-                if (hitTP) {
-                  const pnlWin = Math.abs(pos.tpPrice - pos.entry) * pos.sizeUnits * pos.leverage;
-                  balanceDelta += pnlWin;
-                  setOrderSuccess(
-                    isEs
-                      ? `¡Take Profit alcanzado en ${pos.symbol}! (+${pnlWin.toFixed(2)} USDT)`
-                      : `Take Profit hit on ${pos.symbol}! (+${pnlWin.toFixed(2)} USDT)`
-                  );
-                  continue; // Posición cerrada con ganancia
-                }
-              }
-
-              // 2. Verificación Stop Loss
-              if (pos.slPrice) {
-                const hitSL = isLong ? currentP <= pos.slPrice : currentP >= pos.slPrice;
-                if (hitSL) {
-                  const pnlLoss = -Math.abs(pos.slPrice - pos.entry) * pos.sizeUnits * pos.leverage;
-                  balanceDelta += pnlLoss;
-                  setOrderSuccess(
-                    isEs
-                      ? `Stop Loss ejecutado en ${pos.symbol}. (${pnlLoss.toFixed(2)} USDT)`
-                      : `Stop Loss triggered on ${pos.symbol}. (${pnlLoss.toFixed(2)} USDT)`
-                  );
-                  continue; // Posición cerrada con pérdida
-                }
-              }
-
-              // 3. Actualización de PnL no realizado en vivo
-              const priceDiff = isLong ? (currentP - pos.entry) : (pos.entry - currentP);
-              const pnlUsdt = priceDiff * pos.sizeUnits * pos.leverage;
-              const pnlPercentNum = pos.collateralUsdt > 0 ? (pnlUsdt / pos.collateralUsdt) * 100 : 0;
-              const isProfit = pnlUsdt >= 0;
-
-              updatedPositions.push({
-                ...pos,
-                mark: currentP,
-                pnlUsdt,
-                pnlPercentNum,
-                pnl: `${isProfit ? '+' : ''}${pnlUsdt.toFixed(2)} USDT`,
-                pnlPercent: `${isProfit ? '+' : ''}${pnlPercentNum.toFixed(2)}%`,
-                isProfit
-              });
-            }
-
-            if (balanceDelta !== 0) {
+            if (evaluation.balanceDelta !== 0) {
               setDemoBalance((prevB) => {
-                const nextB = Number((prevB + balanceDelta).toFixed(2));
+                const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
                 try {
                   localStorage.setItem('zyti_demo_balance', nextB.toString());
                 } catch {}
@@ -439,7 +464,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               });
             }
 
-            return updatedPositions;
+            return evaluation.updatedPositions;
           });
         }
       } else if (type === 'ORDERBOOK_UPDATE') {
@@ -655,64 +680,106 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     });
   };
 
-  const handleUpdatePositionSLTP = (id: number, slPrice?: number, tpPrice?: number) => {
-    setPositions((prev) =>
-      prev.map((pos) => {
-        if (pos.id !== id) return pos;
-        return {
-          ...pos,
-          slPrice: slPrice !== undefined ? slPrice : pos.slPrice,
-          tpPrice: tpPrice !== undefined ? tpPrice : pos.tpPrice
-        };
-      })
-    );
+  // Métricas de cuenta centralizadas por el TradingEngine
+  const accountMetrics = TradingEngine.calculateAccountMetrics(demoBalance, positions);
+
+  const handleUpdatePositionSLTP = (id: string, slPrice?: number | null, tpPrice?: number | null) => {
+    setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
+  };
+
+  // Cerrar posición manualmente: calcula PnL realizado y actualiza el saldo de la cuenta
+  const handleClosePosition = (id: string) => {
+    setPositions((prev) => {
+      const { remainingPositions, closedPosition, realizedPnL } = TradingEngine.closePosition(prev, id);
+      if (closedPosition) {
+        setDemoBalance((prevB) => {
+          const nextB = Number((prevB + realizedPnL).toFixed(2));
+          try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
+          return nextB;
+        });
+
+        // Toast sonoro al cerrar manualmente
+        addToast({
+          type: realizedPnL >= 0 ? 'tp' : 'sl',
+          title: isEs ? 'Posición Cerrada a Mercado' : 'Position Closed at Market',
+          message: isEs
+            ? `Operación ${closedPosition.side} en ${closedPosition.symbol} liquidada a precio actual.`
+            : `${closedPosition.side} position on ${closedPosition.symbol} settled at current market price.`,
+          symbol: closedPosition.symbol,
+          pnlUsdt: realizedPnL,
+          pnlPercent: closedPosition.pnlPercentNum,
+          price: closedPosition.mark
+        });
+
+        setOrderSuccess(
+          isEs
+            ? `Posición ${closedPosition.symbol} cerrada. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
+            : `Position ${closedPosition.symbol} closed. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
+        );
+        setTimeout(() => setOrderSuccess(null), 3000);
+      }
+      return remainingPositions;
+    });
+  };
+
+  // Resetear el saldo demo al valor inicial de $10,000
+  const resetDemoBalance = () => {
+    setPositions([]); // Cierra todas las posiciones
+    setDemoBalance(10000);
+    try { localStorage.setItem('zyti_demo_balance', '10000'); } catch {}
+    addToast({
+      type: 'info',
+      title: isEs ? 'Cuenta Demo Restablecida' : 'Demo Account Reset',
+      message: isEs ? 'Saldo restablecido a $10,000.00 USDT iniciales.' : 'Balance reset to initial $10,000.00 USDT.'
+    });
   };
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    const currentP = stats.lastPrice;
-    const isLong = side === 'buy';
+    const entryTs = (() => {
+      const d = chartInstanceRef.current?.getDataList();
+      return d && d.length > 0 ? d[d.length - 1].timestamp : Math.floor(Date.now() / 60000) * 60000;
+    })();
 
-    const riskAmountUsd = (demoBalance * riskPercent) / 100;
-    const effectiveAmountUsd = orderMode === 'risk'
-      ? Math.max(10, Math.round(riskAmountUsd / (slPercent / 100)))
-      : parseFloat(amount) || 1000;
-
-    const sizeUnits = (effectiveAmountUsd * leverage) / currentP;
-    const calculatedSlPrice = isLong
-      ? Number((currentP * (1 - slPercent / 100)).toFixed(2))
-      : Number((currentP * (1 + slPercent / 100)).toFixed(2));
-    const calculatedTpPrice = isLong
-      ? Number((currentP * (1 + tpPercent / 100)).toFixed(2))
-      : Number((currentP * (1 - tpPercent / 100)).toFixed(2));
-
-    const newPos: PositionItem = {
-      id: Date.now(),
+    const orderReq: OrderRequest = {
       symbol: selectedPair,
-      side: isLong ? 'LONG' : 'SHORT',
-      size: sizeUnits.toFixed(4) + ' ' + selectedPair.split('/')[0],
-      sizeUnits,
-      entry: currentP,
-      mark: currentP,
-      slPrice: calculatedSlPrice,
-      tpPrice: calculatedTpPrice,
+      side,
+      orderType,
+      orderMode,
+      amountUsdt: parseFloat(amount) || 1000,
       riskPercent,
       slPercent,
       tpPercent,
-      leverage,
-      collateralUsdt: effectiveAmountUsd,
-      pnlUsdt: 0,
-      pnlPercentNum: 0,
-      pnl: '$0.00 USDT',
-      pnlPercent: '0.00%',
-      isProfit: true
+      leverage
     };
 
-    setPositions([newPos, ...positions]);
+    const result = TradingEngine.openPosition(
+      orderReq,
+      stats.lastPrice,
+      entryTs,
+      accountMetrics
+    );
+
+    if (!result.success || !result.position) {
+      setOrderSuccess(result.error || (isEs ? 'Error al validar orden' : 'Order validation error'));
+      setTimeout(() => setOrderSuccess(null), 4000);
+      return;
+    }
+
+    setPositions((prev) => [result.position!, ...prev]);
+    playOrderFilledSound();
+    addToast({
+      type: 'success',
+      title: isEs ? '¡Orden Ejecutada!' : 'Order Filled!',
+      message: `${result.position.side} ${selectedPair} • Margen: $${result.position.collateralUsdt.toLocaleString()} USDT`,
+      symbol: selectedPair,
+      price: stats.lastPrice
+    });
+
     setOrderSuccess(
       isEs
-        ? `¡Orden ${isLong ? 'LONG' : 'SHORT'} ejecutada a $${currentP.toLocaleString()} con SL/TP!`
-        : `Order ${isLong ? 'LONG' : 'SHORT'} executed at $${currentP.toLocaleString()} with SL/TP!`
+        ? `¡Orden ${result.position.side} ejecutada a $${stats.lastPrice.toLocaleString()}!`
+        : `Order ${result.position.side} executed at $${stats.lastPrice.toLocaleString()}!`
     );
     setTimeout(() => setOrderSuccess(null), 3000);
   };
@@ -723,45 +790,49 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const handleQuickTrade = (quickSide: 'buy' | 'sell') => {
     // Comprar se ejecuta al Ask, Vender se ejecuta al Bid
     const currentP = quickSide === 'buy' ? bestAsk : bestBid;
-    const isLong = quickSide === 'buy';
-    const defaultAmount = 1000;
-    const sizeUnits = (defaultAmount * leverage) / currentP;
-    const calculatedSlPrice = isLong
-      ? Number((currentP * (1 - slPercent / 100)).toFixed(2))
-      : Number((currentP * (1 + slPercent / 100)).toFixed(2));
-    const calculatedTpPrice = isLong
-      ? Number((currentP * (1 + tpPercent / 100)).toFixed(2))
-      : Number((currentP * (1 - tpPercent / 100)).toFixed(2));
+    const entryTs = (() => {
+      const d = chartInstanceRef.current?.getDataList();
+      return d && d.length > 0 ? d[d.length - 1].timestamp : Math.floor(Date.now() / 60000) * 60000;
+    })();
 
-    const newPos: PositionItem = {
-      id: Date.now(),
+    const defaultAmount = Math.min(1000, accountMetrics.availableBalance > 10 ? accountMetrics.availableBalance : 1000);
+
+    const orderReq: OrderRequest = {
       symbol: selectedPair,
-      side: isLong ? 'LONG' : 'SHORT',
-      size: sizeUnits.toFixed(4) + ' ' + selectedPair.split('/')[0],
-      sizeUnits,
-      entry: currentP,
-      mark: currentP,
-      slPrice: calculatedSlPrice,
-      tpPrice: calculatedTpPrice,
-      riskPercent,
+      side: quickSide,
+      orderType: 'market',
+      orderMode: 'amount',
+      amountUsdt: defaultAmount,
       slPercent,
       tpPercent,
-      leverage,
-      collateralUsdt: defaultAmount,
-      pnlUsdt: 0,
-      pnlPercentNum: 0,
-      pnl: '$0.00 USDT',
-      pnlPercent: '0.00%',
-      isProfit: true
+      leverage
     };
 
-    setPositions([newPos, ...positions]);
-    setOrderSuccess(
-      isEs
-        ? `¡Orden 1-Toque ${isLong ? 'COMPRA (Ask)' : 'VENTA (Bid)'} ejecutada a $${currentP.toLocaleString()}!`
-        : `1-Tap ${isLong ? 'BUY (Ask)' : 'SELL (Bid)'} filled at $${currentP.toLocaleString()}!`
+    const result = TradingEngine.openPosition(
+      orderReq,
+      currentP,
+      entryTs,
+      accountMetrics
     );
-    setTimeout(() => setOrderSuccess(null), 3000);
+
+    if (result.success && result.position) {
+      setPositions((prev) => [result.position!, ...prev]);
+      playOrderFilledSound();
+      addToast({
+        type: 'success',
+        title: isEs ? '¡Orden Rápida 1-Toque Ejecutada!' : '1-Tap Order Filled!',
+        message: `${result.position.side} @ $${currentP.toLocaleString()}`,
+        symbol: selectedPair,
+        price: currentP
+      });
+
+      setOrderSuccess(
+        isEs
+          ? `¡Orden 1-Toque ${result.position.side} ejecutada a $${currentP.toLocaleString()}!`
+          : `1-Tap ${result.position.side} filled at $${currentP.toLocaleString()}!`
+      );
+      setTimeout(() => setOrderSuccess(null), 3000);
+    }
   };
 
   const renderOrderForm = () => (
@@ -808,13 +879,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         selectedPair={selectedPair}
         supportedPairs={SUPPORTED_PAIRS}
         stats={stats}
+        demoBalance={demoBalance}
+        availableBalance={accountMetrics.availableBalance}
+        equity={accountMetrics.equity}
         isMobileNavOpen={isMobileNavOpen}
-        unrealizedPnL={positions.reduce((acc, p) => acc + (p.pnlUsdt ?? 0), 0)}
+        unrealizedPnL={accountMetrics.unrealizedPnL}
         positionsCount={positions.length}
         activeSection={activeSection}
         onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
         onSelectPair={handleSelectPair}
         onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)}
+        onResetBalance={resetDemoBalance}
         onExit={onExit}
       />
 
@@ -863,9 +938,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               chart={chartInstanceRef.current}
               position={positions.find((p) => p.symbol === selectedPair) || null}
               currentPrice={stats.lastPrice}
+              demoBalance={demoBalance}
               isEs={isEs}
               onUpdatePositionSLTP={handleUpdatePositionSLTP}
-              onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
+              onClosePosition={handleClosePosition}
             />
           </div>
 
@@ -873,7 +949,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           <TerminalPositions
             isEs={isEs}
             positions={positions}
-            onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
+            onClosePosition={handleClosePosition}
           />
 
         </div>
@@ -915,7 +991,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           setActiveSheet={setMobileSheet}
           renderOrderForm={renderOrderForm}
           renderOrderBook={renderOrderBook}
-          onClosePosition={(id) => setPositions(positions.filter((p) => p.id !== id))}
+          onClosePosition={handleClosePosition}
         />
       )}
 
@@ -940,6 +1016,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           onExit={onExit}
         />
       )}
+
+      {/* 5. SISTEMA DE TOAST NOTIFICATIONS CON SONIDO (TP, SL, EJECUCIÓN) */}
+      <TerminalToast
+        toasts={toasts}
+        onDismiss={dismissToast}
+        isEs={isEs}
+      />
 
     </div>
   );

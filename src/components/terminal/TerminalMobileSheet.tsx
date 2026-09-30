@@ -15,7 +15,7 @@ interface TerminalMobileSheetProps {
   setActiveSheet: (sheet: 'order' | 'book' | 'positions' | null) => void;
   renderOrderForm: () => React.ReactNode;
   renderOrderBook: () => React.ReactNode;
-  onClosePosition: (id: number) => void;
+  onClosePosition: (id: string) => void;
 }
 
 export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({

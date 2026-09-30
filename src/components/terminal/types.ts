@@ -66,18 +66,22 @@ export const ALL_INDICATORS: IndicatorOption[] = [
 export const DEFAULT_FAV_INDICATORS = ['MA', 'EMA', 'VOL', 'RSI', 'MACD'];
 
 export interface PositionItem {
-  id: number;
+  id: string; // UUID v4 listo para PostgreSQL / Supabase
+  userId?: string;
   symbol: string;
   side: 'LONG' | 'SHORT';
+  orderType: 'market' | 'limit';
+  status: 'OPEN' | 'CLOSED';
   size: string;
   sizeUnits: number;
   entry: number;
+  entryTimestamp: number; // Marca temporal de la vela de entrada (para dibujar desde la 1era vela)
   mark: number;
-  slPrice?: number;
-  tpPrice?: number;
-  riskPercent?: number;
-  slPercent?: number;
-  tpPercent?: number;
+  slPrice?: number | null;
+  tpPrice?: number | null;
+  riskPercent?: number | null;
+  slPercent?: number | null;
+  tpPercent?: number | null;
   leverage: number;
   collateralUsdt: number;
   pnlUsdt: number;
@@ -85,4 +89,6 @@ export interface PositionItem {
   pnl: string;
   pnlPercent: string;
   isProfit: boolean;
+  createdAt: string; // ISO 8601
+  closedAt?: string | null;
 }

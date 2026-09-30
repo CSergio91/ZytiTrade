@@ -5,7 +5,7 @@ import { PositionItem } from './types';
 interface TerminalPositionsProps {
   isEs: boolean;
   positions: PositionItem[];
-  onClosePosition: (id: number) => void;
+  onClosePosition: (id: string) => void;
 }
 
 export const TerminalPositions: React.FC<TerminalPositionsProps> = ({

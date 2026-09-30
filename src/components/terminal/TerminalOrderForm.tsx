@@ -67,18 +67,31 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
     ? currentPrice * (1 + tpPercent / 100)
     : currentPrice * (1 - tpPercent / 100);
 
-  // Cálculo de tamaño en modo Riesgo (%) o Monto (USDT)
+  // Cálculo de tamaño y riesgo institucional con apalancamiento
   const riskAmountUsd = (demoBalance * riskPercent) / 100;
-  const effectiveAmountUsd = orderMode === 'risk'
-    ? Math.max(10, Math.round(riskAmountUsd / (slPercent / 100)))
+  
+  // En modo riesgo: el riesgo monetario es fijo = riskAmountUsd
+  // notional = riskAmountUsd / (slPercent / 100)
+  // margen requerido = notional / leverage
+  const notionalUsd = orderMode === 'risk'
+    ? (slPercent > 0 ? riskAmountUsd / (slPercent / 100) : 1000)
+    : (parseFloat(amount) || 1000) * leverage;
+
+  const requiredMarginUsd = orderMode === 'risk'
+    ? Math.max(10, Math.round(notionalUsd / leverage))
     : parseFloat(amount) || 1000;
 
   const estimatedLossUsd = orderMode === 'risk'
     ? riskAmountUsd
-    : (effectiveAmountUsd * (slPercent / 100));
+    : notionalUsd * (slPercent / 100);
 
-  const estimatedProfitUsd = (effectiveAmountUsd * (tpPercent / 100));
-  const riskRewardRatio = slPercent > 0 ? (tpPercent / slPercent).toFixed(1) : '1.0';
+  const estimatedProfitUsd = notionalUsd * (tpPercent / 100);
+  const currentRatioNum = slPercent > 0 ? Number((tpPercent / slPercent).toFixed(1)) : 2;
+
+  const setRatio = (ratio: number) => {
+    const nextTp = Number((slPercent * ratio).toFixed(1));
+    setTpPercent(nextTp);
+  };
 
   return (
     <div className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs space-y-2.5">
@@ -151,7 +164,7 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
           onClick={() => setOrderMode('amount')}
           className={`py-1 rounded-md flex items-center justify-center gap-1 transition-all cursor-pointer ${
             orderMode === 'amount'
-              ? 'bg-white text-slate-950 shadow-xs'
+              ? 'bg-white text-slate-950 shadow-xs font-black'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
@@ -177,12 +190,17 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
         {/* MONTO O RIESGO SEGÚN EL MODO */}
         {orderMode === 'amount' ? (
           <div>
-            <label className="block text-[10px] font-bold text-slate-700 mb-0.5">
-              {isEs ? 'Monto Posición (USDT)' : 'Order Value (USDT)'}
-            </label>
+            <div className="flex justify-between text-[10px] font-bold text-slate-700 mb-0.5">
+              <span>{isEs ? 'Margen / Colateral (USDT)' : 'Margin / Collateral (USDT)'}</span>
+              <span className="text-slate-400 font-mono text-[9px]">
+                Notional: ${(requiredMarginUsd * leverage).toLocaleString()}
+              </span>
+            </div>
             <div className="relative">
               <input
                 type="number"
+                min="10"
+                step="10"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full pl-2.5 pr-10 py-1.5 rounded-lg border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-500"
@@ -201,7 +219,7 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
               <span className="text-amber-600 font-mono font-black">{riskPercent}% (${riskAmountUsd.toFixed(2)})</span>
             </div>
             <div className="grid grid-cols-4 gap-1 mb-1">
-              {[1, 2, 3, 5].map((r) => (
+              {[0.5, 1, 2, 3].map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -216,13 +234,14 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
                 </button>
               ))}
             </div>
-            <div className="text-[9px] text-slate-400 font-mono">
-              {isEs ? 'Tamaño calculado:' : 'Computed Size:'} ~${effectiveAmountUsd.toLocaleString()} USDT
+            <div className="text-[9px] text-slate-500 font-mono flex justify-between">
+              <span>Margen: ~${requiredMarginUsd.toLocaleString()} USDT</span>
+              <span>Posición: ~${Math.round(notionalUsd).toLocaleString()}</span>
             </div>
           </div>
         )}
 
-        {/* STOP LOSS (%) Y TAKE PROFIT (%) */}
+        {/* STOP LOSS (%) Y TAKE PROFIT (%) EDITABLES */}
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
           {/* STOP LOSS */}
           <div>
@@ -233,13 +252,28 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
               </span>
               <span className="font-mono">-${estimatedLossUsd.toFixed(1)}</span>
             </div>
-            <div className="grid grid-cols-3 gap-1 mb-1">
+            <div className="flex items-center gap-1 mb-1">
+              <input
+                type="number"
+                step="any"
+                min="0.1"
+                max="50"
+                value={slPercent}
+                onChange={(e) => {
+                  const val = Math.max(0.1, parseFloat(e.target.value) || 1);
+                  setSlPercent(val);
+                }}
+                className="w-full px-2 py-0.5 text-[11px] font-mono font-bold border border-red-200 rounded bg-red-50/50 text-red-900 focus:outline-none focus:border-red-500"
+              />
+              <span className="text-[10px] font-bold text-red-500">%</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 mb-0.5">
               {[1, 2, 3].map((sl) => (
                 <button
                   key={sl}
                   type="button"
                   onClick={() => setSlPercent(sl)}
-                  className={`py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                  className={`py-0.5 rounded text-[8.5px] font-mono font-bold transition-all cursor-pointer ${
                     slPercent === sl ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100'
                   }`}
                 >
@@ -247,8 +281,8 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
                 </button>
               ))}
             </div>
-            <span className="text-[9px] font-mono text-slate-400 block truncate">
-              ${calculatedSlPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+            <span className="text-[8.5px] font-mono text-slate-400 block truncate">
+              SL: ${calculatedSlPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
             </span>
           </div>
 
@@ -261,13 +295,28 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
               </span>
               <span className="font-mono">+${estimatedProfitUsd.toFixed(1)}</span>
             </div>
-            <div className="grid grid-cols-3 gap-1 mb-1">
+            <div className="flex items-center gap-1 mb-1">
+              <input
+                type="number"
+                step="any"
+                min="0.1"
+                max="100"
+                value={tpPercent}
+                onChange={(e) => {
+                  const val = Math.max(0.1, parseFloat(e.target.value) || 2);
+                  setTpPercent(val);
+                }}
+                className="w-full px-2 py-0.5 text-[11px] font-mono font-bold border border-emerald-200 rounded bg-emerald-50/50 text-emerald-900 focus:outline-none focus:border-emerald-500"
+              />
+              <span className="text-[10px] font-bold text-emerald-500">%</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 mb-0.5">
               {[2, 4, 6].map((tp) => (
                 <button
                   key={tp}
                   type="button"
                   onClick={() => setTpPercent(tp)}
-                  className={`py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                  className={`py-0.5 rounded text-[8.5px] font-mono font-bold transition-all cursor-pointer ${
                     tpPercent === tp ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                   }`}
                 >
@@ -275,16 +324,36 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
                 </button>
               ))}
             </div>
-            <span className="text-[9px] font-mono text-slate-400 block truncate">
-              ${calculatedTpPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+            <span className="text-[8.5px] font-mono text-slate-400 block truncate">
+              TP: ${calculatedTpPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}
             </span>
           </div>
         </div>
 
-        {/* RATIO RIESGO / BENEFICIO */}
-        <div className="flex items-center justify-between px-2 py-1 rounded bg-[#fbf9f4] border border-[#ded5c5] text-[9px] font-mono">
-          <span className="text-slate-500 font-bold">{isEs ? 'Ratio Riesgo / Beneficio:' : 'Risk / Reward Ratio:'}</span>
-          <span className="font-black text-amber-700">1 : {riskRewardRatio}</span>
+        {/* SELECTOR DE RATIO RIESGO / BENEFICIO (LIBRE ELECCIÓN) */}
+        <div className="p-1.5 rounded-lg bg-[#fbf9f4] border border-[#ded5c5] space-y-1">
+          <div className="flex items-center justify-between text-[9.5px] font-mono">
+            <span className="text-slate-600 font-bold">{isEs ? 'Ratio R:B Elegible:' : 'R:R Ratio:'}</span>
+            <span className="font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded">
+              1 : {currentRatioNum}
+            </span>
+          </div>
+          <div className="grid grid-cols-5 gap-1">
+            {[1, 1.5, 2, 3, 4].map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRatio(r)}
+                className={`py-0.5 rounded text-[8.5px] font-mono font-bold border transition-all cursor-pointer ${
+                  currentRatioNum === r
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                }`}
+              >
+                1:{r}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* APALANCAMIENTO */}
