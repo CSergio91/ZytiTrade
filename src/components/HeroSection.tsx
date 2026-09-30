@@ -10,9 +10,10 @@ import { translations, Language } from '../i18n/translations';
 
 interface HeroSectionProps {
   currentLang: Language;
+  onOpenAuth?: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang, onOpenAuth }) => {
   const t = translations[currentLang].hero;
 
   return (
@@ -36,7 +37,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
           </p>
 
           <div className="mt-4 sm:mt-6 flex items-center">
-            <button className="flex items-center justify-center gap-2.5 px-7 py-3 text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+            <button onClick={onOpenAuth} type="button" className="flex items-center justify-center gap-2.5 px-7 py-3 text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
               <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.ctaPrimary}</span>
             </button>

@@ -9,11 +9,15 @@ import { PricingSection } from './components/PricingSection';
 import { SecuritySection } from './components/SecuritySection';
 import { DownloadSection } from './components/DownloadSection';
 import { FooterSection } from './components/FooterSection';
+import { AuthModal } from './components/AuthModal';
+import { getStoredSession, UserSession } from './lib/supabase';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeSection, setActiveSection] = useState<number>(0);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
     if (typeof window !== 'undefined') {
@@ -106,6 +110,8 @@ export const App: React.FC = () => {
         onLanguageChange={handleLanguageChange}
         activeSection={activeSection}
         onNavigateSection={navigateToSection}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        currentUser={currentUser}
       />
 
       {/* VIEWPORT SLIDER HORIZONTAL CON TODAS LAS PANTALLAS */}
@@ -115,22 +121,22 @@ export const App: React.FC = () => {
         style={{ scrollBehavior: 'smooth' }}
       >
         {/* PANTALLA 0: HERO / INICIO */}
-        <HeroSection currentLang={currentLang} />
+        <HeroSection currentLang={currentLang} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 1: EXCHANGES */}
-        <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} />
+        <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 2: PROP FIRMS (AUDITED DIRECTORY) */}
-        <PropFirmsSection currentLang={currentLang} isActive={activeSection === 2} />
+        <PropFirmsSection currentLang={currentLang} isActive={activeSection === 2} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 3: SERVICIOS */}
-        <ServicesSection currentLang={currentLang} isActive={activeSection === 3} />
+        <ServicesSection currentLang={currentLang} isActive={activeSection === 3} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 4: PRECIOS */}
-        <PricingSection currentLang={currentLang} isActive={activeSection === 4} />
+        <PricingSection currentLang={currentLang} isActive={activeSection === 4} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 5: SEGURIDAD */}
-        <SecuritySection currentLang={currentLang} isActive={activeSection === 5} />
+        <SecuritySection currentLang={currentLang} isActive={activeSection === 5} onOpenAuth={() => setAuthModalOpen(true)} />
 
         {/* PANTALLA 6: DESCARGAR */}
         <DownloadSection currentLang={currentLang} isActive={activeSection === 6} />
@@ -138,6 +144,14 @@ export const App: React.FC = () => {
         {/* PANTALLA 7: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
         <FooterSection currentLang={currentLang} isActive={activeSection === 7} onNavigateSection={navigateToSection} />
       </main>
+
+      {/* MODAL INSTITUCIONAL DE AUTENTICACIÓN (LOGIN / REGISTRO / DEMO) */}
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
+        currentLang={currentLang} 
+        onLoginSuccess={(u) => setCurrentUser(u)} 
+      />
 
       {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}
       <div className="fixed bottom-0 left-0 right-0 h-1 bg-[#ede8df]/60 dark:bg-slate-900/60 z-50">

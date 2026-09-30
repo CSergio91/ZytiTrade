@@ -21,13 +21,17 @@ interface NavbarProps {
   onThemeToggle?: () => void;
   activeSection: number;
   onNavigateSection: (index: number) => void;
+  onOpenAuth?: () => void;
+  currentUser?: any;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
   currentLang, 
   onLanguageChange, 
   activeSection,
-  onNavigateSection
+  onNavigateSection,
+  onOpenAuth,
+  currentUser
 }) => {
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [propFirmsOpen, setPropFirmsOpen] = useState(false);
@@ -556,9 +560,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* BOTÓN OPERAR AHORA: MISMO COLOR (#eab308) Y TEXTO QUE EN HERO */}
-        <button className={`font-black rounded-xl border-none transition-all cursor-pointer whitespace-nowrap bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 shadow-sm transform hover:scale-105 active:scale-95 ${
-          isShifted ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'
-        }`}>
+        <button onClick={onOpenAuth} type="button" className={`font-black rounded-xl border-none transition-all cursor-pointer whitespace-nowrap bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 shadow-sm transform hover:scale-105 active:scale-95 ${isShifted ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'}`}>
           {t.nav.signIn}
         </button>
       </div>
@@ -645,14 +647,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ))}
 
-            <button
-              type="button"
-              onClick={() => {
-                onNavigateSection(0);
-                setMobileMenuOpen(false);
-              }}
-              className="mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-sm cursor-pointer transform active:scale-95 transition-transform"
-            >
+            <button type="button" onClick={() => { setMobileMenuOpen(false); if (onOpenAuth) onOpenAuth(); }} className="mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-sm cursor-pointer transform active:scale-95 transition-transform">
               <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.nav.signIn}</span>
             </button>

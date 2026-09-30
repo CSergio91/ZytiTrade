@@ -8,9 +8,10 @@ import propFirmsAnimationData from '../assets/animations/propfirms.json';
 interface PropFirmsSectionProps {
   currentLang: Language;
   isActive: boolean;
+  onOpenAuth?: () => void;
 }
 
-export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang, isActive }) => {
+export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang, isActive, onOpenAuth }) => {
   const t = translations[currentLang].propFirmsSection || {
     tag: '/prop-firms-auditadas',
     title: currentLang === 'es' ? 'Directorio y Auditoría de Prop Firms.' : 'Audited Prop Firms Directory.',
@@ -218,8 +219,7 @@ export const PropFirmsSection: React.FC<PropFirmsSectionProps> = ({ currentLang,
 
             {/* BOTÓN CTA ACTIVO */}
             <div className="mt-2 sm:mt-2.5 flex items-center">
-              <button 
-                className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
+              <button onClick={onOpenAuth} type="button" className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
               >
                 <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
                 <span>{isEs ? 'Operar en Prop Firms' : 'Trade Prop Firms'}</span>

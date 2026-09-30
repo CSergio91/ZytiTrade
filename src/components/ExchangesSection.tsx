@@ -8,9 +8,10 @@ import exchangeRadarData from '../assets/animations/exchange-radar.json';
 interface ExchangesSectionProps {
   currentLang: Language;
   isActive: boolean;
+  onOpenAuth?: () => void;
 }
 
-export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang, isActive }) => {
+export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang, isActive, onOpenAuth }) => {
   const t = translations[currentLang].exchangesSection;
   const isEs = currentLang === 'es';
   const [currentPage, setCurrentPage] = useState(0);
@@ -180,8 +181,7 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
 
             {/* BOTÓN CTA ACTIVO */}
             <div className="mt-2 sm:mt-2.5 flex items-center">
-              <button 
-                className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
+              <button onClick={onOpenAuth} type="button" className="flex items-center justify-center gap-2.5 px-6 py-3 text-xs sm:text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto"
               >
                 <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
                 <span>{isEs ? 'Operar Ahora' : 'Trade Now'}</span>

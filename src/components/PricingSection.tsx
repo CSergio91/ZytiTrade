@@ -7,9 +7,10 @@ import pricingAnimationData from '../assets/animations/pricing.json';
 interface PricingSectionProps {
   currentLang: Language;
   isActive: boolean;
+  onOpenAuth?: () => void;
 }
 
-export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isActive }) => {
+export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isActive, onOpenAuth }) => {
   const [isAnnual, setIsAnnual] = useState(true);
   const t = translations[currentLang].pricingSection;
 
