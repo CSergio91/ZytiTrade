@@ -73,11 +73,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             </span>
             <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-xl border border-[#ede8df] dark:border-slate-800">
               <span>Binance</span>
-              <span className="text-slate-300 dark:text-slate-700">+</span>
+              <span className="text-slate-500 font-bold">+</span>
               <span>Bybit</span>
-              <span className="text-slate-300 dark:text-slate-700">+</span>
+              <span className="text-slate-500 font-bold">+</span>
               <span>OKX</span>
-              <span className="text-slate-300 dark:text-slate-700">+</span>
+              <span className="text-slate-500 font-bold">+</span>
               <span>Prop Firms</span>
             </div>
           </div>
@@ -135,7 +135,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               <h3 className="text-xl font-black text-slate-950 dark:text-white">
                 Trading Plan
               </h3>
-              <span className="text-xs font-mono font-bold text-slate-500">
+              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-700 dark:text-slate-400">
                 BTC / USDT
               </span>
             </div>
@@ -169,7 +169,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             <div className="flex flex-col gap-3 text-xs">
               
               {/* Tarea 1: Completada */}
-              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-500 font-bold dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -180,7 +180,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </div>
 
               {/* Tarea 2: Completada */}
-              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-500 font-bold dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -191,7 +191,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </div>
 
               {/* Tarea 3: Completada */}
-              <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-500 font-bold dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-[#65a30d] text-white flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -211,7 +211,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
               </div>
 
               {/* Tarea 5: Pendiente */}
-              <div className="flex items-center justify-between text-slate-500">
+              <div className="flex items-center justify-between text-slate-700 dark:text-slate-700 dark:text-slate-400">
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
                   <span>Toma de ganancias TP3</span>

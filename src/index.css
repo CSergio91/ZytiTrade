@@ -3,27 +3,50 @@
 @layer base {
   html {
     background-color: #fbf9f4;
+    color: #0f172a;
+    color-scheme: light;
   }
   html.dark {
     background-color: #0a0d14;
+    color: #f8fafc;
+    color-scheme: dark;
   }
   body {
     background-color: #fbf9f4;
-    color: #111827;
+    color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     overflow-x: hidden;
   }
   html.dark body {
     background-color: #0a0d14;
-    color: #f3f4f6;
+    color: #f8fafc;
   }
 }
 
-/* Tarjeta Editorial Limpia sin Borde Duro */
+/* Reglas de Contraste Absoluto para Modo Claro: Cero textos pálidos ni blanquecinos */
+html:not(.dark) h1 {
+  color: #020617 !important; /* Negro absoluto */
+}
+
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4 {
+  color: #0f172a !important; /* Negro azabache */
+}
+
+html:not(.dark) p {
+  color: #1e293b !important; /* Carbón profundo */
+}
+
+html:not(.dark) .text-muted-clean {
+  color: #334155 !important; /* Slate-700 oscuro legible */
+}
+
+/* Warm Card */
 .warm-card {
   background: #ffffff;
-  border: 1px solid rgba(220, 214, 202, 0.6);
-  box-shadow: 0 25px 50px -12px rgba(27, 24, 18, 0.06);
+  border: 1px solid rgba(220, 214, 202, 0.7);
+  box-shadow: 0 25px 50px -12px rgba(27, 24, 18, 0.08);
 }
 
 html.dark .warm-card {
@@ -32,11 +55,11 @@ html.dark .warm-card {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Tarjetas Satélite Flotantes */
+/* Satellite Card */
 .satellite-card {
   background: #ffffff;
-  border: 1px solid rgba(220, 214, 202, 0.6);
-  box-shadow: 0 15px 35px -8px rgba(27, 24, 18, 0.08);
+  border: 1px solid rgba(220, 214, 202, 0.7);
+  box-shadow: 0 15px 35px -8px rgba(27, 24, 18, 0.1);
 }
 
 html.dark .satellite-card {
