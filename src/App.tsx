@@ -3,6 +3,7 @@ import { BackgroundTradingChart } from './components/BackgroundTradingChart';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { ExchangesSection } from './components/ExchangesSection';
+import { PropFirmsSection } from './components/PropFirmsSection';
 import { ServicesSection } from './components/ServicesSection';
 import { PricingSection } from './components/PricingSection';
 import { SecuritySection } from './components/SecuritySection';
@@ -90,7 +91,7 @@ export const App: React.FC = () => {
     } catch (_) {}
   }, []);
 
-  const TOTAL_SCREENS = 7;
+  const TOTAL_SCREENS = 8;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">
@@ -117,20 +118,23 @@ export const App: React.FC = () => {
         {/* PANTALLA 1: EXCHANGES */}
         <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} />
 
-        {/* PANTALLA 2: SERVICIOS */}
-        <ServicesSection currentLang={currentLang} isActive={activeSection === 2} />
+        {/* PANTALLA 2: PROP FIRMS (AUDITED DIRECTORY) */}
+        <PropFirmsSection currentLang={currentLang} isActive={activeSection === 2} />
 
-        {/* PANTALLA 3: PRECIOS */}
-        <PricingSection currentLang={currentLang} isActive={activeSection === 3} />
+        {/* PANTALLA 3: SERVICIOS */}
+        <ServicesSection currentLang={currentLang} isActive={activeSection === 3} />
 
-        {/* PANTALLA 4: SEGURIDAD */}
-        <SecuritySection currentLang={currentLang} isActive={activeSection === 4} />
+        {/* PANTALLA 4: PRECIOS */}
+        <PricingSection currentLang={currentLang} isActive={activeSection === 4} />
 
-        {/* PANTALLA 5: DESCARGAR */}
-        <DownloadSection currentLang={currentLang} isActive={activeSection === 5} />
+        {/* PANTALLA 5: SEGURIDAD */}
+        <SecuritySection currentLang={currentLang} isActive={activeSection === 5} />
 
-        {/* PANTALLA 6: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
-        <FooterSection currentLang={currentLang} isActive={activeSection === 6} onNavigateSection={navigateToSection} />
+        {/* PANTALLA 6: DESCARGAR */}
+        <DownloadSection currentLang={currentLang} isActive={activeSection === 6} />
+
+        {/* PANTALLA 7: FOOTER (CARGA ANIMADO DESDE ABAJO) */}
+        <FooterSection currentLang={currentLang} isActive={activeSection === 7} onNavigateSection={navigateToSection} />
       </main>
 
       {/* PROGRESS BAR INFERIOR DE 6 PANTALLAS */}

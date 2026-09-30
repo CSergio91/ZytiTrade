@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, ShieldCheck, Zap, ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
+import { Activity, Zap, ArrowRight, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
 import { ExchangeLogo } from './ExchangeLogo';
 import { LottieAnimation } from './LottieAnimation';
@@ -15,89 +15,65 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
   const isEs = currentLang === 'es';
   const [currentPage, setCurrentPage] = useState(0);
 
-  // 16 Exchanges preparados para hidratación desde base de datos con campos de afiliación
+  // 16 Exchanges limpios, sin saturación de etiquetas ni milisegundos
   const allVenues = [
     // PÁGINA 1: GIGANTES TIER-1
     {
       id: 'binance',
       name: 'Binance',
-      type: isEs ? 'Spot, Futuros USD-M & COIN-M' : 'Spot, USD-M & COIN-M Futures',
-      latency: '1.2ms',
-      badge: 'Tier 1 Global',
-      rebate: isEs ? 'Descuento 20% en Fees' : '20% Fee Kickback',
-      features: isEs ? ['API v3 & WSS Directo', 'Libro L2 Completo'] : ['Direct API v3 & WSS', 'Full L2 Orderbook'],
+      type: isEs ? 'Spot, Futuros USD-M & Opciones' : 'Spot, USD-M Futures & Options',
+      rebate: isEs ? 'Descuento 20% en Fees de Trading' : '20% Trading Fee Kickback',
       affiliateUrl: 'https://accounts.binance.com/register',
     },
     {
       id: 'bybit',
       name: 'Bybit',
-      type: isEs ? 'Perpetuos USDT API v5 & Opciones' : 'USDT Perpetuals API v5 & Options',
-      latency: '1.8ms',
-      badge: 'Líder Derivados',
-      rebate: isEs ? 'Bono VIP $1,000 USDT' : 'VIP $1,000 Bonus',
-      features: isEs ? ['Ejecución Ultra-Fast', 'Subcuentas Ilimitadas'] : ['Ultra-Fast Execution', 'Unlimited Sub-accounts'],
+      type: isEs ? 'Perpetuos USDT API v5 & Copy Trading' : 'USDT Perpetuals API v5 & Copy',
+      rebate: isEs ? 'Bono de Bienvenida hasta $1,000 USDT' : 'Up to $1,000 Welcome Bonus',
       affiliateUrl: 'https://partner.bybit.com/',
     },
     {
       id: 'okx',
       name: 'OKX',
-      type: isEs ? 'Swaps Perpetuos & Cartera Web3' : 'Perpetual Swaps & Web3 Wallet',
-      latency: '2.1ms',
-      badge: 'Multi-Asset Prime',
-      rebate: isEs ? 'Caja Sorpresa hasta $10k' : 'Mystery Box up to $10k',
-      features: isEs ? ['Cuentas Unificadas', 'Trailing Stop Nativo'] : ['Unified Accounts', 'Native Trailing Stop'],
+      type: isEs ? 'Swaps Perpetuos & Cartera Web3' : 'Perpetual Swaps & Web3 Ecosystem',
+      rebate: isEs ? 'Caja Misteriosa con Cripto de Regalo' : 'Mystery Box Crypto Gift',
       affiliateUrl: 'https://www.okx.com/join',
     },
     {
       id: 'coinbase',
       name: 'Coinbase Advanced',
-      type: isEs ? 'Liquidez Institucional Prime' : 'Prime Institutional Liquidity',
-      latency: '4.2ms',
-      badge: 'Prime USA',
-      rebate: isEs ? 'Custodia Regulada' : 'Regulated Custody',
-      features: isEs ? ['Banca Directa USD/EUR', 'Cero Slippage'] : ['Direct USD/EUR Banking', 'Zero Slippage'],
+      type: isEs ? 'Liquidez Institucional Regulada' : 'Regulated Prime Liquidity',
+      rebate: isEs ? 'Custodia Institucional 100% Segura' : '100% Secure Institutional Custody',
       affiliateUrl: 'https://advanced.coinbase.com/',
     },
 
-    // PÁGINA 2: DERIVADOS & COPY TRADING
+    // PÁGINA 2: DERIVADOS & ALTCOINS
     {
       id: 'bitget',
       name: 'Bitget',
-      type: isEs ? 'Copy Trading Oficial API & Derivados' : 'Official Copy Trading API & Derivatives',
-      latency: '2.0ms',
-      badge: 'Copy Trading',
-      rebate: isEs ? 'Fondo Protección $400M' : '$400M Protection Fund',
-      features: isEs ? ['Replicación < 3.5ms', 'Sin KYC Obligatorio'] : ['Replication < 3.5ms', 'No Mandatory KYC'],
+      type: isEs ? 'Derivados y Copy Trading Oficial' : 'Official Copy Trading & Derivatives',
+      rebate: isEs ? 'Fondo de Protección de $400M USD' : '$400M User Protection Fund',
       affiliateUrl: 'https://partner.bitget.com/',
     },
     {
       id: 'kucoin',
       name: 'KuCoin',
-      type: isEs ? 'Más de 700 Altcoins & Mercados Spot' : '700+ Altcoin & Spot Markets',
-      latency: '2.8ms',
-      badge: 'Altcoins Hub',
-      rebate: isEs ? 'Descuento 20% con KCS' : '20% KCS Discount',
-      features: isEs ? ['Trading Bots API', 'Depth de Alta Frecuencia'] : ['Trading Bots API', 'High Frequency Depth'],
+      type: isEs ? 'Más de 700 Altcoins & Mercados Spot' : '700+ Altcoins & Spot Markets',
+      rebate: isEs ? 'Descuento del 20% en Comisiones' : '20% Commission Discount',
       affiliateUrl: 'https://www.kucoin.com/',
     },
     {
       id: 'gate',
       name: 'Gate.io',
-      type: isEs ? 'Mercados Globales & Startup IEO' : 'Global Markets & Startup IEO',
-      latency: '3.1ms',
-      badge: '1400+ Pares',
-      rebate: isEs ? 'Nivel VIP Instantáneo' : 'Instant VIP Tier',
-      features: isEs ? ['Futuros de Margen Cruzado', 'WebSocket Multihilo'] : ['Cross-Margin Futures', 'Multi-thread WebSocket'],
+      type: isEs ? 'Mercados Globales & Nuevos Listados' : 'Global Markets & Early Listings',
+      rebate: isEs ? 'Nivel VIP y Bonificaciones de Bienvenida' : 'Instant VIP Tier & Welcome Bonus',
       affiliateUrl: 'https://www.gate.io/',
     },
     {
       id: 'bingx',
       name: 'BingX',
-      type: isEs ? 'Contratos Estándar & Copy Trading' : 'Standard & Perpetual Contracts',
-      latency: '2.4ms',
-      badge: 'Copy & Derivados',
-      rebate: isEs ? 'Bono Bienvenida $500' : '$500 Welcome Bonus',
-      features: isEs ? ['Cuentas Demo MT5', 'Ejecución Instantánea'] : ['MT5 Demo Accounts', 'Instant Execution'],
+      type: isEs ? 'Contratos Estándar & Perpetuos' : 'Standard & Perpetual Contracts',
+      rebate: isEs ? 'Bono Exclusivo de Registro de $500' : 'Exclusive $500 Signup Bonus',
       affiliateUrl: 'https://bingx.com/',
     },
 
@@ -105,83 +81,59 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
     {
       id: 'dydx',
       name: 'dYdX v4',
-      type: isEs ? 'Perpetuos On-Chain Cosmos L1' : 'On-Chain Cosmos L1 Perpetuals',
-      latency: '1.9ms',
-      badge: '100% Descentralizado',
-      rebate: isEs ? 'Cero Comisiones de Gas' : 'Zero Gas Fees',
-      features: isEs ? ['Libro de Órdenes Descentralizado', 'Autocustodia Total'] : ['Decentralized Orderbook', 'Full Self-Custody'],
+      type: isEs ? 'Perpetuos Descentralizados Cosmos' : 'Decentralized Cosmos Perpetuals',
+      rebate: isEs ? 'Cero Comisiones de Red (Gas Free)' : 'Zero Gas Fees on Trades',
       affiliateUrl: 'https://dydx.exchange/',
     },
     {
       id: 'hyperliquid',
       name: 'Hyperliquid',
-      type: isEs ? 'L1 Nativa para Derivados Cripto' : 'Native L1 for Derivatives',
-      latency: '1.1ms',
-      badge: 'Sub-Segundo L1',
-      rebate: isEs ? 'Rebates por Aportar Liquidez' : 'Maker Liquidity Rebates',
-      features: isEs ? ['Capacidad 200,000 TPS', 'Vaults de Arbitraje'] : ['200,000 TPS Capacity', 'Arbitrage Vaults'],
+      type: isEs ? 'L1 Nativa para Derivados Cripto' : 'Native L1 for Crypto Derivatives',
+      rebate: isEs ? 'Rebates por Aportar Liquidez Maker' : 'Maker Liquidity Rebates',
       affiliateUrl: 'https://hyperliquid.xyz/',
     },
     {
       id: 'vertex',
       name: 'Vertex Protocol',
-      type: isEs ? 'Orderbook Híbrido Arbitrum' : 'Hybrid Arbitrum Orderbook',
-      latency: '1.5ms',
-      badge: 'DEX Híbrido',
-      rebate: isEs ? 'Recompensas VRTX' : 'VRTX Rewards',
-      features: isEs ? ['Margen Cruzado Unificado', 'Latencia de CEX'] : ['Unified Cross Margin', 'CEX-grade Latency'],
+      type: isEs ? 'Orderbook Híbrido en Arbitrum' : 'Hybrid Arbitrum Orderbook',
+      rebate: isEs ? 'Recompensas de Trading en Tokens VRTX' : 'Trading Rewards in VRTX Tokens',
       affiliateUrl: 'https://vertexprotocol.com/',
     },
     {
       id: 'mexc',
       name: 'MEXC Global',
-      type: isEs ? 'Cero Comisiones en Spot' : 'Zero Fee Spot Markets',
-      latency: '2.9ms',
-      badge: '0% Comisiones Spot',
-      rebate: isEs ? '0% Maker & 0% Taker Spot' : '0% Maker & Taker Spot',
-      features: isEs ? ['Listados en Tiempo Récord', 'Apalancamiento hasta 200x'] : ['Record Time Listings', 'Up to 200x Leverage'],
+      type: isEs ? 'Cero Comisiones en Mercados Spot' : 'Zero Fee Spot Trading',
+      rebate: isEs ? '0% Comisiones Maker y Taker en Spot' : '0% Maker & Taker Fees in Spot',
       affiliateUrl: 'https://www.mexc.com/',
     },
 
-    // PÁGINA 4: INSTITUCIONALES & PUENTES DIRECTOS
+    // PÁGINA 4: INSTITUCIONALES & PUENTES
     {
       id: 'kraken',
       name: 'Kraken',
-      type: isEs ? 'Spot EUR/USD Banking & Pro' : 'EUR/USD Banking Spot & Pro',
-      latency: '3.4ms',
-      badge: 'Banca Segura',
-      rebate: isEs ? 'Auditoría Proof of Reserves' : 'Proof of Reserves Audited',
-      features: isEs ? ['Puente Bancario SEPA', 'API REST & WSS v2'] : ['SEPA Banking Bridge', 'REST & WSS API v2'],
+      type: isEs ? 'Banca Segura en EUR/USD & Spot Pro' : 'EUR/USD Banking & Pro Spot',
+      rebate: isEs ? 'Auditoría Proof of Reserves Certificada' : 'Certified Proof of Reserves',
       affiliateUrl: 'https://www.kraken.com/',
     },
     {
       id: 'bitfinex',
       name: 'Bitfinex',
       type: isEs ? 'Libro de Órdenes Profundo & Margin' : 'Deep Institutional Orderbook',
-      latency: '3.6ms',
-      badge: 'Prime Desk',
-      rebate: isEs ? 'Funding P2P & Préstamos' : 'P2P Margin Funding',
-      features: isEs ? ['Órdenes Algorítmicas TWAP', 'Conectividad Directa'] : ['TWAP Algo Orders', 'Direct Connectivity'],
+      rebate: isEs ? 'Financiamiento P2P y Órdenes Algorítmicas' : 'P2P Margin Funding & TWAP Orders',
       affiliateUrl: 'https://www.bitfinex.com/',
     },
     {
       id: 'woox',
       name: 'WOO X',
-      type: isEs ? 'Liquidez Profunda & Cero Slippage' : 'Deep Liquidity & Zero Slippage',
-      latency: '2.2ms',
-      badge: 'Red WOO',
-      rebate: isEs ? 'Staking Fee Reduction' : 'Staking Fee Reduction',
-      features: isEs ? ['Espacios de Trabajo Modulares', 'Sub-cuentas API'] : ['Modular Workspaces', 'Sub-accounts API'],
+      type: isEs ? 'Liquidez Profunda con Cero Slippage' : 'Deep Liquidity & Zero Slippage',
+      rebate: isEs ? 'Reducción de Tarifas mediante Staking' : 'Fee Reduction via Staking',
       affiliateUrl: 'https://x.woo.org/',
     },
     {
       id: 'deribit',
       name: 'Deribit',
-      type: isEs ? 'Líder Mundial en Opciones BTC/ETH' : 'World Leader in BTC/ETH Options',
-      latency: '1.7ms',
-      badge: 'Opciones & Futuros',
-      rebate: isEs ? 'Descuento 10% en Fees' : '10% Fee Discount',
-      features: isEs ? ['Superficie de Volatilidad', 'Margen de Cartera Portfolio'] : ['Volatility Surface', 'Portfolio Margin'],
+      type: isEs ? 'Líder Mundial en Opciones BTC y ETH' : 'World Leader in BTC/ETH Options',
+      rebate: isEs ? 'Descuento del 10% en Opciones y Futuros' : '10% Discount on Options & Futures',
       affiliateUrl: 'https://www.deribit.com/',
     },
   ];
@@ -238,28 +190,79 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
             </div>
           </div>
 
-          {/* LADO DERECHO (8 COLUMNAS): CARRUSEL DE CARDS HORIZONTALES GRANDES (4 EN 4) */}
-          <div className="lg:col-span-8 flex flex-col justify-between">
+          {/* LADO DERECHO (8 COLUMNAS): 4 CARDS GRANDES Y CONTROLES EN LA PARTE INFERIOR */}
+          <div className="lg:col-span-8 flex flex-col justify-between gap-5">
             
-            {/* BARRA SUPERIOR DEL CARRUSEL: CONTADOR Y CONTROLES DE NAVEGACIÓN */}
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/80">
+            {/* GRID DE 4 CARDS HORIZONTALES GRANDES (2x2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              {currentVenues.map((venue, idx) => (
+                <div
+                  key={venue.id}
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                  className={`warm-card rounded-3xl p-5 sm:p-6 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-md ${
+                    isActive ? 'animate-card-in' : 'opacity-0'
+                  }`}
+                >
+                  <div>
+                    {/* CABECERA DE LA CARD: LOGO GRANDE + NOMBRE + SUBTÍTULO */}
+                    <div className="flex items-center gap-3.5 mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-[#f4ede0] flex items-center justify-center shrink-0">
+                        <ExchangeLogo name={venue.name} size={30} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <h3 className="text-base sm:text-lg font-black text-slate-950 truncate">
+                          {venue.name}
+                        </h3>
+                        <span className="text-xs text-slate-600 font-medium truncate mt-0.5">
+                          {venue.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BENEFICIO DESTACADO */}
+                    <div className="my-2.5">
+                      <span className="text-xs font-mono font-bold text-amber-900 bg-[#fef3c7] px-3 py-1.5 rounded-xl border border-amber-200/80 inline-block">
+                        ★ {venue.rebate}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* PIE DE CARD: BOTÓN CREAR CUENTA */}
+                  <div className="pt-3.5 border-t border-[#ede8df] flex items-center justify-end">
+                    <a
+                      href={venue.affiliateUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-slate-950 hover:bg-slate-800 text-white flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <span className="!text-white">{isEs ? 'Crear Cuenta' : 'Create Account'}</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-white" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* CONTROLES DE NAVEGACIÓN EN LA PARTE INFERIOR (ANTERIOR / SIGUIENTE / PÁGINAS) */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200/80 mt-1">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-black text-slate-950 uppercase tracking-wider">
-                  {isEs ? 'Exchanges Conectados' : 'Direct Venues'}
+                <span className="text-xs font-mono font-bold text-slate-600">
+                  {isEs ? 'Página' : 'Page'} {currentPage + 1} {isEs ? 'de' : 'of'} {totalPages}
                 </span>
                 <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#ede5d6] text-slate-800">
-                  {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, allVenues.length)} {isEs ? 'de' : 'of'} {allVenues.length}
+                  {allVenues.length} Exchanges
                 </span>
               </div>
 
-              {/* BOTONES DE NAVEGACIÓN (ANTERIOR / SIGUIENTE) + INDICADORES DE PÁGINA */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-2">
+              {/* BOTONES ANTERIOR / SIGUIENTE + PUNTOS DE PÁGINA */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 mr-1">
                   {Array.from({ length: totalPages }).map((_, dotIdx) => (
                     <button
                       key={dotIdx}
+                      type="button"
                       onClick={() => setCurrentPage(dotIdx)}
-                      aria-label={`Ir a página ${dotIdx + 1}`}
+                      aria-label={`Página ${dotIdx + 1}`}
                       className={`h-2 rounded-full transition-all cursor-pointer border-none p-0 ${
                         currentPage === dotIdx 
                           ? 'w-6 bg-slate-950' 
@@ -269,93 +272,28 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handlePrev}
-                  aria-label={isEs ? 'Página anterior' : 'Previous page'}
-                  className="w-8 h-8 rounded-xl border border-slate-300 bg-white hover:bg-[#ede5d6] text-slate-950 flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-90"
-                >
-                  <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    aria-label={isEs ? 'Página anterior' : 'Previous page'}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-[#ede5d6] text-slate-950 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                    <span>{isEs ? 'Atrás' : 'Prev'}</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  aria-label={isEs ? 'Página siguiente' : 'Next page'}
-                  className="w-8 h-8 rounded-xl border border-slate-300 bg-white hover:bg-[#ede5d6] text-slate-950 flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-90"
-                >
-                  <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-                </button>
-              </div>
-            </div>
-
-            {/* GRID DE 4 CARDS HORIZONTALES GRANDES (2x2) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentVenues.map((venue, idx) => (
-                <div
-                  key={venue.id}
-                  style={{ animationDelay: `${idx * 60}ms` }}
-                  className={`warm-card rounded-3xl p-5 flex flex-col justify-between hover:border-slate-500 transition-all duration-200 hover:-translate-y-1 shadow-md ${
-                    isActive ? 'animate-card-in' : 'opacity-0'
-                  }`}
-                >
-                  <div>
-                    {/* CABECERA DE LA CARD: LOGO GRANDE + NOMBRE + LATENCIA */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-[#f4ede0] flex items-center justify-center shrink-0">
-                          <ExchangeLogo name={venue.name} size={30} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-black text-slate-950 truncate">
-                              {venue.name}
-                            </h3>
-                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#ede5d6] text-slate-800">
-                              {venue.badge}
-                            </span>
-                          </div>
-                          <span className="text-xs text-slate-600 font-medium truncate mt-0.5">
-                            {venue.type}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* LATENCIA CON PULSO VERDE */}
-                      <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-950 shrink-0 ml-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>{venue.latency}</span>
-                      </div>
-                    </div>
-
-                    {/* FEATURES DE CONECTIVIDAD INSTITUCIONAL */}
-                    <div className="flex flex-wrap gap-1.5 mb-3 pt-2 border-t border-[#ede8df]">
-                      {venue.features.map((feat, fIdx) => (
-                        <span key={fIdx} className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-[#f4efe5] text-slate-700">
-                          ✓ {feat}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* PIE DE CARD: BENEFICIO / REBATE + ENLACE AFILIADO / CTA */}
-                  <div className="pt-3 border-t border-[#ede8df] flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-mono font-bold text-amber-800 bg-[#fef3c7] px-2 py-1 rounded-lg border border-amber-200/80 truncate">
-                      ★ {venue.rebate}
-                    </span>
-
-                    <a
-                      href={venue.affiliateUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-slate-950 hover:bg-slate-800 text-white flex items-center gap-1.5 transition-all shadow-sm shrink-0"
-                    >
-                      <span className="!text-white">{isEs ? 'Operar' : 'Trade'}</span>
-                      <ExternalLink className="w-3 h-3 text-white" />
-                    </a>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    aria-label={isEs ? 'Página siguiente' : 'Next page'}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <span className="!text-white">{isEs ? 'Siguiente' : 'Next'}</span>
+                    <ChevronRight className="w-4 h-4 stroke-[2.5] text-white" />
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
 
           </div>

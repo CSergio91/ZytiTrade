@@ -267,8 +267,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <button 
             type="button"
-            onClick={() => onNavigateSection(2)}
-            className="flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none text-slate-950 hover:text-blue-600"
+            onClick={() => onNavigateSection(6)}
+            className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 bg-transparent border-none ${
+              activeSection === 2 
+                ? 'text-blue-600 font-black' 
+                : 'text-slate-950 hover:text-blue-600'
+            }`}
           >
             <span>{t.nav.propFirms}</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
@@ -417,7 +421,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </p>
                 </div>
                 <button
-                  onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
+                  onClick={() => { onNavigateSection(3); setServicesOpen(false); }}
                   className="text-xs font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
                 >
                   {currentLang === 'es' ? 'Ver sección de servicios →' : 'View services section →'}
@@ -435,7 +439,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {servicesList.map((srv, idx) => (
                     <div 
                       key={idx}
-                      onClick={() => { onNavigateSection(2); setServicesOpen(false); }}
+                      onClick={() => { onNavigateSection(3); setServicesOpen(false); }}
                       className="group p-3.5 rounded-2xl transition-all duration-150 cursor-pointer flex flex-col justify-between border border-transparent hover:border-slate-300/80 hover:bg-[#ede5d6]/75 hover:shadow-sm"
                     >
                       <div>
@@ -464,7 +468,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button 
           onClick={() => onNavigateSection(3)}
           className={`transition-colors cursor-pointer bg-transparent border-none p-0 ${
-            activeSection === 3
+            activeSection === 6
               ? 'text-blue-600 font-black'
               : 'text-slate-950 hover:text-blue-600'
           }`}

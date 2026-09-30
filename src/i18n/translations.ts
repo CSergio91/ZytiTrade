@@ -125,6 +125,13 @@ export const translations = {
       connected: 'Conectado',
       latencyLabel: 'Latencia nativa',
     },
+    propFirmsSection: {
+      tag: '/prop-firms-auditadas',
+      title: 'Directorio y Auditoría de Prop Firms.',
+      subtitle: 'Compara firmas de fondeo, reglas de drawdown y opera cuentas de evaluación directamente desde ZYTI Trade.',
+      approvedTitle: 'Firmas Homologadas',
+      viewChallenge: 'Ver Challenge',
+    },
     servicesSection: {
       tag: '/soluciones-institucionales',
       title: 'Todo el ecosistema en un solo lugar.',
@@ -399,6 +406,13 @@ export const translations = {
       subtitle: 'No middlemen or third-party bridge servers. Your API credentials stay locally encrypted in your own client.',
       connected: 'Connected',
       latencyLabel: 'Native latency',
+    },
+    propFirmsSection: {
+      tag: '/audited-prop-firms',
+      title: 'Audited Prop Firms Directory & Rules.',
+      subtitle: 'Benchmark drawdown rules, profit targets, and trade official funded accounts directly within ZYTI Trade.',
+      approvedTitle: 'Approved Prop Firms',
+      viewChallenge: 'View Challenge',
     },
     servicesSection: {
       tag: '/institutional-solutions',
