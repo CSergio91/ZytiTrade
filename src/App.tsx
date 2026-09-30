@@ -30,7 +30,7 @@ export const App: React.FC = () => {
     document.documentElement.lang = newLang;
   };
 
-  // 2. Tema Claro (Blanco Puro Limpio) / Oscuro (Obsidian)
+  // 2. Tema Claro (Blanco Puro 100%) / Oscuro (Obsidian)
   const getInitialTheme = (): 'light' | 'dark' => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('zyti_theme');
@@ -61,12 +61,12 @@ export const App: React.FC = () => {
   }, [theme]);
 
   return (
-    <div className="relative min-h-screen font-sans selection:bg-blue-600 selection:text-white">
-      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: BLANCO PURO O DARK OBSIDIAN */}
+    <div className="relative min-h-screen bg-white dark:bg-[#090d16] font-sans selection:bg-blue-600 selection:text-white">
+      {/* 1. GRÁFICO DE FONDO TIPO TRADINGVIEW: FONDO 100% BLANCO PURO O DARK OBSIDIAN */}
       <BackgroundTradingChart theme={theme} />
 
-      {/* 2. OVERLAY SUPERIOR: BLANCO TRASLÚCIDO LIMPIO Y CRISTALINO */}
-      <div className="relative z-10 min-h-screen bg-white/45 dark:bg-slate-950/70 backdrop-blur-[5px] transition-colors duration-250">
+      {/* 2. CAPA SUPERIOR: EN MODO CLARO ES TRANSPARENTE LIMPIO (CERO OVERLAY GRISÁCEO) */}
+      <div className="relative z-10 min-h-screen bg-transparent dark:bg-slate-950/70 dark:backdrop-blur-[7px] transition-colors duration-200">
         {/* BARRA DE NAVEGACIÓN */}
         <Navbar 
           currentLang={currentLang} 

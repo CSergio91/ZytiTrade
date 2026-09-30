@@ -24,7 +24,6 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
     };
     window.addEventListener('resize', handleResize);
 
-    // Dataset de velas
     const candleCount = Math.floor(width / 14);
     let currentPrice = 64200;
     const candles: Array<{ open: number; close: number; high: number; low: number; vol: number }> = [];
@@ -47,20 +46,20 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
 
       const isDark = theme === 'dark';
 
-      // 1. Fondo: Blanco Puro (#ffffff) en modo claro vs Dark Obsidian (#090d16)
+      // 1. Fondo: Blanco Puro (#ffffff) en modo claro vs Dark Obsidian (#090d16) en modo oscuro
       if (isDark) {
         const bgGrad = ctx.createLinearGradient(0, 0, width, height);
         bgGrad.addColorStop(0, '#090d16');
         bgGrad.addColorStop(1, '#05080f');
         ctx.fillStyle = bgGrad;
       } else {
-        ctx.fillStyle = '#ffffff'; // BLANCO PURO RADIANTE
+        ctx.fillStyle = '#ffffff'; // BLANCO PURO ABSOLUTO
       }
       ctx.fillRect(0, 0, width, height);
 
-      // 2. Cuadrícula limpia y sutil
+      // 2. Cuadrícula
       ctx.lineWidth = 1;
-      ctx.strokeStyle = isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(241, 245, 249, 0.9)'; // Líneas muy claras en modo blanco
+      ctx.strokeStyle = isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(0, 0, 0, 0.04)'; // Línea gris ultra suave sobre blanco puro
       const gridSpacingX = 80;
       const gridSpacingY = 55;
 
@@ -75,7 +74,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       }
       ctx.stroke();
 
-      // Escala de precios
+      // Escala
       let minP = Infinity;
       let maxP = -Infinity;
       candles.forEach((c) => {
@@ -95,17 +94,17 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       // 3. Volumen
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
-        const vH = (c.vol / 100) * (height * 0.18);
+        const vH = (c.vol / 100) * (height * 0.16);
         const isUp = c.close >= c.open;
         if (isDark) {
           ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.18)' : 'rgba(244, 63, 94, 0.18)';
         } else {
-          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
         }
         ctx.fillRect(x - candleWidth / 2, height - vH, candleWidth, vH);
       });
 
-      // 4. Velas con colores vivos
+      // 4. Velas
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const openY = getY(c.open);
@@ -119,7 +118,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
           ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.65)' : 'rgba(244, 63, 94, 0.65)';
         } else {
           ctx.strokeStyle = isUp ? '#10b981' : '#ef4444';
-          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+          ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.65)' : 'rgba(239, 68, 68, 0.65)';
         }
 
         // Mecha
@@ -134,10 +133,10 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
         ctx.fillRect(x - candleWidth / 2, bodyY, candleWidth, bodyH);
       });
 
-      // 5. Medias Móviles exponenciales (EMA)
+      // 5. Medias Móviles
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(37, 99, 235, 0.75)'; // Azul primario
+      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(37, 99, 235, 0.65)';
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const y = getY(c.close) + Math.sin(idx * 0.15) * 8;
@@ -147,7 +146,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.strokeStyle = isDark ? 'rgba(168, 85, 247, 0.55)' : 'rgba(124, 58, 237, 0.7)'; // Violeta
+      ctx.strokeStyle = isDark ? 'rgba(168, 85, 247, 0.55)' : 'rgba(124, 58, 237, 0.6)';
       candles.forEach((c, idx) => {
         const x = idx * spacing + spacing / 2;
         const y = getY(c.close) - Math.cos(idx * 0.12) * 12;
@@ -156,11 +155,11 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       });
       ctx.stroke();
 
-      // 6. Línea de precio actual
+      // 6. Línea de precio
       const lastCandle = candles[candles.length - 1];
       const lastY = getY(lastCandle.close);
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.75)' : 'rgba(37, 99, 235, 0.85)';
+      ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.75)' : 'rgba(37, 99, 235, 0.75)';
       ctx.beginPath();
       ctx.moveTo(0, lastY);
       ctx.lineTo(width, lastY);
@@ -174,7 +173,7 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
       ctx.font = '11px JetBrains Mono, monospace';
       ctx.fillText('$' + lastCandle.close.toFixed(2), width - 85, lastY + 4);
 
-      // Streaming de tick
+      // Ticks
       tickCounter++;
       if (tickCounter % 6 === 0) {
         const change = (Math.random() - 0.495) * 6;
@@ -198,7 +197,6 @@ export const BackgroundTradingChart: React.FC<BackgroundTradingChartProps> = ({ 
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: theme === 'dark' ? 0.8 : 0.95 }}
     />
   );
 };
