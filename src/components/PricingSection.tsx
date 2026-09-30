@@ -24,7 +24,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ currentLang, isA
           
           {/* LADO IZQUIERDO (4 COLUMNAS): CABECERA + ANIMACIÓN LOTTIE GRANDE + TOGGLE PRO */}
           <div className={`lg:col-span-4 flex flex-col justify-between transition-all duration-500 ${
-            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
           }`}>
             <div>
               {/* BADGE DE SECCIÓN */}

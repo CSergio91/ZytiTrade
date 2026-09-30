@@ -26,16 +26,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             {t.tag}
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.12] sm:leading-[1.06]">
+          <h1 className="text-3xl sm:text-5xl lg:text-[66px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.08] sm:leading-[1.06]">
             {t.headlineStart}<br />
             <span className="text-gradient-purple font-black">{t.headlineHighlight}</span>
           </h1>
 
-          <p className="mt-4 sm:mt-6 text-sm sm:text-lg lg:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
+          <p className="mt-6 text-lg sm:text-xl text-slate-900 dark:text-slate-200 font-medium leading-relaxed max-w-lg">
             {t.subtitle}
           </p>
 
-          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             <button className="flex items-center justify-center gap-2.5 px-7 py-3.5 text-sm font-bold text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
               <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.ctaPrimary}</span>
@@ -65,10 +65,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
         </div>
 
         {/* COLUMNA DERECHA: TARJETAS CON LEVITACIÓN ORGÁNICA */}
-        <div className="lg:col-span-6 relative flex items-center justify-center my-6 sm:my-0">
+        <div className="lg:col-span-6 relative flex items-center justify-center">
           
           {/* ALERTA SATÉLITE 1: LEVITACIÓN ORGÁNICA LENTA */}
-          <div className="hidden sm:block absolute -top-8 left-0 sm:-left-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[200px] sm:max-w-[220px] animate-float">
+          <div className="hidden sm:block absolute -top-8 left-2 sm:-left-4 z-20 satellite-card rounded-2xl p-4 max-w-[220px] animate-float">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#fee2e2] text-[#dc2626] shrink-0 mt-0.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
           </div>
 
           {/* ALERTA SATÉLITE 2: LEVITACIÓN EN DESFASE */}
-          <div className="hidden sm:block absolute -bottom-8 right-0 sm:-right-4 z-20 satellite-card rounded-2xl p-3 sm:p-4 max-w-[210px] sm:max-w-[230px] animate-float-reverse">
+          <div className="hidden sm:block absolute -bottom-8 -right-2 sm:-right-4 z-20 satellite-card rounded-2xl p-4 max-w-[230px] animate-float-reverse">
             <div className="flex items-start gap-2.5">
               <div className="p-1 rounded-md bg-[#dcfce7] text-[#16a34a] shrink-0 mt-0.5">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />

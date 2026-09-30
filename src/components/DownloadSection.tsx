@@ -66,7 +66,7 @@ export const DownloadSection: React.FC<DownloadSectionProps> = ({ currentLang, i
       <div className="w-full max-w-6xl mx-auto">
         
         {/* CABECERA EDITORIAL */}
-        <div className={`max-w-2xl mb-8 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`max-w-2xl mb-8 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
             <Download className="w-3.5 h-3.5" />
             <span>{t.tag}</span>

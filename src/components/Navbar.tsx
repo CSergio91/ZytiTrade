@@ -97,8 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header 
       className={`fixed z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isShifted
-          ? 'top-0 left-0 right-0 w-full h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-[#ede8df]/70 md:top-3 md:left-6 md:right-auto md:w-auto md:max-w-[calc(100vw-48px)] md:bg-transparent md:border-none md:shadow-none md:px-0 flex items-center justify-between gap-3 sm:gap-6'
-          : 'top-0 left-0 right-0 w-full h-14 sm:h-16 md:h-20 px-3.5 sm:px-6 lg:px-12 bg-[#fbf9f4]/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-b border-[#ede8df]/50 md:border-none flex items-center justify-between shadow-none'
+          ? 'top-0 left-0 right-0 w-full h-14 px-3.5 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-[#ede8df]/70 flex items-center justify-between gap-3 md:top-3 md:left-6 md:right-auto md:w-auto md:max-w-[calc(100vw-48px)] md:bg-transparent md:border-none md:shadow-none md:px-0 md:gap-6'
+          : 'top-0 left-0 right-0 w-full h-14 md:h-20 px-3.5 md:px-6 lg:px-12 bg-[#fbf9f4]/90 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-b border-[#ede8df]/50 md:border-none flex items-center justify-between shadow-none'
       }`}>
       
       {/* 1. LOGO INSTITUCIONAL COMPLETO */}
@@ -110,16 +110,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         <img 
           src="/logo-zyti.png" 
           alt="ZYTI Trade Logo" 
-          className={`object-contain transition-all duration-300 ${isShifted ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10'}`}
+          className={`object-contain transition-all duration-300 ${isShifted ? 'w-7 h-7 md:w-8 md:h-8' : 'w-7 h-7 md:w-10 md:h-10'}`}
         />
-        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-base sm:text-xl' : 'text-base sm:text-xl md:text-2xl'} text-slate-950`}>
+        <span className={`font-black tracking-tight transition-all duration-300 ${isShifted ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'} text-slate-950`}>
           ZYTI <span className="font-light text-slate-500">Trade</span>
         </span>
       </button>
 
       {/* 2. MENÚS DE NAVEGACIÓN — TEXTOS OSCUROS DE ALTO CONTRASTE */}
       <div className={`hidden md:flex items-center transition-all duration-300 font-bold ${
-        isShifted ? 'gap-2 lg:gap-5 text-xs' : 'gap-3 lg:gap-8 text-xs lg:text-sm'
+        isShifted ? 'gap-5 text-xs' : 'gap-8 text-sm'
       } text-slate-950`}>
         
         {/* PANTALLA 1: EXCHANGES */}

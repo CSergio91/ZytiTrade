@@ -47,7 +47,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({ currentLang, i
           
           {/* LADO IZQUIERDO: CABECERA EDITORIAL + ANIMACIÓN LOTTIE OFICIAL DE SEGURIDAD */}
           <div className={`lg:col-span-5 flex flex-col justify-between transition-all duration-500 ${
-            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
           }`}>
             <div>
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-3">
