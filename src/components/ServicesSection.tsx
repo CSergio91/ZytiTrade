@@ -19,7 +19,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ currentLang, i
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pl-24 sm:pl-32 lg:pl-40 pt-8">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-16 pt-16">
       <div className="w-full max-w-6xl mx-auto">
         
         <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>

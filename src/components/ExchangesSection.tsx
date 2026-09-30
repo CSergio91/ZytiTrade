@@ -20,10 +20,9 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
   ];
 
   return (
-    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-12 pl-24 sm:pl-32 lg:pl-40 pt-8">
+    <section className="min-w-full w-screen h-screen flex items-center justify-center snap-center px-6 lg:px-16 pt-16">
       <div className="w-full max-w-6xl mx-auto">
         
-        {/* CABECERA CON ANIMACIÓN SUAVE */}
         <div className={`max-w-xl mb-10 transition-all duration-500 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-[#f4edd9] dark:bg-[#252014] text-[#855e15] dark:text-[#f3c86a] text-xs font-mono font-bold tracking-tight mb-4">
             /venues-and-latency
@@ -36,7 +35,6 @@ export const ExchangesSection: React.FC<ExchangesSectionProps> = ({ currentLang,
           </p>
         </div>
 
-        {/* GRID DE EXCHANGES CON ENTRADA ESCALONADA (STAGGERED) ÁGIL */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {venues.map((venue, idx) => (
             <div 
