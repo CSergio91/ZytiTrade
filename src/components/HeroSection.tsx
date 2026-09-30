@@ -33,12 +33,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang }) => {
             {isEs ? (
               <>
                 Opera lo que planeas.<br />
-                <span className="text-slate-950 dark:text-white">Nada más.</span>
+                <span className="text-gradient-purple font-black">Nada más.</span>
               </>
             ) : (
               <>
                 Trade what you planned.<br />
-                <span className="text-slate-950 dark:text-white">Nothing else.</span>
+                <span className="text-gradient-purple font-black">Nothing else.</span>
               </>
             )}
           </h1>

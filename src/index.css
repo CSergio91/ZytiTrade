@@ -80,3 +80,12 @@ html.dark .satellite-card {
   background: #dcd6cb;
   border-radius: 9999px;
 }
+
+/* Modern Purple-Indigo Gradient for Hero Highlight */
+.text-gradient-purple {
+  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 45%, #2563eb 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  display: inline-block;
+}
