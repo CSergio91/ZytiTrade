@@ -13,6 +13,7 @@ import { AuthModal } from './components/AuthModal';
 import { TradingTerminal } from './components/TradingTerminal';
 import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
 import { TelegramOnboardingApp } from './components/TelegramOnboardingApp';
+import { NotFoundPage } from './components/NotFoundPage';
 import { getStoredSession, setStoredSession, UserSession, supabase } from './lib/supabase';
 import { Language } from './i18n/translations';
 
@@ -28,17 +29,24 @@ export const App: React.FC = () => {
     return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
   };
 
-  const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' => {
+  const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' => {
     if (typeof window !== 'undefined') {
-      const pathname = window.location.pathname.toLowerCase();
+      const rawPath = window.location.pathname.toLowerCase();
+      const pathname = rawPath.replace(/\/$/, '') || '/';
       if (pathname.includes('/tg-onboarding') || pathname.includes('/tgonboarding')) return 'tg-onboarding';
       if (isTerminalSubdomain()) return 'terminal';
       if (pathname.includes('/zytiterminal')) return 'terminal';
+      if (pathname === '/404' || pathname === '/es/404' || pathname === '/en/404') return 'not-found';
+      
+      const validPaths = ['', '/', '/es', '/en'];
+      if (!validPaths.includes(pathname)) {
+        return 'not-found';
+      }
     }
     return 'landing';
   };
 
-  const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding'>(getInitialView);
+  const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding' | 'not-found'>(getInitialView);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -204,9 +212,14 @@ export const App: React.FC = () => {
         setCurrentView('terminal');
         return;
       }
-      const path = window.location.pathname.toLowerCase();
-      if (path.includes('/zytiterminal')) {
+      const rawPath = window.location.pathname.toLowerCase();
+      const path = rawPath.replace(/\/$/, '') || '/';
+      if (path.includes('/tg-onboarding') || path.includes('/tgonboarding')) {
+        setCurrentView('tg-onboarding');
+      } else if (path.includes('/zytiterminal')) {
         setCurrentView('terminal');
+      } else if (path === '/404' || path === '/es/404' || path === '/en/404' || (!['', '/', '/es', '/en'].includes(path))) {
+        setCurrentView('not-found');
       } else {
         setCurrentView('landing');
       }
@@ -254,6 +267,29 @@ export const App: React.FC = () => {
   // Vista de Telegram Mini App Onboarding (abierta desde el bot)
   if (currentView === 'tg-onboarding') {
     return <TelegramOnboardingApp />;
+  }
+
+  // Vista de Error 404 (Página no encontrada con animación Lottie institucional)
+  if (currentView === 'not-found') {
+    return (
+      <>
+        <NotFoundPage 
+          currentLang={currentLang}
+          onLanguageChange={handleLanguageChange}
+          onTradeNow={handleOpenTerminalOrAuth}
+          onNavigateHome={navigateToLanding}
+        />
+        <AuthModal 
+          isOpen={authModalOpen} 
+          onClose={() => setAuthModalOpen(false)} 
+          currentLang={currentLang} 
+          onLoginSuccess={(u) => { 
+            setCurrentUser(u); 
+            navigateToTerminal(); 
+          }} 
+        />
+      </>
+    );
   }
 
   // Guard: si el terminal se intenta cargar sin sesión (ej: localStorage corrupto),

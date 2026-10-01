@@ -303,6 +303,14 @@ export const translations = {
       wsActive: 'WebSockets Activos a 60 FPS',
       zeroCustodyNotice: 'ZYTI Trade es una plataforma tecnológica no custodial. No presta servicios financieros ni custodia fondos de usuarios.',
       backToTop: 'Volver al Inicio',
+    },
+    notFound: {
+      badge: 'Error 404 • Orden No Ejecutada',
+      title: 'Página Fuera de Mercado',
+      subtitle: 'La ruta a la que intentas acceder no existe, ha sido movida o la orden fue cancelada en el libro de liquidez.',
+      tradeNow: 'Operar Ahora',
+      home: 'Volver al Inicio',
+      goBack: 'Volver Atrás'
     }
   },
   en: {
@@ -607,6 +615,14 @@ export const translations = {
       wsActive: '60 FPS Active WebSockets',
       zeroCustodyNotice: 'ZYTI Trade is a non-custodial software technology platform. It does not provide financial services or custody user funds.',
       backToTop: 'Back to Top',
+    },
+    notFound: {
+      badge: '404 Error • Order Unfilled',
+      title: 'Page Out of Range',
+      subtitle: 'The route you are trying to access does not exist, has expired, or the order was cancelled from the liquidity book.',
+      tradeNow: 'Trade Now',
+      home: 'Back to Home',
+      goBack: 'Go Back'
     }
   }
 };
