@@ -2,6 +2,72 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/:lang(es|en)/zytiterminal/:symbol",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?lang=:lang&symbol=:symbol"
+    },
+    {
+      "source": "/zytiterminal/:symbol",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?symbol=:symbol"
+    },
+    {
+      "source": "/:lang(es|en)/trade/:symbol",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?lang=:lang&symbol=:symbol"
+    },
+    {
+      "source": "/trade/:symbol",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?symbol=:symbol"
+    },
+    {
+      "source": "/:lang(es|en)/zytiterminal",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?lang=:lang&symbol=BTCUSDT"
+    },
+    {
+      "source": "/zytiterminal",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview|twitter).*"
+        }
+      ],
+      "destination": "/api/seo?symbol=BTCUSDT"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

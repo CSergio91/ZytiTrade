@@ -1304,13 +1304,6 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
       window.history.replaceState({ view: 'terminal', symbol: cleanPair }, '', targetPath);
     }
-    if (typeof document !== 'undefined') {
-      document.title = `${pair} • ${currentExchange.toUpperCase()} Gráfico en Vivo | ZYTI Trade`;
-      const ogUrl = document.querySelector('meta[property="og:url"]');
-      if (ogUrl) ogUrl.setAttribute('content', `https://zytitrade.com${targetPath}`);
-      const ogTitle = document.querySelector('meta[property="og:title"]');
-      if (ogTitle) ogTitle.setAttribute('content', `${pair} • ZYTI Trade Terminal`);
-    }
     // Pre-cargar precio base para eliminar desfases de escala en el eje derecho
     const pairPriceEstimates: Record<string, number> = {
       'BTC/USDT': 96450.0,
@@ -1320,6 +1313,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       'XRP/USDT': 2.45
     };
     const estPrice = pairPriceEstimates[pair];
+    if (typeof document !== 'undefined') {
+      const p = estPrice || stats.lastPrice;
+      const formattedPrice = p >= 1
+        ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : p.toFixed(4);
+      document.title = `${formattedPrice} | ${pair} • ZYTI Trade`;
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute('content', `https://zytitrade.com${targetPath}`);
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', `${pair} • ZYTI Trade Terminal`);
+    }
     if (estPrice) {
       setStats((prev) => ({
         ...prev,
@@ -1348,6 +1352,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       }
     }
   }, [initialSymbol]);
+
+  // ── Pestaña del navegador: precio en vivo en tiempo real vía WebSocket (sin conexiones adicionales, reusando el feed del chart)
+  useEffect(() => {
+    if (typeof document !== 'undefined' && stats.lastPrice > 0) {
+      const formattedPrice = stats.lastPrice >= 1
+        ? stats.lastPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : stats.lastPrice.toFixed(4);
+      document.title = `${formattedPrice} | ${selectedPair} • ZYTI Trade`;
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.title = 'ZYTI Trade | Institutional Trading OS & Multi-Exchange Terminal';
+      }
+    };
+  }, [stats.lastPrice, selectedPair]);
 
   const handleSelectBalanceAmount = (amountNum: number) => {
     closedPositionIdsRef.current.clear();
