@@ -17,6 +17,20 @@ CREATE TABLE IF NOT EXISTS prop_firms (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 1.1 Perfiles de Usuario (Traders y Administradores)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  role TEXT DEFAULT 'trader',
+  provider TEXT DEFAULT 'email',
+  telegram_id BIGINT,
+  telegram_username TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 2. Cuentas de Trading de los Traders
 CREATE TABLE IF NOT EXISTS trading_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
