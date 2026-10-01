@@ -21,6 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const isEs = currentLang === 'es';
   const [loading, setLoading] = useState(false);
   const [telegramWaiting, setTelegramWaiting] = useState(false);
+  const [awaitingOnboarding, setAwaitingOnboarding] = useState(false);
   const [telegramAuthCode, setTelegramAuthCode] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -33,45 +34,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       setMounted(false);
       setTelegramWaiting(false);
+      setAwaitingOnboarding(false);
     }
   }, [isOpen]);
 
   const handleTelegramAuthSuccess = useCallback(async (tgUser: {
     id: number; first_name: string; last_name?: string;
     username?: string; photo_url?: string; auth_date: number; hash: string;
+    email?: string; userId?: string;
   }) => {
     setLoading(true); setErrorMsg(null);
     try {
-      const userEmail = tgUser.username ? `${tgUser.username.toLowerCase()}@telegram.org` : `tg_${tgUser.id}@telegram.org`;
-      const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
-      let supaUserId = String(tgUser.id);
+      let registeredEmail = tgUser.email || '';
+      let supaUserId = tgUser.userId || String(tgUser.id);
 
-      try {
-        const syntheticPassword = `TG_${tgUser.id}_zyti_trade_secure!`;
-        const { data: supaAuthData } = await supabase.auth.signUp({
-          email: userEmail,
-          password: syntheticPassword,
-          options: {
-            data: {
-              full_name: fullName,
-              telegram_username: tgUser.username,
-              telegram_id: tgUser.id,
-              avatar_url: tgUser.photo_url,
-              provider: 'telegram'
-            }
-          }
-        });
-        if (supaAuthData?.user?.id) {
-          supaUserId = supaAuthData.user.id;
+      if (!registeredEmail) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .eq('telegram_id', tgUser.id)
+          .maybeSingle();
+        if (prof?.email) {
+          registeredEmail = prof.email;
+          if (prof.id) supaUserId = prof.id;
         }
-      } catch (authErr) {
-        console.warn('[Supabase Auth] Notice syncing Telegram user:', authErr);
       }
 
-      const propAccounts = await fetchTraderAccounts(userEmail);
+      const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
+
+      const propAccounts = await fetchTraderAccounts(registeredEmail || `${tgUser.id}@telegram.org`);
       const userSession: UserSession = {
         id: supaUserId, 
-        email: '',
+        email: registeredEmail,
         name: fullName,
         avatarUrl: tgUser.photo_url, 
         provider: 'telegram', 
@@ -206,6 +200,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const code = Math.random().toString(36).substring(2, 9);
     setTelegramAuthCode(code);
     setTelegramWaiting(true);
+    setAwaitingOnboarding(false);
     setErrorMsg(null);
     const deepLinkUrl = `https://t.me/${botName}?start=login_${code}`;
     telegramPopupRef.current = openCenteredPopup(deepLinkUrl, 'TelegramAuthPopup', 560, 680);
@@ -225,9 +220,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           .eq('code', telegramAuthCode)
           .maybeSingle();
 
-        if (sessionData && sessionData.user_id) {
+        if (sessionData && sessionData.user_id && sessionData.email) {
           active = false;
           setTelegramWaiting(false);
+          setAwaitingOnboarding(false);
           closeTelegramPopup();
 
           const appUrl = (import.meta as any).env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://zytitrade-tradingplatform.vercel.app');
@@ -312,6 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 if (existingProfile && existingProfile.email) {
                   active = false;
                   setTelegramWaiting(false);
+                  setAwaitingOnboarding(false);
                   closeTelegramPopup();
                   sendTelegramWelcomeMessage(chatId, from);
                   handleTelegramAuthSuccess({
@@ -320,10 +317,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     last_name: from.last_name,
                     username: from.username,
                     auth_date: match.message.date,
-                    hash: 'deep_link_' + telegramAuthCode
+                    hash: 'deep_link_' + telegramAuthCode,
+                    email: existingProfile.email,
+                    userId: existingProfile.id
                   });
                   return;
                 } else {
+                  setAwaitingOnboarding(true);
                   sendTelegramOnboardingMiniApp(chatId, from, telegramAuthCode);
                 }
               }
@@ -351,24 +351,80 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
+      // 1. Primero comprobar si ya se guardó la sesión con email en telegram_auth_sessions
+      if (telegramAuthCode) {
+        const { data: sessionData } = await supabase
+          .from('telegram_auth_sessions')
+          .select('*')
+          .eq('code', telegramAuthCode)
+          .maybeSingle();
+
+        if (sessionData && sessionData.user_id && sessionData.email) {
+          setTelegramWaiting(false);
+          setAwaitingOnboarding(false);
+          closeTelegramPopup();
+          const propAccounts = await fetchTraderAccounts(sessionData.email);
+          const userSession: UserSession = {
+            id: sessionData.user_id,
+            email: sessionData.email,
+            name: sessionData.full_name || 'Trader',
+            provider: 'telegram',
+            telegramUsername: sessionData.telegram_username,
+            role: 'trader',
+            accounts: propAccounts,
+            isVerified: true,
+            activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
+          };
+          setStoredSession(userSession);
+          setSuccessMsg(isEs ? `¡Bienvenido, ${userSession.name}!` : `Welcome, ${userSession.name}!`);
+          if (onLoginSuccess) onLoginSuccess(userSession);
+          setTimeout(onClose, 500);
+          return;
+        }
+      }
+
+      // 2. Comprobar actualizaciones recientes del bot de Telegram
       const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.result) && data.result.length > 0) {
         const lastMsg = [...data.result].reverse().find((u: any) => u.message?.from && !u.message.from.is_bot);
         if (lastMsg && lastMsg.message?.from) {
           const from = lastMsg.message.from;
-          setTelegramWaiting(false);
-          closeTelegramPopup();
-          sendTelegramWelcomeMessage(lastMsg.message.chat.id, from);
-          await handleTelegramAuthSuccess({
-            id: from.id,
-            first_name: from.first_name,
-            last_name: from.last_name,
-            username: from.username,
-            auth_date: lastMsg.message.date,
-            hash: 'manual_verify_' + Date.now()
-          });
-          return;
+          const chatId = lastMsg.message.chat.id;
+
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id, email, full_name')
+            .eq('telegram_id', from.id)
+            .maybeSingle();
+
+          if (existingProfile && existingProfile.email) {
+            setTelegramWaiting(false);
+            setAwaitingOnboarding(false);
+            closeTelegramPopup();
+            sendTelegramWelcomeMessage(chatId, from);
+            await handleTelegramAuthSuccess({
+              id: from.id,
+              first_name: from.first_name,
+              last_name: from.last_name,
+              username: from.username,
+              auth_date: lastMsg.message.date,
+              hash: 'manual_verify_' + Date.now(),
+              email: existingProfile.email,
+              userId: existingProfile.id
+            });
+            return;
+          } else {
+            // Usuario NUEVO: Aún no ha completado el formulario de la Mini App ni aceptado términos
+            setAwaitingOnboarding(true);
+            sendTelegramOnboardingMiniApp(chatId, from, telegramAuthCode || 'login');
+            setErrorMsg(
+              isEs
+                ? '⚠️ Detectamos tu /start en Telegram. Para nuevos usuarios es obligatorio pulsar «Completar Registro» en el chat del bot, registrar tu correo y aceptar los Términos y Condiciones.'
+                : '⚠️ We detected your /start in Telegram. New users must tap «Complete Registration» in the bot chat, register an email, and accept Terms and Conditions.'
+            );
+            return;
+          }
         }
       }
       setErrorMsg(isEs ? 'No se detectó ningún mensaje en el bot. Pulsa Iniciar en @ZytiTarde_bot.' : 'No message detected. Please press Start in @ZytiTarde_bot.');
@@ -429,7 +485,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {isEs ? 'Verificación Segura vía Telegram' : 'Secure Telegram Verification'}
               </span>
               <span className="text-[9.5px] text-sky-900/90 font-medium block mt-0.5 leading-snug">
-                {isEs ? 'Sin contraseñas ni correos que recordar. Conexión directa en < 1s con el bot oficial.' : 'No passwords or emails to remember. Instant < 1s connection with official bot.'}
+                {isEs ? 'Sin contraseñas complicadas. Conexión directa con el bot oficial ZYTI.' : 'No complicated passwords. Direct connection with official ZYTI bot.'}
               </span>
             </div>
           </div>
@@ -464,42 +520,90 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* TELEGRAM WAITING STATE */}
             {telegramWaiting ? (
-              <div className="w-full p-4 rounded-2xl bg-sky-50/80 border border-sky-200/80 text-center flex flex-col items-center gap-2.5 backdrop-blur-md">
-                <div className="w-11 h-11 rounded-full bg-[#54a9eb] flex items-center justify-center text-white shadow-sm animate-pulse">
-                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+              awaitingOnboarding ? (
+                /* PASO 2: EL BOT YA ENVIÓ LA MINI APP CON TÉRMINOS Y CORREO */
+                <div className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-300/80 text-center flex flex-col items-center gap-2.5 backdrop-blur-md">
+                  <div className="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-white shadow-sm animate-pulse">
+                    <Sparkles className="w-5 h-5 fill-white" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-amber-950 block">
+                      {isEs ? '¡Paso 2: Completa tu Registro!' : 'Step 2: Complete Your Registration!'}
+                    </span>
+                    <span className="text-[10.5px] text-amber-900/90 block mt-1 leading-snug">
+                      {isEs 
+                        ? 'Abre tu Telegram y pulsa el botón «📝 Completar Registro ZYTI» para ingresar tu correo y aceptar los Términos y Condiciones.' 
+                        : 'Open Telegram and tap the «📝 Complete ZYTI Registration» button to enter your email and accept Terms.'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2 w-full mt-1">
+                    <button
+                      type="button"
+                      onClick={handleCheckLatestTelegram}
+                      disabled={loading}
+                      className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    >
+                      <span>{isEs ? '🔄 Ya completé el registro en Telegram' : '🔄 I completed registration in Telegram'}</span>
+                    </button>
+                    <a
+                      href={`https://t.me/${botName}?start=login_${telegramAuthCode}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-bold text-amber-700 hover:underline block text-center"
+                    >
+                      {isEs ? 'Abrir chat con el bot en Telegram' : 'Open bot chat in Telegram'}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTelegramWaiting(false);
+                        setAwaitingOnboarding(false);
+                      }}
+                      className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
+                    >
+                      {isEs ? '← Volver' : '← Back'}
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-xs font-black text-slate-900 block">{isEs ? 'Esperando confirmación en Telegram...' : 'Waiting for Telegram confirmation...'}</span>
-                  <span className="text-[10.5px] text-slate-600 block mt-0.5 leading-snug">
-                    {isEs ? 'Pulsa «INICIAR» o «START» en el chat con el bot.' : 'Press «START» in the bot chat.'}
-                  </span>
+              ) : (
+                /* PASO 1: ESPERANDO PULSAR /START */
+                <div className="w-full p-4 rounded-2xl bg-sky-50/80 border border-sky-200/80 text-center flex flex-col items-center gap-2.5 backdrop-blur-md">
+                  <div className="w-11 h-11 rounded-full bg-[#54a9eb] flex items-center justify-center text-white shadow-sm animate-pulse">
+                    <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 block">{isEs ? 'Paso 1: Inicia en Telegram' : 'Step 1: Start in Telegram'}</span>
+                    <span className="text-[10.5px] text-slate-600 block mt-0.5 leading-snug">
+                      {isEs ? 'Pulsa «INICIAR» o «START» en el chat con el bot.' : 'Press «START» in the bot chat.'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2 w-full mt-1">
+                    <button
+                      type="button"
+                      onClick={handleCheckLatestTelegram}
+                      disabled={loading}
+                      className="w-full py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    >
+                      <span>{isEs ? '⚡ Ya envié /start (Verificar)' : '⚡ I sent /start (Verify)'}</span>
+                    </button>
+                    <a
+                      href={`https://t.me/${botName}?start=login_${telegramAuthCode}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-bold text-sky-600 hover:underline block text-center"
+                    >
+                      {isEs ? '¿No se abrió Telegram? Clic aquí' : 'Didn\'t open Telegram? Click here'}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setTelegramWaiting(false)}
+                      className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
+                    >
+                      {isEs ? '← Volver' : '← Back'}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2 w-full mt-1">
-                  <button
-                    type="button"
-                    onClick={handleCheckLatestTelegram}
-                    disabled={loading}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
-                  >
-                    <span>{isEs ? '⚡ Ya envié /start (Verificar ahora)' : '⚡ I sent /start (Verify now)'}</span>
-                  </button>
-                  <a
-                    href={`https://t.me/${botName}?start=login_${telegramAuthCode}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-bold text-sky-600 hover:underline block text-center"
-                  >
-                    {isEs ? '¿No se abrió Telegram? Clic aquí' : 'Didn\'t open Telegram? Click here'}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setTelegramWaiting(false)}
-                    className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
-                  >
-                    {isEs ? '← Volver' : '← Back'}
-                  </button>
-                </div>
-              </div>
+              )
             ) : (
               /* BOTÓN HERO: TELEGRAM */
               <div className="flex flex-col gap-2 pt-1">
