@@ -137,8 +137,20 @@ export const TelegramOnboardingApp: React.FC = () => {
       }
 
       // 3. Sincronizar sesión con la ventana web mediante telegram_auth_sessions
+      let oldMessageId: number | null = null;
       if (authCode) {
         try {
+          // Consultar si ya teníamos el message_id del mensaje de invitación
+          const { data: existingSession } = await supabase
+            .from('telegram_auth_sessions')
+            .select('message_id')
+            .eq('code', authCode)
+            .maybeSingle();
+
+          if (existingSession?.message_id) {
+            oldMessageId = existingSession.message_id;
+          }
+
           await supabase
             .from('telegram_auth_sessions')
             .upsert({
@@ -147,7 +159,8 @@ export const TelegramOnboardingApp: React.FC = () => {
               email: email.trim(),
               full_name: name.trim(),
               telegram_id: tgId || undefined,
-              telegram_username: tgUsername || undefined
+              telegram_username: tgUsername || undefined,
+              message_id: oldMessageId || undefined
             });
         } catch (syncErr) {
           console.warn('[Telegram Onboarding] Auth session sync warning:', syncErr);
@@ -166,27 +179,69 @@ export const TelegramOnboardingApp: React.FC = () => {
       };
       setStoredSession(userSession);
 
-      // 5. Notificar éxito en el chat de Telegram del usuario si tenemos token
+      // 5. Configurar Telegram Bot: Botón en la barra de escribir, actualizar mensaje obsoleto y confirmación
       const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
       if (botToken && tgId) {
         try {
           const appUrl = (import.meta as any).env.VITE_APP_URL || window.location.origin;
+
+          // A. Configurar botón permanente en la barra de escribir (Telegram Menu Button)
+          await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: tgId,
+              menu_button: {
+                type: 'web_app',
+                text: '🚀 Abrir App',
+                web_app: { url: appUrl }
+              }
+            })
+          });
+
+          // B. Modificar el mensaje previo eliminando el botón viejo de "Completar Registro" y dejando "🚀 Abrir Terminal"
+          if (oldMessageId) {
+            await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: tgId,
+                message_id: oldMessageId,
+                text: `✅ <b>¡Registro completado con éxito, ${name.trim()}!</b>\n\nTu cuenta institucional en ZYTI Trade ya está activa y verificada.`,
+                parse_mode: 'HTML',
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: '🚀 Abrir Terminal ZYTI Trade',
+                        web_app: { url: appUrl }
+                      }
+                    ]
+                  ]
+                }
+              })
+            }).catch(() => {});
+          }
+
+          // C. Enviar mensaje de confirmación con teclado persistente en la barra inferior
           await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: tgId,
-              text: `🎉 <b>¡Registro completado con éxito, ${name.trim()}!</b>\n\nTu cuenta institucional en ZYTI Trade ha sido verificada y activada.\n📧 Correo: <code>${email.trim()}</code>\n\nYa puedes acceder a la terminal de trading desde cualquier dispositivo.`,
+              text: `🎉 <b>¡Registro completado con éxito, ${name.trim()}!</b>\n\nTu cuenta institucional en ZYTI Trade ha sido verificada y activada.\n📧 Correo: <code>${email.trim()}</code>\n\nTienes el botón <b>🚀 Abrir App</b> directamente en tu barra de escribir para acceder en cualquier momento con un solo toque.`,
               parse_mode: 'HTML',
               reply_markup: {
-                inline_keyboard: [
+                keyboard: [
                   [
                     {
-                      text: '🚀 Abrir Terminal ZYTI Trade',
-                      url: appUrl
+                      text: '🚀 Abrir App',
+                      web_app: { url: appUrl }
                     }
                   ]
-                ]
+                ],
+                resize_keyboard: true,
+                is_persistent: true
               }
             })
           });

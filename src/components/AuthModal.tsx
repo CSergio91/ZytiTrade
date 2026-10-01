@@ -144,7 +144,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Enviar mensaje bilingüe al bot con botón inline para volver al terminal
+  // Enviar mensaje bilingüe al bot con botón inline y botón en la barra de escribir
   const sendTelegramWelcomeMessage = async (chatId: number, from: any) => {
     if (!botToken) return;
     const fullName = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Trader';
@@ -152,12 +152,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const appUrl = (import.meta as any).env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://zytitrade-tradingplatform.vercel.app');
 
     const text = isEs
-      ? `🎉 <b>¡Bienvenido a ZYTI Trade, ${fullName}!</b>\n\nTu sesión ha sido verificada y activada con éxito. Ya puedes volver a la plataforma para operar en el terminal.`
-      : `🎉 <b>Welcome to ZYTI Trade, ${fullName}!</b>\n\nYour account has been verified and your session is active. You can now return to the platform to start trading.`;
+      ? `🎉 <b>¡Bienvenido de vuelta a ZYTI Trade, ${fullName}!</b>\n\nTu sesión ha sido verificada y activada con éxito. Ya puedes abrir la plataforma desde el botón de abajo o en tu barra de chat:`
+      : `🎉 <b>Welcome back to ZYTI Trade, ${fullName}!</b>\n\nYour account has been verified. You can now open the platform from the button below or in your chat bar:`;
 
     const btnText = isEs ? '🚀 Abrir Terminal ZYTI Trade' : '🚀 Open ZYTI Trade Terminal';
 
     try {
+      // 1. Configurar botón permanente en la barra de escribir
+      await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          menu_button: {
+            type: 'web_app',
+            text: '🚀 Abrir App',
+            web_app: { url: appUrl }
+          }
+        })
+      });
+
+      // 2. Enviar mensaje con botón web_app directo
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               [
                 {
                   text: btnText,
-                  url: appUrl
+                  web_app: { url: appUrl }
                 }
               ]
             ]
@@ -183,6 +198,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const hasSentMiniAppRef = useRef<Record<string, boolean>>({});
+  const onboardingMessagesRef = useRef<Record<string, { chatId: number; messageId: number }>>({});
 
   // Enviar mensaje interactivo con botón de Telegram Mini App para usuarios de primera vez
   const sendTelegramOnboardingMiniApp = async (chatId: number, from: any, code: string) => {
@@ -203,7 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const btnText = isEs ? '📝 Completar Registro ZYTI (Mini App)' : '📝 Complete ZYTI Registration (Mini App)';
 
     try {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,6 +238,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }
         })
       });
+
+      const data = await res.json();
+      if (data?.ok && data.result?.message_id) {
+        onboardingMessagesRef.current[code] = { chatId, messageId: data.result.message_id };
+        // Sincronizar en DB para que la Mini App también tenga acceso al ID del mensaje
+        await supabase
+          .from('telegram_auth_sessions')
+          .upsert({
+            code,
+            telegram_id: chatId,
+            message_id: data.result.message_id
+          });
+      }
     } catch (e) {
       console.warn('[Telegram sendOnboardingMiniApp] failed:', e);
     }
@@ -258,8 +287,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTelegramWaiting(false);
           closeTelegramPopup();
 
-          // Limpiar el token de sesión usado
-          supabase.from('telegram_auth_sessions').delete().eq('code', telegramAuthCode).then();
+          const appUrl = (import.meta as any).env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://zytitrade-tradingplatform.vercel.app');
+          const targetChatId = sessionData.telegram_id || onboardingMessagesRef.current[telegramAuthCode]?.chatId;
+          const targetMsgId = sessionData.message_id || onboardingMessagesRef.current[telegramAuthCode]?.messageId;
+
+          // Actualizar Telegram: botón en barra de escribir y editar el mensaje obsoleto
+          if (botToken && targetChatId) {
+            // Botón en la barra de escribir
+            fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: targetChatId,
+                menu_button: {
+                  type: 'web_app',
+                  text: '🚀 Abrir App',
+                  web_app: { url: appUrl }
+                }
+              })
+            }).catch(() => {});
+
+            // Modificar mensaje previo para quitar "Completar Registro" y dejar "🚀 Abrir Terminal"
+            if (targetMsgId) {
+              fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: targetChatId,
+                  message_id: targetMsgId,
+                  text: `✅ <b>¡Registro completado con éxito, ${sessionData.full_name || 'Trader'}!</b>\n\nTu cuenta institucional en ZYTI Trade ya está activa y verificada.`,
+                  parse_mode: 'HTML',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: '🚀 Abrir Terminal ZYTI Trade',
+                          web_app: { url: appUrl }
+                        }
+                      ]
+                    ]
+                  }
+                })
+              }).catch(() => {});
+            }
+          }
+
+          // Limpiar el token de sesión usado con un pequeño delay
+          setTimeout(() => {
+            supabase.from('telegram_auth_sessions').delete().eq('code', telegramAuthCode).then();
+          }, 3500);
 
           const propAccounts = await fetchTraderAccounts(sessionData.email || '');
           const userSession: UserSession = {
