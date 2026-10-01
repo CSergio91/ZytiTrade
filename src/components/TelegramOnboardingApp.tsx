@@ -100,9 +100,13 @@ export const TelegramOnboardingApp: React.FC = () => {
 
       let userId = signUpData?.user?.id;
 
-      // Si el email ya estaba registrado, intentar iniciar sesión para vincular
-      if (signUpError) {
-        if (signUpError.message?.toLowerCase().includes('already registered')) {
+      // En Supabase Auth, si el correo ya existe, signUp puede devolver error O identities: []
+      const isAlreadyRegistered =
+        signUpError?.message?.toLowerCase().includes('already registered') ||
+        (signUpData?.user && Array.isArray(signUpData.user.identities) && signUpData.user.identities.length === 0);
+
+      if (signUpError || isAlreadyRegistered) {
+        if (isAlreadyRegistered) {
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: email.trim(),
             password
@@ -111,28 +115,42 @@ export const TelegramOnboardingApp: React.FC = () => {
             throw new Error('Este correo ya está registrado con otra contraseña. Por favor usa tu contraseña correcta o un correo nuevo.');
           }
           userId = signInData?.user?.id;
-        } else {
+        } else if (signUpError) {
           throw signUpError;
         }
       }
 
       // 2. Actualizar perfil en public.profiles con los datos exactos
       if (userId) {
-        try {
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            email: email.trim(),
+            full_name: name.trim(),
+            telegram_id: tgId || undefined,
+            telegram_username: tgUsername || undefined,
+            provider: 'telegram',
+            is_verified: true,
+            updated_at: new Date().toISOString()
+          });
+
+        if (profileErr) {
+          console.warn('[Telegram Onboarding] Profile upsert warning:', profileErr);
+        }
+
+        // Asegurar consistencia actualizando también por telegram_id
+        if (tgId) {
           await supabase
             .from('profiles')
-            .upsert({
-              id: userId,
+            .update({
               email: email.trim(),
               full_name: name.trim(),
-              telegram_id: tgId || undefined,
               telegram_username: tgUsername || undefined,
-              provider: 'telegram',
               is_verified: true,
               updated_at: new Date().toISOString()
-            });
-        } catch (profileErr) {
-          console.warn('[Telegram Onboarding] Profile upsert warning:', profileErr);
+            })
+            .eq('telegram_id', tgId);
         }
       }
 

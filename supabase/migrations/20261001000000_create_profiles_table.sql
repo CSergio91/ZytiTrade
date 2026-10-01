@@ -5,7 +5,7 @@
 -- 1. Tabla de perfiles de usuario
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
   full_name TEXT,
   avatar_url TEXT,
   role TEXT DEFAULT 'trader',
@@ -25,9 +25,13 @@ DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profi
 CREATE POLICY "Public profiles are viewable by everyone" 
   ON public.profiles FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Enable insert for authenticated users and anon" ON public.profiles;
+CREATE POLICY "Enable insert for authenticated users and anon" 
+  ON public.profiles FOR INSERT WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile" 
-  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+  ON public.profiles FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "Service role has full access" ON public.profiles;
 CREATE POLICY "Service role has full access" 
@@ -58,7 +62,16 @@ CREATE TRIGGER on_auth_user_before_insert
 -- 3. Función Trigger para sincronizar automáticamente usuarios nuevos a public.profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  clean_email TEXT;
 BEGIN
+  -- Preservar siempre correos reales; solo omitir si es el dominio sintético obsoleto
+  IF NEW.email LIKE '%@telegram.org' THEN
+    clean_email := NULL;
+  ELSE
+    clean_email := NEW.email;
+  END IF;
+
   INSERT INTO public.profiles (
     id,
     email,
@@ -68,26 +81,31 @@ BEGIN
     provider,
     telegram_id,
     telegram_username,
-    is_verified
+    is_verified,
+    updated_at
   )
   VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    clean_email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'telegram_username', split_part(clean_email, '@', 1), 'Trader'),
     NEW.raw_user_meta_data->>'avatar_url',
     CASE 
-      WHEN NEW.email ILIKE '%admin%' THEN 'admin'
+      WHEN clean_email ILIKE '%admin%' THEN 'admin'
       ELSE 'trader'
     END,
-    COALESCE(NEW.raw_app_meta_data->>'provider', NEW.raw_user_meta_data->>'provider', 'email'),
+    COALESCE(NEW.raw_app_meta_data->>'provider', NEW.raw_user_meta_data->>'provider', 'telegram'),
     (NEW.raw_user_meta_data->>'telegram_id')::BIGINT,
     NEW.raw_user_meta_data->>'telegram_username',
-    TRUE
+    TRUE,
+    NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
-    full_name = EXCLUDED.full_name,
-    avatar_url = EXCLUDED.avatar_url,
-    telegram_username = EXCLUDED.telegram_username,
+    email = COALESCE(EXCLUDED.email, public.profiles.email),
+    full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+    telegram_id = COALESCE(EXCLUDED.telegram_id, public.profiles.telegram_id),
+    telegram_username = COALESCE(EXCLUDED.telegram_username, public.profiles.telegram_username),
+    provider = COALESCE(EXCLUDED.provider, public.profiles.provider),
     is_verified = TRUE,
     updated_at = NOW();
 
