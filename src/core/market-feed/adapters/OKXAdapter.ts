@@ -120,16 +120,20 @@ export class OKXAdapter extends BaseMarketAdapter {
         const rows = msg.data;
         if (Array.isArray(rows) && rows.length > 0) {
           const row = rows[0];
+          const closePrice = parseFloat(row[4]);
+          if (isNaN(closePrice) || closePrice <= 0) return;
+
           const bar: KLineBar = {
             timestamp: parseInt(row[0], 10),
             open: parseFloat(row[1]),
             high: parseFloat(row[2]),
             low: parseFloat(row[3]),
-            close: parseFloat(row[4]),
-            volume: parseFloat(row[5])
+            close: closePrice,
+            volume: parseFloat(row[5]) || 0
           };
 
-          this.lastBars.set(`${marketType}:${symbol}`, bar);
+          const key = `${marketType}:${symbol}`;
+          this.lastBars.set(key, bar);
           this.emit({
             type: 'KLINE',
             payload: {
@@ -140,18 +144,19 @@ export class OKXAdapter extends BaseMarketAdapter {
             }
           });
 
-          // TICK_UPDATE consolidado
-          const stats = this.lastStats.get(`${marketType}:${symbol}`) || {
+          // TICK_UPDATE consolidado preservando stats anteriores
+          const prevStats = this.lastStats.get(key);
+          const stats: MarketStats = {
             symbol,
             exchange: this.exchangeId,
             marketType,
             lastPrice: bar.close,
-            change24h: 0,
-            high24h: bar.high,
-            low24h: bar.low,
-            volume24h: bar.volume
+            change24h: prevStats?.change24h ?? 0,
+            high24h: Math.max(bar.high, prevStats?.high24h ?? bar.high),
+            low24h: Math.min(bar.low, prevStats?.low24h ?? bar.low),
+            volume24h: prevStats?.volume24h ?? bar.volume
           };
-          stats.lastPrice = bar.close;
+          this.lastStats.set(key, stats);
 
           this.emit({
             type: 'TICK_UPDATE',
@@ -170,22 +175,32 @@ export class OKXAdapter extends BaseMarketAdapter {
       else if (channel === 'tickers') {
         const row = msg.data[0];
         if (row) {
-          const lastPrice = parseFloat(row.last || 0);
-          const open24h = parseFloat(row.open24h || lastPrice);
-          const change24h = open24h > 0 ? ((lastPrice - open24h) / open24h) * 100 : 0;
+          const key = `${marketType}:${symbol}`;
+          const prevStats = this.lastStats.get(key);
+
+          const rawPrice = parseFloat(row.last);
+          const lastPrice = !isNaN(rawPrice) && rawPrice > 0 ? rawPrice : (prevStats?.lastPrice || 0);
+
+          if (lastPrice <= 0) return;
+
+          const open24h = parseFloat(row.open24h);
+          let change24h = prevStats?.change24h ?? 0;
+          if (!isNaN(open24h) && open24h > 0) {
+            change24h = Number((((lastPrice - open24h) / open24h) * 100).toFixed(2));
+          }
 
           const stats: MarketStats = {
             symbol,
             exchange: this.exchangeId,
             marketType,
             lastPrice,
-            change24h,
-            high24h: parseFloat(row.high24h || lastPrice),
-            low24h: parseFloat(row.low24h || lastPrice),
-            volume24h: parseFloat(row.volCcy24h || row.vol24h || 0)
+            change24h: Number(change24h.toFixed(2)),
+            high24h: parseFloat(row.high24h) || prevStats?.high24h || lastPrice,
+            low24h: parseFloat(row.low24h) || prevStats?.low24h || lastPrice,
+            volume24h: parseFloat(row.volCcy24h || row.vol24h || '0') || prevStats?.volume24h || 0
           };
 
-          this.lastStats.set(`${marketType}:${symbol}`, stats);
+          this.lastStats.set(key, stats);
           this.emit({
             type: 'TICKER',
             payload: {

@@ -202,18 +202,22 @@ export class KuCoinAdapter extends BaseMarketAdapter {
             }
           });
 
+          const key = `${marketType}:${symbol}`;
+          this.lastBars.set(key, bar);
+
           // También emitir TICK_UPDATE consolidado
-          const stats = this.lastStats.get(`${marketType}:${symbol}`) || {
+          const prevStats = this.lastStats.get(key);
+          const stats: MarketStats = {
             symbol,
             exchange: this.exchangeId,
             marketType,
             lastPrice: bar.close,
-            change24h: 0,
-            high24h: bar.high,
-            low24h: bar.low,
-            volume24h: bar.volume
+            change24h: prevStats?.change24h ?? 0,
+            high24h: Math.max(bar.high, prevStats?.high24h ?? bar.high),
+            low24h: Math.min(bar.low, prevStats?.low24h ?? bar.low),
+            volume24h: prevStats?.volume24h ?? bar.volume
           };
-          stats.lastPrice = bar.close;
+          this.lastStats.set(key, stats);
 
           this.emit({
             type: 'TICK_UPDATE',
@@ -235,12 +239,15 @@ export class KuCoinAdapter extends BaseMarketAdapter {
 
         const price = parseFloat(data.price || data.lastPrice || 0);
         if (price > 0) {
+          const rawRate = parseFloat(data.changeRate || data.priceChange24h || 0) * 100;
+          const change24h = !isNaN(rawRate) ? Number(rawRate.toFixed(2)) : 0;
+
           const stats: MarketStats = {
             symbol,
             exchange: this.exchangeId,
             marketType,
             lastPrice: price,
-            change24h: parseFloat(data.changeRate || data.priceChange24h || 0) * 100,
+            change24h,
             high24h: parseFloat(data.high24h || data.highPrice || price),
             low24h: parseFloat(data.low24h || data.lowPrice || price),
             volume24h: parseFloat(data.volValue || data.volume || 0)

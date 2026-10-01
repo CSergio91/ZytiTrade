@@ -147,15 +147,6 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
         </div>
       ) : (
         <>
-          {/* CABECERA SALDO DEMO */}
-          <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-[#fbf9f4] border border-[#ded5c5]">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              {isEs ? 'Saldo Demo' : 'Demo Balance'}
-            </span>
-            <span className="text-xs font-mono font-black text-slate-900">
-              ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-            </span>
-          </div>
 
       {/* SELECTOR COMPRA / VENTA */}
       <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#ede5d6]">

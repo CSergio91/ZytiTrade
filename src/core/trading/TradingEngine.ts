@@ -154,25 +154,32 @@ export class TradingEngine {
         }
       }
 
-      // 2. Verificación Stop Loss
+      // 2. Verificación Stop Loss (soporta riesgo estándar, Break-Even exacto y trailing stop en ganancia)
       if (pos.slPrice) {
         const hitSL = isLong ? currentPrice <= pos.slPrice : currentPrice >= pos.slPrice;
         if (hitSL) {
-          const pnlLoss = Math.abs(pos.slPrice - pos.entry) * pos.sizeUnits;
-          balanceDelta -= pnlLoss;
+          const rawPnL = isLong
+            ? (pos.slPrice - pos.entry) * pos.sizeUnits
+            : (pos.entry - pos.slPrice) * pos.sizeUnits;
+          const pnlVal = Number(rawPnL.toFixed(2));
+          balanceDelta += pnlVal;
+          const isProfit = pnlVal >= 0;
           const closed = {
             ...pos,
             status: 'CLOSED' as const,
             mark: pos.slPrice,
-            pnlUsdt: -pnlLoss,
-            pnlPercentNum: pos.collateralUsdt > 0 ? (-pnlLoss / pos.collateralUsdt) * 100 : 0,
+            pnlUsdt: pnlVal,
+            pnlPercentNum: pos.collateralUsdt > 0 ? Number(((pnlVal / pos.collateralUsdt) * 100).toFixed(2)) : 0,
+            pnl: `${isProfit ? '+' : ''}${pnlVal.toFixed(2)} USDT`,
+            pnlPercent: `${isProfit ? '+' : ''}${pos.collateralUsdt > 0 ? ((pnlVal / pos.collateralUsdt) * 100).toFixed(2) : '0.00'}%`,
+            isProfit,
             closedAt: new Date().toISOString()
           };
           closedPositions.push(closed);
           events.push({
             type: 'SL_HIT',
             position: closed,
-            realizedPnL: -pnlLoss,
+            realizedPnL: pnlVal,
             price: pos.slPrice
           });
           continue;

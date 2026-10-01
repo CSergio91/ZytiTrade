@@ -78,6 +78,15 @@ html:not(.dark) p {
   animation: floatReverse 5.2s ease-in-out infinite;
 }
 
+/* Interacción táctil fluida de KLineChart y sus ejes en móviles y tablets */
+#trading-terminal-chart,
+#trading-terminal-chart *,
+.terminal-chart-canvas-box {
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 /* Animación de entrada suave pero ágil (Staggered Zoom & Slide) */
 @keyframes slideCardIn {
   0% {
@@ -466,14 +475,19 @@ html:not(.dark) .text-slate-500 {
     flex-direction: column !important;
     flex-shrink: 0 !important;
     border-top: 1px solid #ded5c5 !important;
-    transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative !important;
   }
   .terminal-desktop-positions.is-collapsed {
     height: 34px !important;
     overflow: hidden !important;
+    transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
   .terminal-desktop-positions.is-expanded {
-    height: 160px !important;
+    min-height: 80px;
+    max-height: 75vh;
+  }
+  .terminal-desktop-positions.is-animating {
+    transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
   .terminal-desktop-sidebar {
     display: flex !important;

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Target, ShieldAlert, X, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { Target, ShieldAlert, X, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { playTakeProfitSound, playStopLossSound } from '../../utils/audioAlerts';
 
 export interface ToastNotification {
   id: string;
-  type: 'tp' | 'sl' | 'info' | 'success';
+  type: 'tp' | 'sl' | 'buy' | 'sell' | 'info' | 'success' | 'warning';
   title: string;
   message?: string;
   symbol?: string;
@@ -46,11 +46,11 @@ const ToastItem: React.FC<{
   onDismiss: (id: string) => void;
   isEs: boolean;
 }> = ({ toast, onDismiss, isEs }) => {
-  const duration = toast.duration ?? 5000;
+  const duration = toast.duration ?? 4500;
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
-    // Reproducir sonido armónico correspondiente
+    // Reproducir sonido correspondiente según tipo de evento
     if (toast.type === 'tp') {
       playTakeProfitSound();
     } else if (toast.type === 'sl') {
@@ -71,109 +71,128 @@ const ToastItem: React.FC<{
     return () => clearInterval(interval);
   }, [toast.id, toast.type, duration, onDismiss]);
 
+  const isBuy = toast.type === 'buy';
+  const isSell = toast.type === 'sell';
   const isTP = toast.type === 'tp';
   const isSL = toast.type === 'sl';
+  const isWarning = toast.type === 'warning';
+  const isInfo = toast.type === 'info';
   const isSuccess = toast.type === 'success';
+
+  // Identificación de color sólido: Compra / Ganancia (Verde Esmeralda sólido) vs Venta / Pérdida (Rojo Carmesí sólido)
+  const isGreen = isBuy || isTP || (toast.pnlUsdt !== undefined && toast.pnlUsdt >= 0) || isSuccess;
+  const isRed = isSell || isSL || (toast.pnlUsdt !== undefined && toast.pnlUsdt < 0);
+
+  const containerBgClass = isWarning
+    ? 'bg-amber-600 border-amber-500 shadow-amber-950/30'
+    : isInfo
+    ? 'bg-slate-900 border-slate-700 shadow-black/40'
+    : isGreen
+    ? 'bg-emerald-600 border-emerald-500 shadow-emerald-950/40'
+    : isRed
+    ? 'bg-rose-600 border-rose-500 shadow-rose-950/40'
+    : 'bg-slate-900 border-slate-700 shadow-black/40';
+
+  const hasPnL = toast.pnlUsdt !== undefined;
 
   return (
     <div
-      className={`pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-md p-3.5 transition-all duration-300 animate-slide-in-right ${
-        isTP
-          ? 'bg-slate-950/95 border-emerald-500/50 text-white shadow-emerald-950/30'
-          : isSL
-          ? 'bg-slate-950/95 border-rose-500/50 text-white shadow-rose-950/30'
-          : isSuccess
-          ? 'bg-slate-950/95 border-amber-500/50 text-white shadow-amber-950/20'
-          : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-900/10'
-      }`}
+      className={`pointer-events-auto relative overflow-hidden rounded-xl border shadow-xl p-2.5 sm:p-3 text-white transition-all duration-300 animate-slide-in-right ${containerBgClass}`}
     >
-      <div className="flex items-start gap-3">
-        {/* ICONO CON GLOW */}
-        <div
-          className={`p-2 rounded-xl shrink-0 ${
-            isTP
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : isSL
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              : isSuccess
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-              : 'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {isTP && <Target className="w-5 h-5 animate-pulse" />}
-          {isSL && <ShieldAlert className="w-5 h-5" />}
-          {isSuccess && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-          {!isTP && !isSL && !isSuccess && <CheckCircle2 className="w-5 h-5" />}
+      <div className="flex items-start gap-2.5">
+        {/* ICONO COMPACTO EN PASTILLA BLANCA SEMITRANSPARENTE */}
+        <div className="p-1.5 rounded-lg bg-white/20 text-white shrink-0 mt-0.5 backdrop-blur-xs flex items-center justify-center">
+          {isTP && <Target className="w-4 h-4 animate-pulse" />}
+          {isSL && <ShieldAlert className="w-4 h-4" />}
+          {isBuy && <TrendingUp className="w-4 h-4" />}
+          {isSell && <TrendingDown className="w-4 h-4" />}
+          {isWarning && <AlertTriangle className="w-4 h-4 animate-bounce" />}
+          {isSuccess && !isBuy && <CheckCircle2 className="w-4 h-4" />}
+          {isInfo && <Info className="w-4 h-4 text-sky-200" />}
         </div>
 
-        {/* CONTENIDO TEXTUAL */}
-        <div className="flex-1 min-w-0 pr-4">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-black tracking-tight">{toast.title}</span>
-            {toast.symbol && (
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                {toast.symbol}
+        {/* CONTENIDO ESTRUCTURADO Y COMPACTO */}
+        <div className="flex-1 min-w-0">
+          {/* CABECERA: TÍTULO + SÍMBOLO + BOTÓN CERRAR */}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-black uppercase tracking-wide text-white truncate">
+                {toast.title}
               </span>
-            )}
-          </div>
-
-          {toast.message && (
-            <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">
-              {toast.message}
-            </p>
-          )}
-
-          {/* DETALLES DE PNL Y PRECIO */}
-          {(toast.pnlUsdt !== undefined || toast.price !== undefined) && (
-            <div className="flex items-center gap-2 mt-1.5 text-xs font-mono">
-              {toast.pnlUsdt !== undefined && (
-                <span
-                  className={`font-black flex items-center gap-0.5 ${
-                    toast.pnlUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                  }`}
-                >
-                  {toast.pnlUsdt >= 0 ? (
-                    <TrendingUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <TrendingDown className="w-3.5 h-3.5" />
-                  )}
-                  <span>
-                    {toast.pnlUsdt >= 0 ? '+' : ''}${toast.pnlUsdt.toFixed(2)} USDT
-                  </span>
-                  {toast.pnlPercent !== undefined && (
-                    <span className="text-[10px] opacity-80">
-                      ({toast.pnlPercent >= 0 ? '+' : ''}{toast.pnlPercent.toFixed(1)}%)
-                    </span>
-                  )}
+              {toast.symbol && (
+                <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-white border border-white/20 shrink-0">
+                  {toast.symbol}
                 </span>
               )}
+            </div>
 
+            <button
+              type="button"
+              onClick={() => onDismiss(toast.id)}
+              className="text-white/80 hover:text-white p-0.5 rounded hover:bg-white/20 transition-colors cursor-pointer shrink-0 -mr-0.5"
+              title={isEs ? 'Cerrar' : 'Dismiss'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* CASO 1: CIERRE CON PNL (MANUAL, TP O SL) -> PNL DESTACADO Y MÁS GRANDE */}
+          {hasPnL && (
+            <div className="mt-1.5 flex items-baseline justify-between gap-2 border-t border-white/20 pt-1.5">
+              <div className="flex items-baseline gap-1.5 text-white">
+                <span className="text-xl sm:text-2xl font-black font-mono leading-none tracking-tight">
+                  {toast.pnlUsdt! >= 0 ? '+' : ''}${toast.pnlUsdt!.toFixed(2)} USDT
+                </span>
+                {toast.pnlPercent !== undefined && (
+                  <span className="text-xs sm:text-sm font-mono font-black text-white/95">
+                    ({toast.pnlPercent >= 0 ? '+' : ''}{toast.pnlPercent.toFixed(1)}%)
+                  </span>
+                )}
+              </div>
               {toast.price !== undefined && (
-                <span className="text-[10px] text-slate-400">
+                <span className="text-xs font-mono font-bold text-white/90 shrink-0">
                   @${toast.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               )}
             </div>
           )}
-        </div>
 
-        {/* BOTÓN CERRAR */}
-        <button
-          type="button"
-          onClick={() => onDismiss(toast.id)}
-          className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-          title={isEs ? 'Cerrar' : 'Dismiss'}
-        >
-          <X className="w-4 h-4" />
-        </button>
+          {/* CASO 2: APERTURA COMPRA / VENTA (SIN PNL) -> PRECIO Y DETALLES EN UNA SOLA LÍNEA COMPACTA */}
+          {!hasPnL && (isBuy || isSell) && (
+            <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-white/20 pt-1.5 text-xs font-mono text-white">
+              {toast.price !== undefined && (
+                <span className="font-bold text-sm">
+                  ${toast.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              )}
+              {toast.message && (
+                <span className="text-[11px] font-bold text-white/95 truncate ml-auto text-right">
+                  {toast.message}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* CASO 3: TOAST GENERAL (INFO, WARNING, SUCCESS) */}
+          {!hasPnL && !isBuy && !isSell && toast.message && (
+            <p className="mt-1 text-[11px] text-white/95 font-medium leading-snug">
+              {toast.message}
+            </p>
+          )}
+
+          {/* CASO 4: MENSAJE SECUNDARIO EN CIERRE CON PNL SI APLICA (EJ. CIERRE TOTAL) */}
+          {hasPnL && toast.message && (
+            <p className="mt-1 text-[10px] text-white/85 font-medium leading-tight">
+              {toast.message}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* BARRA DE PROGRESO DE AUTO-DISMISS */}
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800/50">
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black/20">
         <div
-          className={`h-full transition-all duration-75 ${
-            isTP ? 'bg-emerald-500' : isSL ? 'bg-rose-500' : 'bg-amber-500'
-          }`}
+          className="h-full bg-white/70 transition-all duration-75"
           style={{ width: `${progress}%` }}
         />
       </div>

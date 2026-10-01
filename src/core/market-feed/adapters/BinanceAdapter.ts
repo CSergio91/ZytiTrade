@@ -22,10 +22,9 @@ export class BinanceAdapter extends BaseMarketAdapter {
     });
   }
 
-  protected getEndpointUrl(marketType: MarketType): string {
-    return marketType === 'futures'
-      ? 'wss://fstream.binance.com/stream'
-      : 'wss://stream.binance.com:9443/stream';
+  protected getEndpointUrl(_marketType: MarketType): string {
+    // stream.binance.com:9443 funciona sin bloqueos geográficos en España/UE y provee klines, trades y tickers en tiempo real
+    return 'wss://stream.binance.com:9443/stream';
   }
 
   private normalizeSymbol(symbol: string): string {
@@ -91,51 +90,99 @@ export class BinanceAdapter extends BaseMarketAdapter {
         const k = data.k;
         const symbol = this.denormalizeSymbol(k.s);
 
+        const closePrice = parseFloat(k.c);
+        if (isNaN(closePrice) || closePrice <= 0) return;
+
         const bar: KLineBar = {
           timestamp: k.t,
           open: parseFloat(k.o),
           high: parseFloat(k.h),
           low: parseFloat(k.l),
-          close: parseFloat(k.c),
-          volume: parseFloat(k.v)
+          close: closePrice,
+          volume: parseFloat(k.v) || 0
         };
 
-        this.lastBars.set(`${marketType}:${symbol}`, bar);
+        const key = `${marketType}:${symbol}`;
+        this.lastBars.set(key, bar);
 
-        const stats = this.lastStats.get(`${marketType}:${symbol}`) || {
-          symbol,
-          exchange: this.exchangeId,
-          marketType,
-          lastPrice: bar.close,
-          change24h: 0,
-          high24h: bar.high,
-          low24h: bar.low,
-          volume24h: bar.volume
-        };
-
-        stats.lastPrice = bar.close;
-
-        this.emit({
-          type: 'TICK_UPDATE',
-          payload: { symbol, bar, stats }
-        });
-      }
-
-      // 2. Mensaje de Ticker 24h
-      else if (data.e === '24hrTicker') {
-        const symbol = this.denormalizeSymbol(data.s);
+        const prevStats = this.lastStats.get(key);
         const stats: MarketStats = {
           symbol,
           exchange: this.exchangeId,
           marketType,
-          lastPrice: parseFloat(data.c),
-          change24h: parseFloat(data.P),
-          high24h: parseFloat(data.h),
-          low24h: parseFloat(data.l),
-          volume24h: parseFloat(data.v)
+          lastPrice: bar.close,
+          change24h: prevStats?.change24h ?? 0,
+          high24h: Math.max(bar.high, prevStats?.high24h ?? bar.high),
+          low24h: Math.min(bar.low, prevStats?.low24h ?? bar.low),
+          volume24h: prevStats?.volume24h ?? bar.volume
+        };
+        this.lastStats.set(key, stats);
+
+        this.emit({
+          type: 'TICK_UPDATE',
+          payload: { 
+            symbol, 
+            bar, 
+            stats,
+            exchange: this.exchangeId,
+            marketType
+          }
+        });
+      }
+
+      // 2. Mensaje de Ticker 24h: Solo actualiza stats y emite TICKER (no altera velas)
+      else if (data.e === '24hrTicker' || data.e === '24hrMiniTicker') {
+        const symbol = this.denormalizeSymbol(data.s);
+        const lastPrice = parseFloat(data.c || '0');
+        if (lastPrice <= 0 || isNaN(lastPrice)) return;
+
+        const rawChange = parseFloat(data.P || '0');
+        const change24h = !isNaN(rawChange) ? Number(rawChange.toFixed(2)) : 0;
+
+        const stats: MarketStats = {
+          symbol,
+          exchange: this.exchangeId,
+          marketType,
+          lastPrice,
+          change24h,
+          high24h: parseFloat(data.h || String(lastPrice)),
+          low24h: parseFloat(data.l || String(lastPrice)),
+          volume24h: parseFloat(data.v || '0')
         };
 
         this.lastStats.set(`${marketType}:${symbol}`, stats);
+
+        this.emit({
+          type: 'TICKER',
+          payload: { exchange: this.exchangeId, symbol, marketType, stats }
+        });
+      }
+
+      // 3. Mensajes de Trades: Actualizan el precio vivo inmediatamente
+      else if (data.e === 'trade' || data.e === 'aggTrade') {
+        const symbol = this.denormalizeSymbol(data.s);
+        const price = parseFloat(data.p);
+        if (price > 0 && !isNaN(price)) {
+          const key = `${marketType}:${symbol}`;
+          const prevStats = this.lastStats.get(key);
+          const stats: MarketStats = prevStats
+            ? { ...prevStats, lastPrice: price }
+            : {
+                symbol,
+                exchange: this.exchangeId,
+                marketType,
+                lastPrice: price,
+                change24h: 0,
+                high24h: price,
+                low24h: price,
+                volume24h: 0
+              };
+          this.lastStats.set(key, stats);
+          this.emit({
+            type: 'TICKER',
+            payload: { exchange: this.exchangeId, symbol, marketType, stats }
+          });
+        }
       }
 
       // 3. Libro de Órdenes L2 (depth20)

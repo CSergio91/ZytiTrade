@@ -1,98 +1,189 @@
 /**
- * ZYTI Trade - High-Frequency Market Data Web Worker
- * Ejecuta la ingesta, normalización de ticks, agregación de velas KLine y OrderBook L2
- * en un hilo secundario independiente del navegador para preservar 60 FPS ininterrumpidos en la UI.
+ * ZYTI Trade - Multi-Exchange High-Frequency Market Data Web Worker
+ * Ejecuta en un hilo secundario independiente la ingesta, normalización de ticks,
+ * suscripción WSS multi-exchange vía MarketFeedHub y agregación KLine/OrderBook L2
+ * para garantizar 60 FPS ininterrumpidos en el hilo principal de React.
  */
 
-export interface KLineBar {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+import { marketFeedHub } from '../core/market-feed/MarketFeedHub';
+import { MarketType, KLineBar, OrderBookPayload, MarketStats } from '../core/market-feed/types';
 
-export interface OrderBookLevel {
-  price: number;
-  amount: number;
-  total: number;
-}
+export type { KLineBar, OrderBookPayload, MarketStats, MarketType };
 
-export interface OrderBookPayload {
-  bids: OrderBookLevel[];
-  asks: OrderBookLevel[];
-}
+// Estado del Worker
+let currentExchange: string = 'binance';
+let currentMarketType: MarketType = 'futures';
+let currentSymbol: string = 'BTC/USDT';
+let currentTimeframe: string = '15m';
 
-export interface MarketStats {
-  symbol: string;
-  lastPrice: number;
-  change24h: number;
-  high24h: number;
-  low24h: number;
-  volume24h: number;
-}
+let syntheticInterval: ReturnType<typeof setInterval> | null = null;
 
-// Estado local del Worker
-let activeSymbol = 'BTC/USDT';
-let activeTimeframe = '15m';
-let currentPrice = 68450.0;
-let currentBar: KLineBar | null = null;
-let tickTimer: ReturnType<typeof setInterval> | null = null;
-let orderBookTimer: ReturnType<typeof setInterval> | null = null;
-
-// Map de precios base iniciales por par
+// Map de precios base iniciales por par para fallback offline
 const BASE_PRICES: Record<string, number> = {
-  'BTC/USDT': 68450.0,
-  'ETH/USDT': 3520.0,
-  'SOL/USDT': 188.5,
-  'BNB/USDT': 592.0,
-  'XRP/USDT': 0.624
+  'BTC/USDT': 96450.0,
+  'ETH/USDT': 2688.0,
+  'SOL/USDT': 218.5,
+  'BNB/USDT': 685.0,
+  'XRP/USDT': 2.45
 };
 
-// Generador de historial inicial de velas (300 barras)
-function generateHistoricalBars(symbol: string, timeframe: string, count = 250): KLineBar[] {
+function generateOrderBookFromMid(
+  midPrice: number,
+  symbol: string,
+  exchange: string,
+  marketType: MarketType
+): OrderBookPayload {
+  const spread = midPrice * 0.0001;
+  const bids = [1, 2, 3, 4, 5, 6].map((i) => ({
+    price: Number((midPrice - spread * i).toFixed(2)),
+    amount: Number((0.2 + i * 0.4).toFixed(3)),
+    total: Number((0.2 + i * 0.4).toFixed(3))
+  }));
+  const asks = [1, 2, 3, 4, 5, 6].map((i) => ({
+    price: Number((midPrice + spread * i).toFixed(2)),
+    amount: Number((0.2 + i * 0.4).toFixed(3)),
+    total: Number((0.2 + i * 0.4).toFixed(3))
+  }));
+
+  return {
+    symbol,
+    exchange,
+    marketType,
+    timestamp: Date.now(),
+    bids,
+    asks
+  };
+}
+
+function normalizeForBinance(symbol: string): string {
+  return symbol.replace('/', '').toUpperCase();
+}
+
+function normalizeForBybit(symbol: string): string {
+  return symbol.replace('/', '').toUpperCase();
+}
+
+function mapTimeframeToBinance(tf: string): string {
+  return tf.toLowerCase();
+}
+
+function mapTimeframeToBybit(tf: string): string {
+  const map: Record<string, string> = {
+    '1m': '1',
+    '3m': '3',
+    '5m': '5',
+    '15m': '15',
+    '30m': '30',
+    '1h': '60',
+    '2h': '120',
+    '4h': '240',
+    '1d': 'D',
+    '1D': 'D',
+    '1w': 'W'
+  };
+  return map[tf] || '15';
+}
+
+/**
+ * Obtiene velas históricas oficiales vía REST con timeout y fallback estocástico
+ */
+async function fetchHistoricalKlines(
+  exchange: string,
+  symbol: string,
+  timeframe: string,
+  marketType: MarketType
+): Promise<KLineBar[]> {
+  const clean = symbol.replace('/', '').toUpperCase();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+
+    if (exchange === 'binance') {
+      const tf = mapTimeframeToBinance(timeframe);
+      // Intentar primero api.binance.com (disponible globalmente sin CORS ni bloqueo regional) y luego fapi
+      const endpoints = [
+        `https://api.binance.com/api/v3/klines?symbol=${clean}&interval=${tf}&limit=200`,
+        `https://fapi.binance.com/fapi/v1/klines?symbol=${clean}&interval=${tf}&limit=200`
+      ];
+
+      for (const ep of endpoints) {
+        try {
+          const res = await fetch(ep, { signal: controller.signal });
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json) && json.length > 0) {
+              clearTimeout(timeout);
+              return json.map((r: any) => ({
+                timestamp: r[0],
+                open: parseFloat(r[1]),
+                high: parseFloat(r[2]),
+                low: parseFloat(r[3]),
+                close: parseFloat(r[4]),
+                volume: parseFloat(r[5])
+              }));
+            }
+          }
+        } catch {}
+      }
+    } else if (exchange === 'bybit') {
+      const tf = mapTimeframeToBybit(timeframe);
+      const category = marketType === 'futures' ? 'linear' : 'spot';
+      const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${clean}&interval=${tf}&limit=200`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result?.list && Array.isArray(json.result.list)) {
+          const list = [...json.result.list].reverse();
+          return list.map((r: any) => ({
+            timestamp: parseInt(r[0], 10),
+            open: parseFloat(r[1]),
+            high: parseFloat(r[2]),
+            low: parseFloat(r[3]),
+            close: parseFloat(r[4]),
+            volume: parseFloat(r[5])
+          }));
+        }
+      }
+    }
+  } catch (err) {
+    // Si hay CORS de navegador, restricción o red caída, recurrir grácilmente al generador local
+  }
+
+  return generateFallbackHistoricalBars(symbol, timeframe);
+}
+
+/**
+ * Generador matemático de respaldo local (300 barras) si falla la API REST del exchange
+ */
+function generateFallbackHistoricalBars(symbol: string, timeframe: string, count = 200): KLineBar[] {
   const base = BASE_PRICES[symbol] || 68450.0;
   const bars: KLineBar[] = [];
-  
-  // Intervalo en milisegundos según timeframe
+
   const timeframeMs: Record<string, number> = {
-    '1s': 1000,
-    '5s': 5 * 1000,
-    '15s': 15 * 1000,
-    '30s': 30 * 1000,
     '1m': 60 * 1000,
     '3m': 3 * 60 * 1000,
     '5m': 5 * 60 * 1000,
     '15m': 15 * 60 * 1000,
     '30m': 30 * 60 * 1000,
-    '45m': 45 * 60 * 1000,
     '1h': 60 * 60 * 1000,
     '2h': 2 * 60 * 60 * 1000,
     '4h': 4 * 60 * 60 * 1000,
-    '12h': 12 * 60 * 60 * 1000,
-    '1d': 24 * 60 * 60 * 1000,
-    '1D': 24 * 60 * 60 * 1000,
-    '3d': 3 * 24 * 60 * 60 * 1000,
-    '1w': 7 * 24 * 60 * 60 * 1000,
-    '1M': 30 * 24 * 60 * 60 * 1000,
-    '3M': 90 * 24 * 60 * 60 * 1000,
-    '6M': 180 * 24 * 60 * 60 * 1000,
-    '12M': 365 * 24 * 60 * 60 * 1000,
-    '1Y': 365 * 24 * 60 * 60 * 1000
+    '1d': 24 * 60 * 60 * 1000
   };
-  
+
   const stepMs = timeframeMs[timeframe] || 15 * 60 * 1000;
   const now = Date.now();
-  let price = base * 0.94; // Inicio un poco por debajo para dar tendencia realista
-  
+  let price = base * 0.95;
+
   for (let i = count; i >= 1; i--) {
     const timestamp = now - i * stepMs;
-    // Movimiento aleatorio con reversión a la media
     const drift = (base - price) * 0.005;
     const volatility = base * 0.0035;
     const delta = drift + (Math.random() - 0.49) * volatility;
-    
+
     const open = price;
     const close = Math.max(open * 0.5, open + delta);
     const wick1 = Math.random() * (volatility * 0.8);
@@ -113,46 +204,111 @@ function generateHistoricalBars(symbol: string, timeframe: string, count = 250):
     price = close;
   }
 
-  currentPrice = price;
-  currentBar = { ...bars[bars.length - 1] };
   return bars;
 }
 
-// Generador de OrderBook L2 realista (10 niveles Bids / Asks)
-function generateOrderBook(midPrice: number): OrderBookPayload {
-  const spread = midPrice * 0.00015;
-  const bids: OrderBookLevel[] = [];
-  const asks: OrderBookLevel[] = [];
-  
-  let cumBid = 0;
-  let cumAsk = 0;
-  const step = midPrice * 0.0002;
+let feedSequenceId = 0;
+let hubListenerInitialized = false;
 
-  for (let i = 1; i <= 8; i++) {
-    const bPrice = parseFloat((midPrice - spread - (i - 1) * step).toFixed(2));
-    const bAmount = parseFloat((0.2 + Math.random() * 3.5).toFixed(4));
-    cumBid += bAmount;
-    bids.push({ price: bPrice, amount: bAmount, total: parseFloat(cumBid.toFixed(4)) });
+function initHubEventListener() {
+  if (hubListenerInitialized) return;
+  hubListenerInitialized = true;
 
-    const aPrice = parseFloat((midPrice + spread + (i - 1) * step).toFixed(2));
-    const aAmount = parseFloat((0.2 + Math.random() * 3.5).toFixed(4));
-    cumAsk += aAmount;
-    asks.push({ price: aPrice, amount: aAmount, total: parseFloat(cumAsk.toFixed(4)) });
-  }
+  marketFeedHub.onEvent((event) => {
+    const payload = event.payload as any;
+    if (!payload) return;
 
-  return { bids, asks };
+    // Filtro estricto: Descartar eventos de exchanges, pares o mercados anteriores
+    const eventExchange = (payload.exchange || payload.stats?.exchange || '').toLowerCase();
+    const eventSymbol = payload.symbol || payload.stats?.symbol || '';
+    const eventMarket = payload.marketType || payload.stats?.marketType || '';
+
+    if (eventExchange && eventExchange !== currentExchange.toLowerCase()) return;
+    if (eventSymbol && eventSymbol !== currentSymbol) return;
+    if (eventMarket && eventMarket !== currentMarketType) return;
+
+    switch (event.type) {
+      case 'TICK_UPDATE': {
+        if (payload.stats) {
+          if (!payload.stats.lastPrice || payload.stats.lastPrice <= 0 || isNaN(payload.stats.lastPrice)) {
+            return;
+          }
+          if (typeof payload.stats.change24h === 'number') {
+            payload.stats.change24h = Number(payload.stats.change24h.toFixed(2));
+          }
+        }
+        self.postMessage(event);
+        break;
+      }
+      case 'TICKER': {
+        if (payload.stats) {
+          if (!payload.stats.lastPrice || payload.stats.lastPrice <= 0 || isNaN(payload.stats.lastPrice)) {
+            return;
+          }
+          if (typeof payload.stats.change24h === 'number') {
+            payload.stats.change24h = Number(payload.stats.change24h.toFixed(2));
+          }
+        }
+        self.postMessage(event);
+        break;
+      }
+      case 'ORDERBOOK_UPDATE': {
+        if (payload.bids && payload.asks && (payload.bids.length > 0 || payload.asks.length > 0)) {
+          self.postMessage(event);
+        }
+        break;
+      }
+      case 'STATUS_CHANGE':
+      case 'ERROR': {
+        self.postMessage(event);
+        break;
+      }
+      default:
+        break;
+    }
+  });
 }
 
-// Inicia el bucle de streaming del Worker
-function startStreaming(symbol: string, timeframe: string) {
-  if (tickTimer) clearInterval(tickTimer);
-  if (orderBookTimer) clearInterval(orderBookTimer);
+/**
+ * Inicia la suscripción a través de MarketFeedHub
+ */
+async function startFeed(
+  exchange: string,
+  symbol: string,
+  timeframe: string,
+  marketType: MarketType
+) {
+  const requestId = ++feedSequenceId;
+  initHubEventListener();
 
-  activeSymbol = symbol;
-  activeTimeframe = timeframe;
+  // Desuscribir stream previo del hub
+  marketFeedHub.unsubscribe(currentExchange, currentSymbol, 'worker', currentMarketType);
 
-  // 1. Enviar historial inicial
-  const bars = generateHistoricalBars(symbol, timeframe);
+  currentExchange = exchange;
+  currentMarketType = marketType;
+  currentSymbol = symbol;
+  currentTimeframe = timeframe;
+
+  // Notificar estado conectando
+  self.postMessage({
+    type: 'STATUS_CHANGE',
+    payload: {
+      exchange,
+      marketType,
+      status: 'CONNECTING'
+    }
+  });
+
+  // Suscribir inmediatamente al hub para que no haya delay en la conexión WebSocket
+  marketFeedHub.subscribe(exchange, symbol, timeframe, 'worker', marketType);
+
+  // 1. Obtener y despachar historial de velas
+  const bars = await fetchHistoricalKlines(exchange, symbol, timeframe, marketType);
+  if (requestId !== feedSequenceId) {
+    // Si hubo otra solicitud mientras esperábamos la red, descartar para evitar sobreescrituras desfasadas
+    return;
+  }
+
   self.postMessage({
     type: 'HISTORICAL_BARS',
     payload: {
@@ -162,30 +318,21 @@ function startStreaming(symbol: string, timeframe: string) {
     }
   });
 
-  // 2. Ticks de alta frecuencia (cada 400ms para simular streaming WSS)
-  tickTimer = setInterval(() => {
-    if (!currentBar) return;
+  // 2. Emitir inmediatamente el precio actual derivado de la última barra para cambio instantáneo en UI
+  const lastBar = bars[bars.length - 1];
+  if (lastBar && lastBar.close > 0) {
+    const open24h = bars[0]?.open || lastBar.open;
+    const change24h = open24h > 0 ? ((lastBar.close - open24h) / open24h) * 100 : 0;
+    const high24h = Math.max(...bars.map((b) => b.high));
+    const low24h = Math.min(...bars.map((b) => b.low));
+    const volume24h = bars.reduce((acc, b) => acc + b.volume, 0);
 
-    const base = BASE_PRICES[symbol] || 68450.0;
-    const tickDelta = (Math.random() - 0.495) * (base * 0.0006);
-    currentPrice = parseFloat(Math.max(1, currentPrice + tickDelta).toFixed(2));
-
-    // Actualizar la vela viva actual
-    currentBar.close = currentPrice;
-    if (currentPrice > currentBar.high) currentBar.high = currentPrice;
-    if (currentPrice < currentBar.low) currentBar.low = currentPrice;
-    currentBar.volume += Math.floor(Math.random() * 3);
-
-    // Calcular estadísticas 24h
-    const change24h = parseFloat((((currentPrice - base) / base) * 100).toFixed(2));
-    const high24h = parseFloat((base * 1.025).toFixed(2));
-    const low24h = parseFloat((base * 0.975).toFixed(2));
-    const volume24h = 42890;
-
-    const stats: MarketStats = {
-      symbol: activeSymbol,
-      lastPrice: currentPrice,
-      change24h,
+    const initialStats: MarketStats = {
+      symbol,
+      exchange,
+      marketType,
+      lastPrice: lastBar.close,
+      change24h: Number(change24h.toFixed(2)),
       high24h,
       low24h,
       volume24h
@@ -194,43 +341,55 @@ function startStreaming(symbol: string, timeframe: string) {
     self.postMessage({
       type: 'TICK_UPDATE',
       payload: {
-        symbol: activeSymbol,
-        bar: { ...currentBar },
-        stats
+        symbol,
+        bar: lastBar,
+        stats: initialStats,
+        exchange,
+        marketType
       }
     });
-  }, 400);
 
-  // 3. Order Book L2 updates (cada 600ms)
-  orderBookTimer = setInterval(() => {
-    const ob = generateOrderBook(currentPrice);
+    // Despachar OrderBook inicial para que nunca esté vacío ni salte
     self.postMessage({
       type: 'ORDERBOOK_UPDATE',
-      payload: ob
+      payload: generateOrderBookFromMid(lastBar.close, symbol, exchange, marketType)
     });
-  }, 600);
+  }
 }
 
-// Receptor de comandos desde el hilo principal de React
+// Receptor de comandos del hilo principal
 self.onmessage = (e: MessageEvent) => {
   const { type, payload } = e.data || {};
 
   switch (type) {
     case 'SUBSCRIBE': {
-      const { symbol, timeframe } = payload;
-      startStreaming(symbol || 'BTC/USDT', timeframe || '15m');
+      const exchange = payload?.exchange || currentExchange;
+      const symbol = payload?.symbol || currentSymbol;
+      const timeframe = payload?.timeframe || currentTimeframe;
+      const marketType = (payload?.marketType as MarketType) || currentMarketType;
+
+      startFeed(exchange, symbol, timeframe, marketType);
       break;
     }
+
     case 'CHANGE_TIMEFRAME': {
-      const { timeframe } = payload;
-      startStreaming(activeSymbol, timeframe || '15m');
+      const timeframe = payload?.timeframe || currentTimeframe;
+      startFeed(currentExchange, currentSymbol, timeframe, currentMarketType);
       break;
     }
+
+    case 'CHANGE_EXCHANGE': {
+      const exchange = payload?.exchange || currentExchange;
+      const marketType = (payload?.marketType as MarketType) || currentMarketType;
+      startFeed(exchange, currentSymbol, currentTimeframe, marketType);
+      break;
+    }
+
     case 'UNSUBSCRIBE': {
-      if (tickTimer) clearInterval(tickTimer);
-      if (orderBookTimer) clearInterval(orderBookTimer);
+      marketFeedHub.unsubscribe(currentExchange, currentSymbol, 'worker', currentMarketType);
       break;
     }
+
     default:
       break;
   }

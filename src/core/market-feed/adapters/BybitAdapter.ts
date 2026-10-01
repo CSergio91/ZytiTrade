@@ -110,28 +110,35 @@ export class BybitAdapter extends BaseMarketAdapter {
         const barData = Array.isArray(data) ? data[0] : data;
         if (!barData) return;
 
+        const closePrice = parseFloat(barData.close);
+        if (isNaN(closePrice) || closePrice <= 0) return;
+
         const bar: KLineBar = {
           timestamp: parseInt(barData.start || barData.timestamp, 10),
           open: parseFloat(barData.open),
           high: parseFloat(barData.high),
           low: parseFloat(barData.low),
-          close: parseFloat(barData.close),
-          volume: parseFloat(barData.volume)
+          close: closePrice,
+          volume: parseFloat(barData.volume) || 0
         };
 
-        this.lastBars.set(`${marketType}:${sym}`, bar);
+        const key = `${marketType}:${sym}`;
+        this.lastBars.set(key, bar);
 
-        const stats = this.lastStats.get(`${marketType}:${sym}`) || {
+        const prevStats = this.lastStats.get(key);
+        const stats: MarketStats = {
           symbol: sym,
           exchange: this.exchangeId,
           marketType,
           lastPrice: bar.close,
-          change24h: 0,
-          high24h: bar.high,
-          low24h: bar.low,
-          volume24h: bar.volume
+          change24h: prevStats?.change24h ?? 0,
+          high24h: Math.max(bar.high, prevStats?.high24h ?? bar.high),
+          low24h: Math.min(bar.low, prevStats?.low24h ?? bar.low),
+          volume24h: prevStats?.volume24h ?? bar.volume,
+          fundingRate: prevStats?.fundingRate,
+          nextFundingTime: prevStats?.nextFundingTime
         };
-        stats.lastPrice = bar.close;
+        this.lastStats.set(key, stats);
 
         this.emit({
           type: 'TICK_UPDATE',
@@ -143,27 +150,46 @@ export class BybitAdapter extends BaseMarketAdapter {
       else if (topic.startsWith('tickers.')) {
         const parts = topic.split('.');
         const sym = this.denormalizeSymbol(parts[1] || data.symbol || '');
+        const key = `${marketType}:${sym}`;
+        const prevStats = this.lastStats.get(key);
 
-        const lastPrice = parseFloat(data.lastPrice || '0');
-        const change24h = parseFloat(data.price24hPcnt ? (parseFloat(data.price24hPcnt) * 100).toFixed(2) : '0');
-        const high24h = parseFloat(data.highPrice24h || '0');
-        const low24h = parseFloat(data.lowPrice24h || '0');
-        const volume24h = parseFloat(data.volume24h || '0');
+        const rawPrice = parseFloat(data.lastPrice);
+        const lastPrice = !isNaN(rawPrice) && rawPrice > 0 ? rawPrice : (prevStats?.lastPrice || 0);
+
+        // Si no hay precio válido todavía, evitar emitir ceros
+        if (lastPrice <= 0) return;
+
+        let change24h = prevStats?.change24h ?? 0;
+        if (data.price24hPcnt !== undefined && data.price24hPcnt !== null && data.price24hPcnt !== '') {
+          const parsed = parseFloat(data.price24hPcnt) * 100;
+          if (!isNaN(parsed)) {
+            change24h = Number(parsed.toFixed(2));
+          }
+        }
+
+        const high24h = parseFloat(data.highPrice24h) || prevStats?.high24h || lastPrice;
+        const low24h = parseFloat(data.lowPrice24h) || prevStats?.low24h || lastPrice;
+        const volume24h = parseFloat(data.volume24h) || prevStats?.volume24h || 0;
 
         const stats: MarketStats = {
           symbol: sym,
           exchange: this.exchangeId,
           marketType,
           lastPrice,
-          change24h,
+          change24h: Number(change24h.toFixed(2)),
           high24h,
           low24h,
           volume24h,
-          fundingRate: data.fundingRate ? parseFloat(data.fundingRate) : undefined,
-          nextFundingTime: data.nextFundingTime ? parseInt(data.nextFundingTime, 10) : undefined
+          fundingRate: data.fundingRate ? parseFloat(data.fundingRate) : prevStats?.fundingRate,
+          nextFundingTime: data.nextFundingTime ? parseInt(data.nextFundingTime, 10) : prevStats?.nextFundingTime
         };
 
-        this.lastStats.set(`${marketType}:${sym}`, stats);
+        this.lastStats.set(key, stats);
+
+        this.emit({
+          type: 'TICKER',
+          payload: { exchange: this.exchangeId, symbol: sym, marketType, stats }
+        });
       }
 
       // 3. Order Book L2

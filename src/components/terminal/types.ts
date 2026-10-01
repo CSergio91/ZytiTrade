@@ -92,3 +92,19 @@ export interface PositionItem {
   createdAt: string; // ISO 8601
   closedAt?: string | null;
 }
+
+export interface ClosedTradeItem {
+  id: string;
+  symbol: string;
+  side: 'LONG' | 'SHORT';
+  size: string;
+  sizeUnits: number;
+  entry: number;
+  exitPrice: number;
+  pnlUsdt: number;
+  pnlPercentNum: number;
+  pnlPercent: string;
+  isProfit: boolean;
+  closedAt: string;
+  closeReason?: 'TP' | 'SL' | 'MANUAL';
+}

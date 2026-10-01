@@ -1,27 +1,37 @@
 import React from 'react';
-import { BookOpen, Layers, X, Zap } from 'lucide-react';
-import { PositionItem } from './types';
+import { BookOpen, Layers, X, Zap, History, Shield } from 'lucide-react';
+import { PositionItem, ClosedTradeItem } from './types';
 
 interface TerminalMobileSheetProps {
   isEs: boolean;
-  activeSheet: 'order' | 'book' | 'positions' | null;
+  activeSheet: 'order' | 'book' | 'positions' | 'history' | null;
   positions: PositionItem[];
+  history: ClosedTradeItem[];
+  demoBalance: number;
+  riskPercent: number;
+  onSetRiskPercent: (risk: number) => void;
   quickTradeEnabled: boolean;
   lastPrice: number;
   bestBid: number;
   bestAsk: number;
   selectedPair: string;
   onQuickTrade: (side: 'buy' | 'sell') => void;
-  setActiveSheet: (sheet: 'order' | 'book' | 'positions' | null) => void;
+  setActiveSheet: (sheet: 'order' | 'book' | 'positions' | 'history' | null) => void;
   renderOrderForm: () => React.ReactNode;
   renderOrderBook: () => React.ReactNode;
   onClosePosition: (id: string) => void;
+  onCloseAllPositions?: () => void;
+  onSetBreakEven?: (pos: PositionItem) => void;
 }
 
 export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   isEs,
   activeSheet,
   positions,
+  history,
+  demoBalance,
+  riskPercent,
+  onSetRiskPercent,
   quickTradeEnabled,
   lastPrice,
   bestBid,
@@ -31,9 +41,11 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   setActiveSheet,
   renderOrderForm,
   renderOrderBook,
-  onClosePosition
+  onClosePosition,
+  onCloseAllPositions,
+  onSetBreakEven
 }) => {
-  const toggleSheet = (tab: 'order' | 'book' | 'positions') => {
+  const toggleSheet = (tab: 'order' | 'book' | 'positions' | 'history') => {
     setActiveSheet(activeSheet === tab ? null : tab);
   };
 
@@ -41,6 +53,9 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
   const totalPnL = positions.reduce((acc, p) => acc + (p.pnlUsdt ?? 0), 0);
   const isPnlProfit = totalPnL >= 0;
+  const equity = demoBalance + totalPnL;
+
+  const currentRiskAmountUsd = (demoBalance * riskPercent) / 100;
 
   return (
     <div className="terminal-mobile-only lg:hidden">
@@ -49,43 +64,77 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
         <div 
           className={`lg:hidden terminal-mobile-only terminal-floating-quicktrade fixed ${
             activeSheet ? 'bottom-[51dvh]' : 'bottom-15'
-          } left-2 right-2 z-30 flex items-center gap-2 animate-zoom-in transition-all duration-300 pointer-events-auto`}
+          } left-2 right-2 z-30 flex flex-col gap-1.5 animate-zoom-in transition-all duration-300 pointer-events-auto`}
         >
-          {/* BOTÓN COMPRA RÁPIDA 1 TOQUE (AL ASK) */}
-          <button
-            type="button"
-            onClick={() => onQuickTrade('buy')}
-            className="flex-1 py-1 px-2 rounded-xl bg-emerald-600/95 hover:bg-emerald-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-emerald-400/30 transition-all"
-          >
-            <div className="flex items-center gap-1 leading-tight">
-              <Zap className="w-3 h-3 fill-white text-white shrink-0" />
-              <span className="text-[11px] font-black uppercase tracking-tight">
-                {isEs ? `Comprar ${baseSymbol}` : `Buy ${baseSymbol}`}
+          {/* BARRA SUPERIOR PEGADA: CONTROL RÁPIDO DEL RIESGO (%) */}
+          <div className="flex items-center justify-between px-2.5 py-1 rounded-xl bg-white/95 backdrop-blur-md border border-[#ded5c5] shadow-md font-sans text-xs">
+            <div className="flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="text-[10px] font-black uppercase text-slate-700 tracking-tight">
+                {isEs ? 'Riesgo' : 'Risk'}:
+              </span>
+              <span className="text-[10.5px] font-mono font-black text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded border border-amber-200">
+                {riskPercent}% (${currentRiskAmountUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT)
               </span>
             </div>
-            <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-emerald-100 mt-0.5">
-              <span>${bestAsk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span className="opacity-80 text-[8px] uppercase font-bold">Ask</span>
-            </div>
-          </button>
 
-          {/* BOTÓN VENTA RÁPIDA 1 TOQUE (AL BID) */}
-          <button
-            type="button"
-            onClick={() => onQuickTrade('sell')}
-            className="flex-1 py-1 px-2 rounded-xl bg-red-600/95 hover:bg-red-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-red-400/30 transition-all"
-          >
-            <div className="flex items-center gap-1 leading-tight">
-              <Zap className="w-3 h-3 fill-white text-white shrink-0" />
-              <span className="text-[11px] font-black uppercase tracking-tight">
-                {isEs ? `Vender ${baseSymbol}` : `Sell ${baseSymbol}`}
-              </span>
+            {/* SELECTOR RÁPIDO DE PORCENTAJES DE RIESGO */}
+            <div className="flex items-center gap-1">
+              {[0.5, 1, 2, 3, 5].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => onSetRiskPercent(r)}
+                  className={`px-1.5 py-0.5 rounded-lg text-[9.5px] font-mono font-bold transition-all cursor-pointer ${
+                    riskPercent === r
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {r}%
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-red-100 mt-0.5">
-              <span>${bestBid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span className="opacity-80 text-[8px] uppercase font-bold">Bid</span>
-            </div>
-          </button>
+          </div>
+
+          {/* BOTONES FLOTANTES COMPRAR Y VENDER */}
+          <div className="flex items-center gap-2">
+            {/* BOTÓN COMPRA RÁPIDA 1 TOQUE (AL ASK) */}
+            <button
+              type="button"
+              onClick={() => onQuickTrade('buy')}
+              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600/95 hover:bg-emerald-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-emerald-400/30 transition-all"
+            >
+              <div className="flex items-center gap-1 leading-tight">
+                <Zap className="w-3 h-3 fill-white text-white shrink-0" />
+                <span className="text-[11px] font-black uppercase tracking-tight">
+                  {isEs ? `Comprar ${baseSymbol}` : `Buy ${baseSymbol}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-emerald-100 mt-0.5">
+                <span>${bestAsk.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="opacity-80 text-[8px] uppercase font-bold">Ask</span>
+              </div>
+            </button>
+
+            {/* BOTÓN VENTA RÁPIDA 1 TOQUE (AL BID) */}
+            <button
+              type="button"
+              onClick={() => onQuickTrade('sell')}
+              className="flex-1 py-1.5 px-2 rounded-xl bg-red-600/95 hover:bg-red-700 active:scale-95 text-white shadow-lg flex flex-col items-center justify-center cursor-pointer border border-red-400/30 transition-all"
+            >
+              <div className="flex items-center gap-1 leading-tight">
+                <Zap className="w-3 h-3 fill-white text-white shrink-0" />
+                <span className="text-[11px] font-black uppercase tracking-tight">
+                  {isEs ? `Vender ${baseSymbol}` : `Sell ${baseSymbol}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 font-mono text-[9.5px] leading-tight text-red-100 mt-0.5">
+                <span>${bestBid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="opacity-80 text-[8px] uppercase font-bold">Bid</span>
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
@@ -147,9 +196,34 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             <span>{isEs ? 'Posiciones' : 'Positions'}</span>
             {positions.length > 0 && (
               <span className={`text-[9px] font-mono font-bold ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>
-                {isPnlProfit ? '+' : ''}${totalPnL.toFixed(1)}
+                {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)}
               </span>
             )}
+          </div>
+        </button>
+
+        <div className="h-6 w-px bg-slate-200" />
+
+        {/* BOTÓN HISTORIAL (POSICIONES CERRADAS) */}
+        <button
+          type="button"
+          onClick={() => toggleSheet('history')}
+          className={`flex-1 py-1.5 flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold transition-all rounded-xl cursor-pointer relative ${
+            activeSheet === 'history'
+              ? 'bg-amber-100/70 text-amber-950 font-black shadow-xs'
+              : 'text-slate-600 hover:text-slate-950'
+          }`}
+        >
+          <div className="relative flex items-center">
+            <History className={`w-4 h-4 ${activeSheet === 'history' ? 'text-amber-600' : 'text-slate-500'}`} />
+            {history.length > 0 && (
+              <span className="ml-1 px-1 py-0.2 rounded-full text-[8px] font-mono font-bold leading-none bg-slate-500 text-white">
+                {history.length}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[10px]">
+            <span>{isEs ? 'Historial' : 'History'}</span>
           </div>
         </button>
       </nav>
@@ -164,7 +238,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
           />
 
           {/* Panel inferior que ocupa la mitad de la pantalla */}
-          <div className="h-[50dvh] max-h-[500px] bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up-sheet">
+          <div className="h-[50dvh] max-h-[520px] bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up-sheet">
             {/* Header del sheet con barra de arrastre y botón cerrar */}
             <div className="px-4 py-2 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -173,15 +247,26 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                   {activeSheet === 'order' && (isEs ? 'Terminal de Órdenes' : 'Order Execution')}
                   {activeSheet === 'book' && 'Order Book L2'}
                   {activeSheet === 'positions' && (isEs ? `Posiciones Abiertas (${positions.length})` : `Open Positions (${positions.length})`)}
+                  {activeSheet === 'history' && (isEs ? `Historial de Posiciones (${history.length})` : `Trade History (${history.length})`)}
                 </h4>
               </div>
 
               {activeSheet === 'positions' && positions.length > 0 && (
-                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
-                  isPnlProfit ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
-                }`}>
-                  PnL: {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)} USDT
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onCloseAllPositions}
+                    className="px-2 py-0.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold cursor-pointer transition-colors active:scale-95"
+                    title={isEs ? 'Cerrar todas las operaciones' : 'Close all positions'}
+                  >
+                    {isEs ? 'Cerrar Todo' : 'Close All'}
+                  </button>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                    isPnlProfit ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                  }`}>
+                    {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)}
+                  </span>
+                </div>
               )}
 
               <button
@@ -198,46 +283,169 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             <div className="flex-1 overflow-y-auto no-scrollbar p-3 pb-8">
               {activeSheet === 'order' && renderOrderForm()}
               {activeSheet === 'book' && renderOrderBook()}
+              
+              {/* VISTA 1: POSICIONES ABIERTAS CON BALANCE ARRIBA Y SEPARACIÓN */}
               {activeSheet === 'positions' && (
+                <div className="space-y-3">
+                  {/* CARD DE BALANCE DE LA CUENTA */}
+                  <div className="p-2.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                      <span className="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider">
+                        {isEs ? 'Balance de la Cuenta' : 'Account Balance'}
+                      </span>
+                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border ${
+                        isPnlProfit
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      }`}>
+                        PnL Flotante: {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)} USDT
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1.5 text-xs font-mono">
+                      <div>
+                        <div className="text-[9px] text-slate-400 uppercase font-semibold">{isEs ? 'Saldo Base' : 'Balance'}:</div>
+                        <div className="font-black text-slate-900 text-sm">
+                          ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-400 uppercase font-semibold">Equity Total:</div>
+                        <div className={`font-black text-sm ${equity >= demoBalance ? 'text-emerald-700' : 'text-red-700'}`}>
+                          ${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SEPARACIÓN VISUAL ENTRE BALANCE Y POSICIONES */}
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider">
+                      {isEs ? 'Posiciones en Vivo' : 'Live Positions'}
+                    </span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+
+                  {/* LISTA DE POSICIONES QUE ACTUALIZAN PRECIO EN TIEMPO REAL */}
+                  <div className="space-y-2">
+                    {positions.map((pos) => (
+                      <div key={pos.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-slate-900">{pos.symbol}</span>
+                            <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                              pos.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {pos.side}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-semibold">{pos.leverage}x</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            Entrada: ${pos.entry.toLocaleString()} • Marca: ${pos.mark.toLocaleString()}
+                          </div>
+                          {(pos.slPrice || pos.tpPrice) && (
+                            <div className="text-[9.5px] mt-0.5 text-slate-500">
+                              {pos.slPrice && <span className="text-red-600 font-semibold">SL: ${pos.slPrice.toLocaleString()} </span>}
+                              {pos.tpPrice && <span className="text-emerald-600 font-semibold">• TP: ${pos.tpPrice.toLocaleString()}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <div className={`font-black ${pos.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {pos.pnl} ({pos.pnlPercent})
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSetBreakEven?.(pos);
+                              }}
+                              className={`px-2 py-0.5 rounded text-[9px] font-black cursor-pointer transition-all ${
+                                pos.slPrice && Math.abs(pos.slPrice - pos.entry) < 0.05
+                                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                  : pos.isProfit
+                                  ? 'bg-blue-600 active:bg-blue-500 text-white'
+                                  : 'bg-slate-100 text-slate-500 border border-slate-300 active:scale-95'
+                              }`}
+                              title={
+                                pos.slPrice && Math.abs(pos.slPrice - pos.entry) < 0.05
+                                  ? (isEs ? 'Ya en Break-Even' : 'Already at Break-Even')
+                                  : pos.isProfit
+                                  ? (isEs ? 'Fijar SL a Break-Even' : 'Set SL to Break-Even')
+                                  : (isEs ? 'Posición en pérdida' : 'Position in loss')
+                              }
+                            >
+                              BE
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onClosePosition(pos.id)}
+                              className="text-[10px] text-red-600 font-bold hover:underline cursor-pointer"
+                            >
+                              {isEs ? 'Cerrar' : 'Close'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {positions.length === 0 && (
+                      <div className="text-center py-6 text-xs text-slate-400">
+                        {isEs ? 'No hay posiciones abiertas en este momento' : 'No open positions right now'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA 2: HISTORIAL DE POSICIONES CERRADAS */}
+              {activeSheet === 'history' && (
                 <div className="space-y-2">
-                  {positions.map((pos) => (
-                    <div key={pos.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
+                  {history.map((item) => (
+                    <div key={item.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-black text-slate-900">{pos.symbol}</span>
+                          <span className="font-black text-slate-900">{item.symbol}</span>
                           <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
-                            pos.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                           }`}>
-                            {pos.side}
+                            {item.side}
                           </span>
+                          {item.closeReason && (
+                            <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold ${
+                              item.closeReason === 'TP'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : item.closeReason === 'SL'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {item.closeReason}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-0.5">
-                          Entrada: ${pos.entry.toLocaleString()} • Tam: {pos.size}
+                          Entrada: ${item.entry.toLocaleString()} • Salida: ${item.exitPrice.toLocaleString()}
                         </div>
-                        {(pos.slPrice || pos.tpPrice) && (
-                          <div className="text-[9.5px] mt-0.5 text-slate-500">
-                            {pos.slPrice && <span className="text-red-600 font-semibold">SL: ${pos.slPrice.toLocaleString()} </span>}
-                            {pos.tpPrice && <span className="text-emerald-600 font-semibold">• TP: ${pos.tpPrice.toLocaleString()}</span>}
-                          </div>
-                        )}
+                        <div className="text-[9px] text-slate-400 mt-0.5">
+                          {item.closedAt}
+                        </div>
                       </div>
+
                       <div className="text-right">
-                        <div className={`font-bold ${pos.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {pos.pnl} ({pos.pnlPercent})
+                        <div className={`font-black ${item.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {item.isProfit ? '+' : ''}${item.pnlUsdt.toFixed(2)} USDT
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onClosePosition(pos.id)}
-                          className="text-[10px] text-red-600 font-bold hover:underline cursor-pointer mt-0.5"
-                        >
-                          {isEs ? 'Cerrar' : 'Close'}
-                        </button>
+                        <div className={`text-[10px] font-bold ${item.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                          ({item.pnlPercent})
+                        </div>
                       </div>
                     </div>
                   ))}
-                  {positions.length === 0 && (
+
+                  {history.length === 0 && (
                     <div className="text-center py-8 text-xs text-slate-400">
-                      {isEs ? 'No hay posiciones abiertas' : 'No open positions'}
+                      {isEs ? 'No hay operaciones cerradas en el historial' : 'No closed trades in history yet'}
                     </div>
                   )}
                 </div>
