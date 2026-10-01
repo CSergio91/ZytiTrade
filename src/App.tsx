@@ -29,6 +29,12 @@ export const App: React.FC = () => {
     return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
   };
 
+  const getInitialSymbolFromUrl = (): string | undefined => {
+    if (typeof window === 'undefined') return undefined;
+    const match = window.location.pathname.match(/(?:\/(?:es|en))?\/trade\/([a-zA-Z0-9_-]+)/i);
+    return match?.[1] ? match[1].toUpperCase() : undefined;
+  };
+
   const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' => {
     if (typeof window !== 'undefined') {
       const rawPath = window.location.pathname.toLowerCase();
@@ -36,6 +42,8 @@ export const App: React.FC = () => {
       if (pathname.includes('/tg-onboarding') || pathname.includes('/tgonboarding')) return 'tg-onboarding';
       if (isTerminalSubdomain()) return 'terminal';
       if (pathname.includes('/zytiterminal')) return 'terminal';
+      // Rutas dinámicas por par de trading (/trade/BTCUSDT, /es/trade/ETHUSDT, etc.)
+      if (pathname.match(/^(\/(es|en))?\/trade(\/[a-zA-Z0-9_-]+)?$/i)) return 'terminal';
       if (pathname === '/404' || pathname === '/es/404' || pathname === '/en/404') return 'not-found';
       
       const validPaths = ['', '/', '/es', '/en'];
@@ -47,6 +55,7 @@ export const App: React.FC = () => {
   };
 
   const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding' | 'not-found'>(getInitialView);
+  const [urlSymbol, setUrlSymbol] = useState<string | undefined>(getInitialSymbolFromUrl);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -216,8 +225,12 @@ export const App: React.FC = () => {
       const path = rawPath.replace(/\/$/, '') || '/';
       if (path.includes('/tg-onboarding') || path.includes('/tgonboarding')) {
         setCurrentView('tg-onboarding');
-      } else if (path.includes('/zytiterminal')) {
+      } else if (path.includes('/zytiterminal') || path.match(/^(\/(es|en))?\/trade(\/[a-zA-Z0-9_-]+)?$/i)) {
         setCurrentView('terminal');
+        const match = window.location.pathname.match(/(?:\/(?:es|en))?\/trade\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          setUrlSymbol(match[1].toUpperCase());
+        }
       } else if (path === '/404' || path === '/es/404' || path === '/en/404' || (!['', '/', '/es', '/en'].includes(path))) {
         setCurrentView('not-found');
       } else {
@@ -291,27 +304,31 @@ export const App: React.FC = () => {
     );
   }
 
-  // Guard: si el terminal se intenta cargar sin sesión (ej: localStorage corrupto),
-  // redirigir a landing y abrir el modal de login automáticamente
-  if (currentView === 'terminal' && !currentUser) {
-    setTimeout(() => {
-      navigateToLanding();
-      setAuthModalOpen(true);
-    }, 0);
-  }
-
-  if (currentView === 'terminal' && currentUser) {
+  // Vista de Terminal de Trading (Abierta tanto para usuarios autenticados como visitantes en modo live chart)
+  if (currentView === 'terminal') {
     return (
       <TerminalErrorBoundary onExit={handleLogout} lang={currentLang}>
         <TradingTerminal 
           currentLang={currentLang} 
           user={currentUser} 
+          initialSymbol={urlSymbol}
           onExit={handleLogout} 
+          onOpenAuth={() => setAuthModalOpen(true)}
           onLanguageChange={handleLanguageChange}
           onUpdateUser={(updated) => {
             setCurrentUser(updated);
             setStoredSession(updated);
           }}
+        />
+        <AuthModal 
+          isOpen={authModalOpen} 
+          onClose={() => setAuthModalOpen(false)} 
+          currentLang={currentLang} 
+          onLoginSuccess={(u) => { 
+            setCurrentUser(u); 
+            setStoredSession(u);
+            setAuthModalOpen(false);
+          }} 
         />
       </TerminalErrorBoundary>
     );

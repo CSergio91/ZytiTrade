@@ -41,7 +41,9 @@ import { SlidersHorizontal, X, AlertTriangle, RotateCcw } from 'lucide-react';
 interface TradingTerminalProps {
   currentLang: Language;
   user: UserSession | null;
+  initialSymbol?: string;
   onExit: () => void;
+  onOpenAuth?: () => void;
   onLanguageChange?: (lang: Language) => void;
   onUpdateUser?: (updated: UserSession) => void;
 }
@@ -263,12 +265,21 @@ const getStoredDailyStartEquity = (currentBalance: number): number => {
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   currentLang,
   user,
+  initialSymbol,
   onExit,
+  onOpenAuth,
   onLanguageChange,
   onUpdateUser
 }) => {
   const isEs = currentLang === 'es';
-  const [selectedPair, setSelectedPair] = useState('BTC/USDT');
+  const normalizePair = (sym?: string): string => {
+    if (!sym) return 'BTC/USDT';
+    const clean = sym.replace('/', '').toUpperCase();
+    const found = SUPPORTED_PAIRS.find(p => p.replace('/', '').toUpperCase() === clean);
+    return found || 'BTC/USDT';
+  };
+
+  const [selectedPair, setSelectedPair] = useState(() => normalizePair(initialSymbol));
   const [currentExchange, setCurrentExchange] = useState<string>(() => {
     try {
       return localStorage.getItem('zyti_exchange') || 'binance';
@@ -688,6 +699,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   // Colocación inmediata de orden pendiente desde el menú contextual de clic derecho en el gráfico
   const handlePlacePendingOrderFromChart = (orderSide: 'buy' | 'sell', targetPrice: number) => {
     setChartContextMenu(null);
+    if (!user) {
+      onOpenAuth?.();
+      return;
+    }
     if (isAccountBreached) {
       addToast({
         type: 'warning',
@@ -1283,6 +1298,15 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (chartInstanceRef.current) {
       chartInstanceRef.current.clearData();
     }
+    // Sincronizar URL dinámica para compartir y SEO (/es/trade/BTCUSDT)
+    const cleanPair = pair.replace('/', '').toUpperCase();
+    const targetPath = `/${currentLang}/trade/${cleanPair}`;
+    if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+      window.history.replaceState(null, '', targetPath);
+    }
+    if (typeof document !== 'undefined') {
+      document.title = `${pair} • ${currentExchange.toUpperCase()} Gráfico en Vivo | ZYTI Trade`;
+    }
     // Pre-cargar precio base para eliminar desfases de escala en el eje derecho
     const pairPriceEstimates: Record<string, number> = {
       'BTC/USDT': 96450.0,
@@ -1311,6 +1335,15 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       });
     }
   };
+
+  useEffect(() => {
+    if (initialSymbol) {
+      const match = normalizePair(initialSymbol);
+      if (match && match !== selectedPair) {
+        handleSelectPair(match);
+      }
+    }
+  }, [initialSymbol]);
 
   const handleSelectBalanceAmount = (amountNum: number) => {
     closedPositionIdsRef.current.clear();
@@ -1747,6 +1780,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      onOpenAuth?.();
+      return;
+    }
     if (isAccountBreached) {
       addToast({
         type: 'warning',
@@ -1878,6 +1915,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const bestAsk = orderBook.asks[0]?.price || Number((stats.lastPrice * 1.0002).toFixed(2));
 
   const handleQuickTrade = (quickSide: 'buy' | 'sell') => {
+    if (!user) {
+      onOpenAuth?.();
+      return;
+    }
     if (isAccountBreached) {
       addToast({
         type: 'warning',
@@ -2087,6 +2128,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)}
         onResetBalance={resetDemoBalance}
         onExit={onExit}
+        onOpenAuth={onOpenAuth}
       />
 
       {/* 2. ÁREA PRINCIPAL: NAVEGACIÓN + GRÁFICO CENTRAL + PANEL LATERAL */}

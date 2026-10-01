@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Menu } from 'lucide-react';
+import { Cpu, Menu, Zap } from 'lucide-react';
 import { UserSession, PropFirmAccount } from '../../lib/supabase';
 import { MarketStats } from '../../workers/marketData.worker';
 import { MarketType, AdapterConnectionStatus } from '../../core/market-feed/types';
@@ -32,6 +32,7 @@ interface TerminalHeaderProps {
   onToggleMobileNav: () => void;
   onSelectSection?: (section: 'none' | 'exchange' | string) => void;
   onExit?: () => void;
+  onOpenAuth?: () => void;
 }
 
 export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
@@ -53,7 +54,8 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   onSelectBalanceAmount,
   onSelectAccount,
   onResetBalance,
-  onToggleMobileNav
+  onToggleMobileNav,
+  onOpenAuth
 }) => {
   const isPnlProfit = unrealizedPnL >= 0;
 
@@ -75,17 +77,30 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           onSelectPair={onSelectPair}
         />
 
-        {/* EQUITY TOTAL EN TIEMPO REAL: Saldo base + PnL no realizado de posiciones en vivo */}
-        <DemoAccountBalanceSelector
-          currentBalance={demoBalance}
-          unrealizedPnL={unrealizedPnL}
-          isEs={isEs}
-          accounts={user?.accounts || []}
-          activeAccountId={activeAccountId}
-          onSelectAmount={onSelectBalanceAmount}
-          onSelectAccount={onSelectAccount}
-          onResetToCurrent={onResetBalance || (() => {})}
-        />
+        {/* SI NO ESTÁ AUTENTICADO: BOTÓN AMARILLO INSTITUCIONAL IDÉNTICO AL HOME */}
+        {!user ? (
+          <button
+            onClick={onOpenAuth}
+            type="button"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-xl shadow-xs transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 shrink-0"
+            title={isEs ? 'Iniciar sesión para operar' : 'Log in to trade'}
+          >
+            <Zap className="w-3.5 h-3.5 stroke-[2.5] fill-slate-950" />
+            <span>{isEs ? 'Operar Ahora' : 'Sign In'}</span>
+          </button>
+        ) : (
+          /* EQUITY TOTAL EN TIEMPO REAL: Saldo base + PnL no realizado de posiciones en vivo */
+          <DemoAccountBalanceSelector
+            currentBalance={demoBalance}
+            unrealizedPnL={unrealizedPnL}
+            isEs={isEs}
+            accounts={user?.accounts || []}
+            activeAccountId={activeAccountId}
+            onSelectAmount={onSelectBalanceAmount}
+            onSelectAccount={onSelectAccount}
+            onResetToCurrent={onResetBalance || (() => {})}
+          />
+        )}
 
         {/* PNL NO REALIZADO EN ESCRITORIO (OCULTO EN MÓVIL PORQUE SE GESTIONA ABAJO EN POSICIONES) */}
         <div className={`hidden lg:flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[9.5px] sm:text-[10px] font-mono font-bold shrink-0 ${
