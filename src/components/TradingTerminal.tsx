@@ -300,8 +300,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<'none' | 'exchange'>('none');
 
-  // Hoja activa en móvil: null (cerrada) o 'order' | 'book' | 'positions' | 'history'
-  const [mobileSheet, setMobileSheet] = useState<'order' | 'book' | 'positions' | 'history' | null>(null);
+  // Hoja activa en móvil: null (cerrada) o 'order' | 'book' | 'positions' | 'history' | 'profile'
+  const [mobileSheet, setMobileSheet] = useState<'order' | 'book' | 'positions' | 'history' | 'profile' | null>(null);
 
   // Favoritos de temporalidades e indicadores con persistencia
   const [favoriteTimeframes, setFavoriteTimeframes] = useState<string[]>(() => {
@@ -2095,6 +2095,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
+            user={user}
             isTradingSidebarOpen={isTradingSidebarOpen}
             showOrderForm={showOrderForm}
             showOrderBook={showOrderBook}
@@ -2360,6 +2361,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
+            user={user}
             isTradingSidebarOpen={isTradingSidebarOpen}
             showOrderForm={showOrderForm}
             showOrderBook={showOrderBook}
@@ -2394,6 +2396,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           bestBid={bestBid}
           bestAsk={bestAsk}
           selectedPair={selectedPair}
+          user={user}
+          onExit={onExit}
           onQuickTrade={handleQuickTrade}
           setActiveSheet={setMobileSheet}
           renderOrderForm={renderOrderForm}
@@ -2423,6 +2427,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           navPosition={navPosition}
           isMobileNavOpen={isMobileNavOpen}
           activeSection={activeSection}
+          user={user}
           isTradingSidebarOpen={isTradingSidebarOpen}
           onToggleTradingSidebar={handleToggleTradingSidebar}
           onToggleNavPosition={toggleNavPosition}

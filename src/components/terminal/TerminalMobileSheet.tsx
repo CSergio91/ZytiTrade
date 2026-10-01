@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { BookOpen, Layers, X, Zap, History, Shield, Clock } from 'lucide-react';
+import { BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut } from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
+import { UserSession } from '../../lib/supabase';
 
 interface TerminalMobileSheetProps {
   isEs: boolean;
-  activeSheet: 'order' | 'book' | 'positions' | 'history' | null;
+  activeSheet: 'order' | 'book' | 'positions' | 'history' | 'profile' | null;
   positions: PositionItem[];
   limitOrders?: LimitOrderItem[];
   history: ClosedTradeItem[];
@@ -16,8 +17,10 @@ interface TerminalMobileSheetProps {
   bestBid: number;
   bestAsk: number;
   selectedPair: string;
+  user?: UserSession | null;
+  onExit?: () => void;
   onQuickTrade: (side: 'buy' | 'sell') => void;
-  setActiveSheet: (sheet: 'order' | 'book' | 'positions' | 'history' | null) => void;
+  setActiveSheet: (sheet: 'order' | 'book' | 'positions' | 'history' | 'profile' | null) => void;
   renderOrderForm: () => React.ReactNode;
   renderOrderBook: () => React.ReactNode;
   onClosePosition: (id: string) => void;
@@ -43,6 +46,8 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   bestBid,
   bestAsk,
   selectedPair,
+  user,
+  onExit,
   onQuickTrade,
   setActiveSheet,
   renderOrderForm,
@@ -56,7 +61,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onSelectLimitOrder
 }) => {
   const [positionsSubTab, setPositionsSubTab] = useState<'positions' | 'limits'>('positions');
-  const toggleSheet = (tab: 'order' | 'book' | 'positions' | 'history') => {
+  const toggleSheet = (tab: 'order' | 'book' | 'positions' | 'history' | 'profile') => {
     setActiveSheet(activeSheet === tab ? null : tab);
   };
 
@@ -237,6 +242,32 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             <span>{isEs ? 'Historial' : 'History'}</span>
           </div>
         </button>
+
+        <div className="h-6 w-px bg-slate-200" />
+
+        {/* BOTÓN PERFIL (EXCLUSIVO MÓVIL) */}
+        <button
+          type="button"
+          onClick={() => toggleSheet('profile')}
+          className={`flex-1 py-1.5 flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold transition-all rounded-xl cursor-pointer ${
+            activeSheet === 'profile'
+              ? 'bg-amber-100/70 text-amber-950 font-black shadow-xs'
+              : 'text-slate-600 hover:text-slate-950'
+          }`}
+        >
+          <div className="relative flex items-center justify-center">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="User" className="w-4 h-4 rounded-full object-cover border border-amber-400" />
+            ) : user?.provider === 'telegram' ? (
+              <svg className="w-4 h-4 fill-[#229ED9]" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+            ) : (
+              <User className={`w-4 h-4 ${activeSheet === 'profile' ? 'text-amber-600' : 'text-slate-500'}`} />
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[10px]">
+            <span className="truncate max-w-[50px]">{isEs ? 'Perfil' : 'Profile'}</span>
+          </div>
+        </button>
       </nav>
 
       {/* 3. HOJA MODAL DESLIZANTE A MITAD DE PANTALLA (50dvh) */}
@@ -263,6 +294,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                       : (isEs ? `Órdenes Límites (${limitOrders.length})` : `Limit Orders (${limitOrders.length})`)
                   )}
                   {activeSheet === 'history' && (isEs ? `Historial de Posiciones (${history.length})` : `Trade History (${history.length})`)}
+                  {activeSheet === 'profile' && (isEs ? 'Perfil de Usuario' : 'User Profile')}
                 </h4>
               </div>
 
@@ -580,6 +612,71 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                     <div className="text-center py-8 text-xs text-slate-400">
                       {isEs ? 'No hay operaciones cerradas en el historial' : 'No closed trades in history yet'}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* CASO 5: PERFIL DEL USUARIO (EXCLUSIVO MÓVIL) */}
+              {activeSheet === 'profile' && (
+                <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-300/80">
+                      {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.name || 'User'} className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-amber-400" />
+                      ) : user?.provider === 'telegram' ? (
+                        <div className="w-12 h-12 rounded-full bg-[#229ED9] flex items-center justify-center shrink-0 shadow-sm">
+                          <svg className="w-6 h-6 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-amber-500 text-amber-950 font-black text-lg flex items-center justify-center shrink-0">
+                          {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                        </div>
+                      )}
+                      <div className="flex flex-col text-left leading-tight min-w-0">
+                        <span className="text-sm font-black text-slate-900 truncate">
+                          {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader ZYTI' : 'ZYTI Trader')}
+                        </span>
+                        <span className="text-xs text-slate-500 truncate mt-0.5">
+                          {user?.email || (user?.telegramUsername ? `@${user.telegramUsername}` : '')}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 border border-amber-300">
+                            {user?.role === 'admin' ? 'Admin' : (isEs ? 'Cuenta Demo $10,000' : 'Demo Account $10,000')}
+                          </span>
+                          {user?.provider === 'telegram' && (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#229ED9]/15 text-[#1b8bc2] border border-[#229ED9]/30">
+                              Telegram
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">{isEs ? 'Saldo de la cuenta' : 'Account Balance'}:</span>
+                        <span className="font-mono font-bold text-slate-900">${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">{isEs ? 'Equidad flotante' : 'Floating Equity'}:</span>
+                        <span className={`font-mono font-bold ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>${equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">{isEs ? 'Posiciones abiertas' : 'Open Positions'}:</span>
+                        <span className="font-mono font-bold text-slate-900">{positions.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {onExit && (
+                    <button
+                      type="button"
+                      onClick={onExit}
+                      className="w-full mt-4 py-2.5 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer active:scale-98"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>{isEs ? 'Cerrar Sesión' : 'Log Out'}</span>
+                    </button>
                   )}
                 </div>
               )}

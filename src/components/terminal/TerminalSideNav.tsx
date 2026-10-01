@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal, BookOpen, ListFilter, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal, BookOpen, ListFilter, Check, ChevronDown, ChevronRight, User } from 'lucide-react';
+import { UserSession } from '../../lib/supabase';
 
 interface TerminalSideNavProps {
   isEs: boolean;
   navPosition: 'left' | 'right';
   isMobileNavOpen: boolean;
   activeSection: string;
+  user?: UserSession | null;
   isTradingSidebarOpen?: boolean;
   showOrderForm?: boolean;
   showOrderBook?: boolean;
@@ -48,6 +50,7 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   navPosition,
   isMobileNavOpen,
   activeSection,
+  user,
   isTradingSidebarOpen = true,
   showOrderForm = true,
   showOrderBook = true,
@@ -250,9 +253,37 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
             </button>
           </div>
 
-          {/* PIE DE NAVEGACIÓN ABAJO: CAMBIAR SENTIDO + CERRAR SESIÓN */}
-          <div className="pt-2 border-t border-slate-200 space-y-1">
-            {/* BOTÓN CAMBIO DE POSICIÓN IZQUIERDA / DERECHA (ENCIMA DE CERRAR SESIÓN) */}
+          {/* PIE DE NAVEGACIÓN ABAJO: PERFIL DE USUARIO + CAMBIAR SENTIDO + CERRAR SESIÓN */}
+          <div className="pt-2 border-t border-slate-200 space-y-1.5">
+            {/* BADGE DE PERFIL DE USUARIO EN ESCRITORIO */}
+            <div 
+              className={`w-full flex items-center gap-2 p-1.5 rounded-xl bg-amber-500/10 border border-amber-300/70 overflow-hidden select-none transition-all ${
+                isClickedExpanded ? 'justify-start' : 'justify-center group-hover:justify-start'
+              }`}
+              title={user?.name || user?.email || (isEs ? 'Perfil de Usuario' : 'User Profile')}
+            >
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name || 'User'} className="w-6 h-6 rounded-full object-cover shrink-0 border border-amber-400" />
+              ) : user?.provider === 'telegram' ? (
+                <div className="w-6 h-6 rounded-full bg-[#229ED9] flex items-center justify-center shrink-0 shadow-xs">
+                  <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-amber-500 text-amber-950 font-black text-[11px] flex items-center justify-center shrink-0">
+                  {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                </div>
+              )}
+              <div className={`flex flex-col text-left leading-tight min-w-0 ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                <span className="text-[11px] font-black text-slate-900 truncate">
+                  {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader' : 'Trader')}
+                </span>
+                <span className="text-[9px] font-bold text-amber-800 truncate">
+                  {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Admin' : (isEs ? 'Trader Activo' : 'Active Trader'))}
+                </span>
+              </div>
+            </div>
+
+            {/* BOTÓN CAMBIO DE POSICIÓN IZQUIERDA / DERECHA */}
             <button
               type="button"
               onClick={onToggleNavPosition}
@@ -299,6 +330,29 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+
+              {/* PERFIL DE USUARIO EN EL DRAWER MÓVIL */}
+              <div className="mb-3 p-2.5 rounded-2xl bg-amber-500/10 border border-amber-300/80 flex items-center gap-2.5">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name || 'User'} className="w-8 h-8 rounded-full object-cover shrink-0 border border-amber-400" />
+                ) : user?.provider === 'telegram' ? (
+                  <div className="w-8 h-8 rounded-full bg-[#229ED9] flex items-center justify-center shrink-0 shadow-xs">
+                    <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-amber-500 text-amber-950 font-black text-xs flex items-center justify-center shrink-0">
+                    {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                  </div>
+                )}
+                <div className="flex flex-col text-left leading-tight min-w-0">
+                  <span className="text-xs font-black text-slate-900 truncate">
+                    {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader' : 'Trader')}
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 truncate">
+                    {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Administrador' : (isEs ? 'Cuenta Activa' : 'Active Account'))}
+                  </span>
+                </div>
               </div>
 
               {/* SECCIONES TRADING Y EXCHANGE */}

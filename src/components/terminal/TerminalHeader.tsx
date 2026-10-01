@@ -88,7 +88,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         />
 
         {/* PNL NO REALIZADO EN ESCRITORIO (OCULTO EN MÓVIL PORQUE SE GESTIONA ABAJO EN POSICIONES) */}
-        <div className={`hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[9.5px] sm:text-[10px] font-mono font-bold shrink-0 ${
+        <div className={`hidden lg:flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[9.5px] sm:text-[10px] font-mono font-bold shrink-0 ${
           positionsCount === 0
             ? 'bg-slate-100 text-slate-500 border-slate-200'
             : isPnlProfit
@@ -100,26 +100,12 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         </div>
       </div>
 
-      {/* PARTE DERECHA: USUARIO + HAMBURGUESA (MÓVIL) */}
+      {/* PARTE DERECHA: EXCLUSIVO HAMBURGUESA MÓVIL (< 1024px) */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        <div className="flex items-center gap-1 sm:gap-1.5 bg-[#ede5d6] px-1.5 sm:px-2.5 py-0.5 rounded-xl border border-[#ded5c5]">
-          {user?.provider === 'telegram' ? (
-            <svg className="w-3.5 h-3.5 fill-[#229ED9] shrink-0" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
-            </svg>
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          )}
-          <span className="text-[10px] sm:text-xs font-bold text-slate-900 truncate max-w-[70px] sm:max-w-[120px]">
-            {user?.name || user?.email || 'Demo Trader'}
-          </span>
-        </div>
-
-        {/* BOTÓN HAMBURGUESA EN MÓVIL (< 1024px) */}
         <button
           type="button"
           onClick={onToggleMobileNav}
-          className="terminal-mobile-hamburger p-1 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-colors shadow-xs"
+          className="lg:hidden terminal-mobile-hamburger p-1 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-colors shadow-xs"
           title={isEs ? 'Menú ZYTI Trade' : 'ZYTI Trade Menu'}
         >
           <Menu className="w-3.5 h-3.5" />
