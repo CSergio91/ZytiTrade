@@ -24,7 +24,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const telegramWidgetRef = useRef<HTMLDivElement>(null);
+  const [telegramWaiting, setTelegramWaiting] = useState(false);
+  const [telegramAuthCode, setTelegramAuthCode] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -37,6 +38,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return () => clearTimeout(timer);
     } else {
       setMounted(false);
+      setTelegramWaiting(false);
     }
   }, [isOpen]);
 
@@ -82,7 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
       };
       setStoredSession(userSession);
-      setSuccessMsg(currentLang === 'es' ? `Autorizado con exito, ${fullName}!` : `Successfully authorized, ${fullName}!`);
+      setSuccessMsg(currentLang === 'es' ? `¡Autorizado con éxito, ${fullName}!` : `Successfully authorized, ${fullName}!`);
       if (onLoginSuccess) onLoginSuccess(userSession);
       setTimeout(onClose, 600);
     } catch (err: any) {
@@ -90,67 +92,103 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally { setLoading(false); }
   }, [currentLang, onLoginSuccess, onClose]);
 
-  // Detección de entorno local: Telegram rechaza localhost en BotFather
-  const isLocalEnv = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.endsWith('.local')
-  );
+  const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
+  const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '8903330894:AAEd0orP53vrgfvsl2mNa3CxO5TWmC7_GA8';
 
-  // Inyecta el Widget oficial de Telegram SOLO en producción (dominios validados en BotFather)
+  // 1. Iniciar flujo Deep-Link con el Bot
+  const handleTelegramDeepLinkStart = () => {
+    const code = Math.random().toString(36).substring(2, 9);
+    setTelegramAuthCode(code);
+    setTelegramWaiting(true);
+    setErrorMsg(null);
+    const deepLinkUrl = `https://t.me/${botName}?start=login_${code}`;
+    window.open(deepLinkUrl, '_blank');
+  };
+
+  // 2. Polling activo mientras espera confirmación del bot
   useEffect(() => {
-    if (!isOpen || isLocalEnv || !telegramWidgetRef.current) return;
-    const container = telegramWidgetRef.current;
+    if (!telegramWaiting || !telegramAuthCode) return;
 
-    // Registrar callback global ANTES de inyectar el script
-    (window as any).onTelegramAuth = (user: any) => { handleTelegramAuthSuccess(user); };
+    let active = true;
+    let timer: any = null;
 
-    // Limpiar widget anterior
-    container.innerHTML = '';
-
-    const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', botName);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-radius', '10');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.setAttribute('data-request-access', 'write');
-    script.async = true;
-    script.onerror = () => console.warn('[ZYTI] Telegram widget script failed to load');
-    container.appendChild(script);
-
-    // Listener de postMessage para cuando el popup OAuth retorna
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://oauth.telegram.org') return;
+    const pollUpdates = async () => {
       try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.user) handleTelegramAuthSuccess(data.user);
-      } catch {}
+        const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active || !data.ok || !Array.isArray(data.result)) return;
+
+        // Buscar mensaje que coincida con el código o cualquier /start del usuario
+        const match = data.result.find((u: any) => {
+          const text = u.message?.text || '';
+          return text.includes(`login_${telegramAuthCode}`) || text.includes(telegramAuthCode);
+        });
+
+        if (match && match.message?.from) {
+          active = false;
+          setTelegramWaiting(false);
+          const from = match.message.from;
+          const fullName = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || `Trader #${from.id}`;
+
+          // Mensaje de confirmación al chat del usuario en Telegram
+          try {
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${match.message.chat.id}&text=${encodeURIComponent(`✅ ¡Hola ${fullName}! Sesión confirmada en ZYTI Trade. Bienvenido a la terminal.`)}`).catch(() => {});
+          } catch (_) {}
+
+          handleTelegramAuthSuccess({
+            id: from.id,
+            first_name: from.first_name,
+            last_name: from.last_name,
+            username: from.username,
+            auth_date: match.message.date,
+            hash: 'deep_link_' + telegramAuthCode
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn('[Telegram Poll] error:', e);
+      }
+
+      if (active) {
+        timer = setTimeout(pollUpdates, 1500);
+      }
     };
-    window.addEventListener('message', handleMessage);
+
+    pollUpdates();
 
     return () => {
-      try { delete (window as any).onTelegramAuth; } catch {}
-      window.removeEventListener('message', handleMessage);
-      if (container) container.innerHTML = '';
+      active = false;
+      if (timer) clearTimeout(timer);
     };
-  }, [isOpen, isLocalEnv, handleTelegramAuthSuccess]);
+  }, [telegramWaiting, telegramAuthCode, botToken, handleTelegramAuthSuccess]);
 
-  // Fallback para desarrollo local: simula el login de Telegram instantáneamente
-  const handleLocalTelegramLogin = async () => {
+  // 3. Verificación instantánea si el usuario ya envió /start
+  const handleCheckLatestTelegram = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const mockTgUser = {
-        id: 8903330894,
-        first_name: 'Trader',
-        last_name: 'Local',
-        username: 'telegram_demo_user',
-        auth_date: Math.floor(Date.now() / 1000),
-        hash: 'mock_local_hash'
-      };
-      await handleTelegramAuthSuccess(mockTgUser);
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.result) && data.result.length > 0) {
+        const lastMsg = [...data.result].reverse().find((u: any) => u.message?.from && !u.message.from.is_bot);
+        if (lastMsg && lastMsg.message?.from) {
+          const from = lastMsg.message.from;
+          setTelegramWaiting(false);
+          await handleTelegramAuthSuccess({
+            id: from.id,
+            first_name: from.first_name,
+            last_name: from.last_name,
+            username: from.username,
+            auth_date: lastMsg.message.date,
+            hash: 'manual_verify_' + Date.now()
+          });
+          return;
+        }
+      }
+      setErrorMsg(currentLang === 'es' ? 'No se detectó ningún mensaje en el bot. Pulsa Iniciar en @ZytiTarde_bot.' : 'No message detected. Please press Start in @ZytiTarde_bot.');
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Error al conectar con Telegram');
     } finally {
       setLoading(false);
     }
@@ -251,25 +289,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <h3 className="text-base sm:text-lg font-black text-slate-950 tracking-tight">{isSignUp ? t.signUpTitle : t.signInTitle}</h3>
               <p className="text-[11px] text-slate-500 font-medium">{isSignUp ? t.subtitleSignUp : t.subtitleSignIn}</p>
             </div>
-            <div className="mb-2 sm:mb-2.5 flex items-center justify-center">
-              {isLocalEnv ? (
+            {telegramWaiting ? (
+              <div className="mb-3 w-full p-3.5 rounded-2xl bg-sky-50/90 border border-sky-200 text-center flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-[#54a9eb] flex items-center justify-center text-white shadow-sm animate-pulse">
+                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                </div>
+                <div>
+                  <span className="text-xs font-black text-slate-900 block">{currentLang === 'es' ? 'Esperando confirmación en Telegram...' : 'Waiting for Telegram confirmation...'}</span>
+                  <span className="text-[10.5px] text-slate-600 block mt-0.5 leading-snug">
+                    {currentLang === 'es' ? 'Pulsa «INICIAR» o «START» en el chat con el bot.' : 'Press «START» in the bot chat.'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={handleCheckLatestTelegram}
+                    disabled={loading}
+                    className="w-full py-2 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    <span>{currentLang === 'es' ? '⚡ Ya envié /start (Verificar ahora)' : '⚡ I sent /start (Verify now)'}</span>
+                  </button>
+                  <a
+                    href={`https://t.me/${botName}?start=login_${telegramAuthCode}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-bold text-sky-600 hover:underline block"
+                  >
+                    {currentLang === 'es' ? '¿No se abrió Telegram? Clic aquí' : 'Didn\'t open Telegram? Click here'}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setTelegramWaiting(false)}
+                    className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
+                  >
+                    {currentLang === 'es' ? '← Volver a otros métodos' : '← Back to other methods'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-2 sm:mb-2.5 flex items-center justify-center">
                 <button
                   type="button"
-                  onClick={handleLocalTelegramLogin}
+                  onClick={handleTelegramDeepLinkStart}
                   disabled={loading}
                   className="w-full max-w-[280px] py-2 px-4 rounded-full bg-[#54a9eb] hover:bg-[#489bd9] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                  title="Modo local: Clic para iniciar sesión de prueba con Telegram"
+                  title="Abrir chat con el Bot para iniciar sesión"
                 >
                   <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                   </svg>
                   <span>Log in with Telegram</span>
-                  <span className="text-[9px] bg-white/25 px-1.5 py-0.2 rounded-full font-mono uppercase tracking-wider">Demo</span>
                 </button>
-              ) : (
-                <div ref={telegramWidgetRef} className="w-full flex items-center justify-center min-h-[44px]" />
-              )}
-            </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-3">
               <button type="button" onClick={() => handleOAuth('google')} disabled={loading} className="flex items-center justify-center gap-2 py-1.5 sm:py-2.5 px-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-98">
                 <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
