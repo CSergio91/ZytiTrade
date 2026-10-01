@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import { BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut, Award, TrendingUp, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut, 
+  Award, TrendingUp, CheckCircle2, ShieldCheck, Sparkles, Globe, 
+  Edit3, Check, ArrowLeftRight, Settings
+} from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
-import { UserSession } from '../../lib/supabase';
+import { UserSession, supabase, setStoredSession } from '../../lib/supabase';
+import { Language } from '../../i18n/translations';
 
 interface TerminalMobileSheetProps {
   isEs: boolean;
+  currentLang?: Language;
+  onLanguageChange?: (lang: Language) => void;
+  onUpdateUser?: (updated: UserSession) => void;
   activeSheet: 'order' | 'book' | 'positions' | 'history' | 'profile' | null;
   positions: PositionItem[];
   limitOrders?: LimitOrderItem[];
@@ -13,6 +21,9 @@ interface TerminalMobileSheetProps {
   riskPercent: number;
   onSetRiskPercent: (risk: number) => void;
   quickTradeEnabled: boolean;
+  onToggleQuickTrade?: () => void;
+  navPosition?: 'left' | 'right';
+  onToggleNavPosition?: () => void;
   lastPrice: number;
   bestBid: number;
   bestAsk: number;
@@ -34,6 +45,9 @@ interface TerminalMobileSheetProps {
 
 export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   isEs,
+  currentLang = 'es',
+  onLanguageChange,
+  onUpdateUser,
   activeSheet,
   positions,
   limitOrders = [],
@@ -42,6 +56,9 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   riskPercent,
   onSetRiskPercent,
   quickTradeEnabled,
+  onToggleQuickTrade,
+  navPosition = 'left',
+  onToggleNavPosition,
   lastPrice,
   bestBid,
   bestAsk,
@@ -61,6 +78,57 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onSelectLimitOrder
 }) => {
   const [positionsSubTab, setPositionsSubTab] = useState<'positions' | 'limits'>('positions');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user?.name) setEditName(user.name);
+    if (user?.avatarUrl) setEditAvatarUrl(user.avatarUrl);
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setIsSavingProfile(true);
+    try {
+      const updatedUser: UserSession = {
+        ...user,
+        email: user?.email || '',
+        name: editName.trim(),
+        avatarUrl: editAvatarUrl.trim() || undefined
+      };
+
+      if (user?.id) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              full_name: editName.trim(),
+              avatar_url: editAvatarUrl.trim() || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+        } catch (dbErr) {
+          console.warn('Could not sync profile to db:', dbErr);
+        }
+      }
+
+      setStoredSession(updatedUser);
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      setIsEditingProfile(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
   const toggleSheet = (tab: 'order' | 'book' | 'positions' | 'history' | 'profile') => {
     setActiveSheet(activeSheet === tab ? null : tab);
   };
@@ -618,27 +686,27 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                 </div>
               )}
 
-              {/* CASO 5: PERFIL DEL USUARIO PROFESIONAL (EXCLUSIVO MÓVIL) */}
+              {/* CASO 5: PERFIL DEL USUARIO (EDITAR PERFIL, IDIOMA, PREFERENCIAS) */}
               {activeSheet === 'profile' && (
                 <div className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col justify-between space-y-4">
-                  <div>
-                    {/* AVATAR CIRCULAR EN EL MEDIO Y CABECERA INSTITUCIONAL */}
-                    <div className="flex flex-col items-center text-center mx-auto w-full pt-1 pb-2">
+                  <div className="space-y-4">
+                    {/* 1. CÍRCULO DEL USUARIO EN EL MEDIO Y CABECERA */}
+                    <div className="flex flex-col items-center text-center mx-auto w-full pt-1 pb-1">
                       <div className="relative mb-2.5">
                         {user?.avatarUrl ? (
                           <img
                             src={user.avatarUrl}
                             alt={user.name || 'User'}
-                            className="w-18 h-18 rounded-full object-cover border-2 border-amber-400 ring-4 ring-amber-400/25 shadow-md"
+                            className="w-20 h-20 rounded-full object-cover border-2 border-amber-400 ring-4 ring-amber-400/25 shadow-md"
                           />
                         ) : user?.provider === 'telegram' ? (
-                          <div className="w-18 h-18 rounded-full bg-linear-to-tr from-[#1b8bc2] to-[#229ED9] flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
-                            <svg className="w-9 h-9 fill-white" viewBox="0 0 24 24">
+                          <div className="w-20 h-20 rounded-full bg-linear-to-tr from-[#1b8bc2] to-[#229ED9] flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
+                            <svg className="w-10 h-10 fill-white" viewBox="0 0 24 24">
                               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                             </svg>
                           </div>
                         ) : (
-                          <div className="w-18 h-18 rounded-full bg-linear-to-tr from-amber-600 to-amber-400 text-amber-950 font-black text-2xl flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
+                          <div className="w-20 h-20 rounded-full bg-linear-to-tr from-amber-600 to-amber-400 text-amber-950 font-black text-2xl flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
                             {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
                           </div>
                         )}
@@ -653,102 +721,232 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                         {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email || 'trader@zyti.trade')}
                       </p>
 
-                      {/* Badges de acreditación y proveniencia */}
+                      {/* Badges centrados */}
                       <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
                         <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          {isEs ? 'Trader Activo' : 'Active Trader'}
+                          {isEs ? 'Trader Verificado' : 'Verified Trader'}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-900 border border-amber-300 flex items-center gap-1">
-                          <ShieldCheck className="w-3 h-3 text-amber-600" />
-                          {user?.role === 'admin' ? 'Admin' : (isEs ? 'Prop Firm Tier 1' : 'Prop Firm Tier 1')}
-                        </span>
-                        {user?.provider === 'telegram' && (
+                        {user?.provider === 'telegram' ? (
                           <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#229ED9]/15 text-[#1b8bc2] border border-[#229ED9]/30 flex items-center gap-1">
                             <svg className="w-2.5 h-2.5 fill-[#229ED9]" viewBox="0 0 24 24">
                               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                             </svg>
                             Telegram Auth
                           </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-500/15 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-amber-600" />
+                            Email Auth
+                          </span>
                         )}
                       </div>
+
+                      {/* Notificación de guardado */}
+                      {saveSuccess && (
+                        <div className="mt-2.5 px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 animate-zoom-in">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{isEs ? 'Perfil actualizado con éxito' : 'Profile updated successfully'}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* GRID DE MÉTRICAS FINANCIERAS Y DE RIESGO */}
-                    <div className="grid grid-cols-2 gap-2 my-2">
-                      {/* Saldo Base */}
-                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                          {isEs ? 'Saldo de Cuenta' : 'Account Balance'}
-                        </span>
-                        <span className="font-mono font-black text-sm text-slate-900 mt-0.5 block">
-                          ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-medium">USDT Margined</span>
+                    {/* 2. TARJETA EDITAR PERFIL */}
+                    <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                          <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                          <span>{isEs ? 'Editar Perfil' : 'Edit Profile'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingProfile(!isEditingProfile)}
+                          className="text-[11px] font-bold text-amber-700 hover:text-amber-900 cursor-pointer"
+                        >
+                          {isEditingProfile ? (isEs ? 'Cancelar' : 'Cancel') : (isEs ? 'Modificar' : 'Modify')}
+                        </button>
                       </div>
 
-                      {/* Equidad Flotante */}
-                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                          {isEs ? 'Equidad Flotante' : 'Floating Equity'}
-                        </span>
-                        <span className={`font-mono font-black text-sm mt-0.5 block ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>
-                          ${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span className={`text-[9px] font-bold ${isPnlProfit ? 'text-emerald-700' : 'text-red-700'}`}>
-                          {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)} ({demoBalance > 0 ? ((totalPnL / demoBalance) * 100).toFixed(2) : '0.00'}%)
-                        </span>
+                      {isEditingProfile ? (
+                        <form onSubmit={handleSaveProfile} className="space-y-3 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                              {isEs ? 'Nombre para mostrar / Alias' : 'Display Name / Alias'}
+                            </label>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder={isEs ? 'Ej: Alex Trader' : 'e.g. Alex Trader'}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                              {isEs ? 'URL de Foto de Perfil (Opcional)' : 'Avatar Photo URL (Optional)'}
+                            </label>
+                            <input
+                              type="url"
+                              value={editAvatarUrl}
+                              onChange={(e) => setEditAvatarUrl(e.target.value)}
+                              placeholder="https://..."
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={isSavingProfile || !editName.trim()}
+                            className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors active:scale-98"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{isSavingProfile ? (isEs ? 'Guardando...' : 'Saving...') : (isEs ? 'Guardar Cambios' : 'Save Changes')}</span>
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex justify-between items-center py-1">
+                            <span className="text-slate-400">{isEs ? 'Nombre' : 'Name'}:</span>
+                            <span className="font-bold text-slate-900">{user?.name || (isEs ? 'Sin definir' : 'Not set')}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-1">
+                            <span className="text-slate-400">{isEs ? 'Identificador' : 'Handle'}:</span>
+                            <span className="font-mono text-slate-700">{user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email || 'trader')}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. SELECCIÓN DE IDIOMA (ESPAÑOL / ENGLISH) */}
+                    <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                      <div className="flex items-center gap-1.5 pb-2.5 mb-2.5 border-b border-slate-100 text-xs font-bold text-slate-800">
+                        <Globe className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{isEs ? 'Selección de Idioma' : 'Language Selection'}</span>
                       </div>
 
-                      {/* Posiciones Abiertas */}
-                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                          {isEs ? 'Posiciones Activas' : 'Active Positions'}
-                        </span>
-                        <span className="font-mono font-black text-sm text-slate-900 mt-0.5 block">
-                          {positions.length} <span className="text-[11px] font-normal text-slate-500">{isEs ? 'en mercado' : 'live'}</span>
-                        </span>
-                        <span className="text-[9px] text-amber-700 font-semibold">
-                          {limitOrders.length} {isEs ? 'órdenes límite' : 'limit orders'}
-                        </span>
-                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* BOTÓN ESPAÑOL */}
+                        <button
+                          type="button"
+                          onClick={() => onLanguageChange?.('es')}
+                          className={`py-2.5 px-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            currentLang === 'es'
+                              ? 'bg-amber-500/15 border-amber-500 text-amber-950 font-black shadow-xs ring-2 ring-amber-400/20'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base leading-none">🇪🇸</span>
+                            <span className="text-xs font-bold">Español</span>
+                          </div>
+                          {currentLang === 'es' && (
+                            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                          )}
+                        </button>
 
-                      {/* Límite de Drawdown Diario */}
-                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                          {isEs ? 'Drawdown Máx. EOD' : 'Max EOD Drawdown'}
-                        </span>
-                        <span className="font-mono font-black text-sm text-emerald-600 mt-0.5 block">
-                          5.00% <span className="text-[10px] font-normal text-slate-500">(Prop Rule)</span>
-                        </span>
-                        <span className="text-[9px] text-emerald-700 font-medium">
-                          {isEs ? 'Gobernanza: Segura' : 'Governance: Safe'}
-                        </span>
+                        {/* BOTÓN ENGLISH */}
+                        <button
+                          type="button"
+                          onClick={() => onLanguageChange?.('en')}
+                          className={`py-2.5 px-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            currentLang === 'en'
+                              ? 'bg-amber-500/15 border-amber-500 text-amber-950 font-black shadow-xs ring-2 ring-amber-400/20'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base leading-none">🇬🇧</span>
+                            <span className="text-xs font-bold">English</span>
+                          </div>
+                          {currentLang === 'en' && (
+                            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    {/* TARJETA DE SEGURIDAD Y GOBERNANZA DE TERMINAL */}
-                    <div className="p-3 rounded-2xl bg-white/80 border border-[#ded5c5] space-y-1.5 text-xs text-slate-600">
+                    {/* 4. PREFERENCIAS DE INTERFAZ & OPERATIVA */}
+                    <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs space-y-3">
+                      <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 text-xs font-bold text-slate-800">
+                        <Settings className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{isEs ? 'Preferencias de Interfaz' : 'Interface Preferences'}</span>
+                      </div>
+
+                      {/* TOGGLE 1-TOQUE */}
+                      {onToggleQuickTrade && (
+                        <div className="flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-bold text-slate-800 block">
+                              {isEs ? 'Operaciones Rápidas (1-Toque)' : 'Quick 1-Tap Trading'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">
+                              {isEs ? 'Botones de COMPRA y VENTA flotantes' : 'Floating BUY and SELL quick buttons'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={onToggleQuickTrade}
+                            className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                              quickTradeEnabled ? 'bg-amber-500' : 'bg-slate-300'
+                            }`}
+                          >
+                            <div
+                              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                quickTradeEnabled ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* TOGGLE POSICIÓN BARRA LATERAL */}
+                      {onToggleNavPosition && (
+                        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                          <div>
+                            <span className="font-bold text-slate-800 block">
+                              {isEs ? 'Lado de Navegación Lateral' : 'Lateral Navigation Position'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">
+                              {navPosition === 'left' ? (isEs ? 'Izquierda' : 'Left') : (isEs ? 'Derecha' : 'Right')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={onToggleNavPosition}
+                            className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 transition-colors"
+                          >
+                            <ArrowLeftRight className="w-3 h-3 text-amber-600" />
+                            <span>{isEs ? 'Alternar' : 'Toggle'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 5. DATOS DE SESIÓN Y CUENTA (SIN DRAWDOWN NI BALANCE) */}
+                    <div className="p-3 rounded-2xl bg-white/70 border border-[#ded5c5] space-y-1.5 text-xs text-slate-600">
                       <div className="flex justify-between items-center text-[10.5px]">
-                        <span className="text-slate-400">{isEs ? 'Protocolo de Ejecución' : 'Execution Protocol'}:</span>
-                        <span className="font-mono font-bold text-slate-800">Sub-100ms DMA Engine</span>
+                        <span className="text-slate-400">{isEs ? 'ID de Usuario' : 'User ID'}:</span>
+                        <span className="font-mono font-bold text-slate-800">#{user?.id ? user.id.slice(0, 10).toUpperCase() : 'ZYTI-USER-01'}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10.5px]">
-                        <span className="text-slate-400">{isEs ? 'Enrutamiento de Datos' : 'Data Routing'}:</span>
-                        <span className="font-mono font-bold text-slate-800">Multi-Feed WebSocket</span>
+                        <span className="text-slate-400">{isEs ? 'Método de Acceso' : 'Login Method'}:</span>
+                        <span className="font-bold text-slate-800 capitalize">{user?.provider || 'Telegram'}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10.5px]">
-                        <span className="text-slate-400">UID:</span>
-                        <span className="font-mono font-bold text-slate-700">#{user?.id ? user.id.slice(0, 10).toUpperCase() : 'ZYTI-DEMO-01'}</span>
+                        <span className="text-slate-400">{isEs ? 'Estado de Cuenta' : 'Account Status'}:</span>
+                        <span className="font-bold text-emerald-600">{isEs ? 'Activa y Segura' : 'Active and Secure'}</span>
                       </div>
                     </div>
                   </div>
 
+                  {/* 6. BOTÓN CERRAR SESIÓN */}
                   {onExit && (
                     <button
                       type="button"
                       onClick={onExit}
-                      className="w-full mt-2 py-3 px-4 rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98"
+                      className="w-full mt-3 py-3 px-4 rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98 shrink-0"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>{isEs ? 'Cerrar Sesión Segura' : 'Secure Log Out'}</span>

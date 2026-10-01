@@ -42,6 +42,8 @@ interface TradingTerminalProps {
   currentLang: Language;
   user: UserSession | null;
   onExit: () => void;
+  onLanguageChange?: (lang: Language) => void;
+  onUpdateUser?: (updated: UserSession) => void;
 }
 
 const SUPPORTED_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
@@ -261,7 +263,9 @@ const getStoredDailyStartEquity = (currentBalance: number): number => {
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   currentLang,
   user,
-  onExit
+  onExit,
+  onLanguageChange,
+  onUpdateUser
 }) => {
   const isEs = currentLang === 'es';
   const [selectedPair, setSelectedPair] = useState('BTC/USDT');
@@ -2384,6 +2388,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       {!isDesktop && (
         <TerminalMobileSheet
           isEs={isEs}
+          currentLang={currentLang}
+          onLanguageChange={onLanguageChange}
+          onUpdateUser={onUpdateUser}
           activeSheet={mobileSheet}
           positions={positions}
           limitOrders={limitOrders}
@@ -2392,6 +2399,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           riskPercent={riskPercent}
           onSetRiskPercent={setRiskPercent}
           quickTradeEnabled={quickTradeEnabled}
+          onToggleQuickTrade={toggleQuickTrade}
+          navPosition={navPosition}
+          onToggleNavPosition={toggleNavPosition}
           lastPrice={stats.lastPrice}
           bestBid={bestBid}
           bestAsk={bestAsk}

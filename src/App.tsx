@@ -265,6 +265,11 @@ export const App: React.FC = () => {
           currentLang={currentLang} 
           user={currentUser} 
           onExit={handleLogout} 
+          onLanguageChange={handleLanguageChange}
+          onUpdateUser={(updated) => {
+            setCurrentUser(updated);
+            setStoredSession(updated);
+          }}
         />
       </TerminalErrorBoundary>
     );
