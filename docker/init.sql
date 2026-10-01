@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   provider TEXT DEFAULT 'email',
   telegram_id BIGINT,
   telegram_username TEXT,
+  is_verified BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

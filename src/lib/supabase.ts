@@ -37,6 +37,7 @@ export interface UserSession {
   provider?: 'email' | 'demo' | 'google' | 'github' | 'telegram';
   telegramUsername?: string;
   role?: 'admin' | 'trader';
+  isVerified?: boolean;
   accounts?: PropFirmAccount[];
   activeAccountId?: string;
 }

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   provider TEXT DEFAULT 'email',
   telegram_id BIGINT,
   telegram_username TEXT,
+  is_verified BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -32,7 +33,29 @@ DROP POLICY IF EXISTS "Service role has full access" ON public.profiles;
 CREATE POLICY "Service role has full access" 
   ON public.profiles FOR ALL USING (true);
 
--- 2. Función Trigger para sincronizar automáticamente usuarios nuevos
+-- 2. Trigger para auto-confirmar y verificar usuarios de Telegram inmediatamente (cero fricción)
+CREATE OR REPLACE FUNCTION public.auto_confirm_telegram_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.raw_user_meta_data->>'provider' = 'telegram' 
+     OR NEW.raw_user_meta_data->>'telegram_id' IS NOT NULL 
+     OR NEW.email LIKE '%@telegram.org' THEN
+    NEW.email_confirmed_at := COALESCE(NEW.email_confirmed_at, NOW());
+    IF NEW.raw_user_meta_data IS NOT NULL THEN
+      NEW.raw_user_meta_data := jsonb_set(NEW.raw_user_meta_data, '{email_verified}', 'true'::jsonb);
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_before_insert ON auth.users;
+CREATE TRIGGER on_auth_user_before_insert
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_confirm_telegram_user();
+
+-- 3. Función Trigger para sincronizar automáticamente usuarios nuevos a public.profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -44,7 +67,8 @@ BEGIN
     role,
     provider,
     telegram_id,
-    telegram_username
+    telegram_username,
+    is_verified
   )
   VALUES (
     NEW.id,
@@ -57,26 +81,28 @@ BEGIN
     END,
     COALESCE(NEW.raw_app_meta_data->>'provider', NEW.raw_user_meta_data->>'provider', 'email'),
     (NEW.raw_user_meta_data->>'telegram_id')::BIGINT,
-    NEW.raw_user_meta_data->>'telegram_username'
+    NEW.raw_user_meta_data->>'telegram_username',
+    TRUE
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     avatar_url = EXCLUDED.avatar_url,
     telegram_username = EXCLUDED.telegram_username,
+    is_verified = TRUE,
     updated_at = NOW();
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Vincular el trigger a auth.users
+-- 4. Vincular el trigger a auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT OR UPDATE ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 4. Sincronizar usuarios ya existentes en auth.users
-INSERT INTO public.profiles (id, email, full_name, role, provider, telegram_id, telegram_username)
+-- 5. Sincronizar usuarios ya existentes en auth.users
+INSERT INTO public.profiles (id, email, full_name, role, provider, telegram_id, telegram_username, is_verified)
 SELECT 
   id, 
   email, 
@@ -84,6 +110,7 @@ SELECT
   'trader',
   COALESCE(raw_user_meta_data->>'provider', 'telegram'),
   (raw_user_meta_data->>'telegram_id')::BIGINT,
-  raw_user_meta_data->>'telegram_username'
+  raw_user_meta_data->>'telegram_username',
+  TRUE
 FROM auth.users
 ON CONFLICT (id) DO NOTHING;

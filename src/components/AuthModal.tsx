@@ -106,6 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         id: supaUserId, email: userEmail, name: fullName,
         avatarUrl: tgUser.photo_url, provider: 'telegram', telegramUsername: tgUser.username,
         role: 'trader', accounts: propAccounts,
+        isVerified: true,
         activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
       };
       setStoredSession(userSession);
