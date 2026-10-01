@@ -1,22 +1,48 @@
 import React, { useState } from 'react';
-import { ArrowLeftRight, LogOut, Repeat, X } from 'lucide-react';
+import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal } from 'lucide-react';
 
 interface TerminalSideNavProps {
   isEs: boolean;
   navPosition: 'left' | 'right';
   isMobileNavOpen: boolean;
   activeSection: string;
+  isTradingSidebarOpen?: boolean;
+  onToggleTradingSidebar?: () => void;
   onToggleNavPosition: () => void;
   onSelectSection: (section: 'none' | 'exchange' | string) => void;
   onCloseMobileNav: () => void;
   onExit: () => void;
 }
 
+// Icono personalizado de Velas Japonesas en blanco, negro y una roja
+export const JapaneseCandlesticksIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`${className} shrink-0`}
+  >
+    {/* Vela 1: Blanca con contorno y mecha negra */}
+    <line x1="4.5" y1="2" x2="4.5" y2="18" stroke="#0f172a" strokeWidth="1.25" strokeLinecap="round" />
+    <rect x="2.5" y="6" width="4" height="7" rx="0.5" fill="#ffffff" stroke="#0f172a" strokeWidth="1.25" />
+
+    {/* Vela 2: Roja viva sólida */}
+    <line x1="10" y1="1.5" x2="10" y2="18.5" stroke="#ef4444" strokeWidth="1.25" strokeLinecap="round" />
+    <rect x="8" y="4" width="4" height="9" rx="0.5" fill="#ef4444" stroke="#dc2626" strokeWidth="0.5" />
+
+    {/* Vela 3: Negra sólida */}
+    <line x1="15.5" y1="3" x2="15.5" y2="17" stroke="#0f172a" strokeWidth="1.25" strokeLinecap="round" />
+    <rect x="13.5" y="7" width="4" height="6" rx="0.5" fill="#0f172a" />
+  </svg>
+);
+
 export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   isEs,
   navPosition,
   isMobileNavOpen,
   activeSection,
+  isTradingSidebarOpen = true,
+  onToggleTradingSidebar,
   onToggleNavPosition,
   onSelectSection,
   onCloseMobileNav,
@@ -39,7 +65,29 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
         >
           {/* SECCIONES ARRIBA */}
           <div className="space-y-1.5">
-            {/* SECCIÓN 1: EXCHANGE */}
+            {/* SECCIÓN 1: TRADING (ABRIR / CERRAR PANEL DE TRADING Y LIBRO) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onToggleTradingSidebar) onToggleTradingSidebar();
+                setIsClickedExpanded(false);
+              }}
+              className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all cursor-pointer ${
+                isTradingSidebarOpen
+                  ? 'bg-amber-100 text-amber-950 font-black shadow-xs'
+                  : 'text-slate-700 hover:text-slate-950 hover:bg-white/80'
+              }`}
+              title={isEs ? 'Panel de Trading y Libro' : 'Trading Panel & Order Book'}
+            >
+              <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                <JapaneseCandlesticksIcon className="w-4.5 h-4.5" />
+              </div>
+              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                Trading
+              </span>
+            </button>
+
+            {/* SECCIÓN 2: EXCHANGE */}
             <button
               type="button"
               onClick={() => {
@@ -113,8 +161,24 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                 </button>
               </div>
 
-              {/* SECCIÓN EXCHANGE */}
+              {/* SECCIONES TRADING Y EXCHANGE */}
               <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onToggleTradingSidebar) onToggleTradingSidebar();
+                    onCloseMobileNav();
+                  }}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    isTradingSidebarOpen
+                      ? 'bg-amber-100 text-amber-950 font-black'
+                      : 'text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  <JapaneseCandlesticksIcon className="w-4 h-4" />
+                  <span>Trading & Order Book</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {

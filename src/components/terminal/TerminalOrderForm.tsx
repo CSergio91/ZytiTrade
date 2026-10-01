@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Zap, Shield, Target, DollarSign, Percent } from 'lucide-react';
+import { TrendingUp, Zap, Shield, Target, DollarSign, Percent, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface TerminalOrderFormProps {
   isEs: boolean;
@@ -17,6 +17,9 @@ interface TerminalOrderFormProps {
   orderSuccess: string | null;
   quickTradeEnabled: boolean;
   isDesktop?: boolean;
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
+  onClose?: () => void;
   onToggleQuickTrade: () => void;
   setSide: (side: 'buy' | 'sell') => void;
   setOrderType: (type: 'market' | 'limit') => void;
@@ -45,6 +48,9 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
   orderSuccess,
   quickTradeEnabled,
   isDesktop = false,
+  isMinimized = false,
+  onToggleMinimize,
+  onClose,
   onToggleQuickTrade,
   setSide,
   setOrderType,
@@ -94,16 +100,62 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
   };
 
   return (
-    <div className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs space-y-2.5">
-      {/* CABECERA SALDO DEMO */}
-      <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-[#fbf9f4] border border-[#ded5c5]">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-          {isEs ? 'Saldo Demo' : 'Demo Balance'}
+    <div className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs space-y-2.5 transition-all">
+      {/* BARRA SUPERIOR DEL PANEL DE ORDEN (TITULO + MINIMIZAR + CERRAR) */}
+      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+        <span className="text-[11px] font-black text-slate-900 flex items-center gap-1.5">
+          <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+          <span>{isEs ? 'Panel de Trading' : 'Trading Order'}</span>
         </span>
-        <span className="text-xs font-mono font-black text-slate-900">
-          ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-        </span>
+        <div className="flex items-center gap-1">
+          {onToggleMinimize && (
+            <button
+              type="button"
+              onClick={onToggleMinimize}
+              className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              title={isMinimized ? (isEs ? 'Expandir panel de trading' : 'Expand trading panel') : (isEs ? 'Minimizar panel de trading' : 'Minimize trading panel')}
+            >
+              {isMinimized ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 cursor-pointer"
+              title={isEs ? 'Cerrar panel de trading' : 'Close trading panel'}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {isMinimized ? (
+        <div className="flex items-center justify-between py-1 text-[10px] font-mono text-slate-600">
+          <span className={`px-1.5 py-0.5 rounded font-black text-white ${isLong ? 'bg-emerald-600' : 'bg-red-600'}`}>
+            {isLong ? 'LONG' : 'SHORT'} {leverage}x
+          </span>
+          <span className="font-bold text-slate-900">{selectedPair}</span>
+          <button
+            type="button"
+            onClick={onToggleMinimize}
+            className="text-[9px] font-bold text-amber-700 hover:underline cursor-pointer"
+          >
+            {isEs ? 'Expandir' : 'Expand'}
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* CABECERA SALDO DEMO */}
+          <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-[#fbf9f4] border border-[#ded5c5]">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              {isEs ? 'Saldo Demo' : 'Demo Balance'}
+            </span>
+            <span className="text-xs font-mono font-black text-slate-900">
+              ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+            </span>
+          </div>
 
       {/* SELECTOR COMPRA / VENTA */}
       <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#ede5d6]">
@@ -422,6 +474,8 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
           </span>
         </button>
       </form>
+      </>
+      )}
     </div>
   );
 };

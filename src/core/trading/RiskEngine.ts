@@ -1,10 +1,20 @@
 /**
- * ZYTI Trade - Institutional Pre-Trade Risk Engine
- * Diseñado para gobernar cuentas de Trading Institucional y reglas de Prop Firms (FTMO, Funding Pips, E8, ZYTI Gateway).
+ * ZYTI Trade - Institutional Risk Engine Facade
+ * Orquesta la tubería de reglas desacopladas (Rule Pipeline) para cuentas institucionales y Prop Firms.
  * 100% puro en memoria: evaluación sub-milisegundo agnóstica de frameworks.
  */
 
 import { OrderRequest, AccountMetrics, PropFirmRuleConfig, RiskCheckResult } from './types';
+import {
+  RiskPipeline,
+  AvailableMarginRule,
+  MaxLeverageRule,
+  MaxDailyDrawdownRule,
+  MaxTotalDrawdownRule,
+  MandatoryStopLossRule,
+  PreTradeContext,
+  InFlightContext
+} from './rules';
 
 export const DEFAULT_PROP_FIRM_RULES: PropFirmRuleConfig = {
   id: 'standard-eval',
@@ -17,16 +27,43 @@ export const DEFAULT_PROP_FIRM_RULES: PropFirmRuleConfig = {
 };
 
 export class RiskEngine {
+  private static defaultPipeline: RiskPipeline = new RiskPipeline([
+    new MaxLeverageRule(),
+    new AvailableMarginRule(),
+    new MaxDailyDrawdownRule(),
+    new MaxTotalDrawdownRule()
+  ]);
+
+  /**
+   * Genera una tubería de reglas configurada a medida para una Prop Firm específica
+   * (ideal para instanciar según la configuración cargada desde Supabase).
+   */
+  public static createPipelineForFirm(rules: PropFirmRuleConfig): RiskPipeline {
+    const pipeline = new RiskPipeline([
+      new MaxLeverageRule(),
+      new AvailableMarginRule(),
+      new MaxDailyDrawdownRule(),
+      new MaxTotalDrawdownRule()
+    ]);
+
+    // Si la firma exige SL obligatorio de forma estricta
+    if (rules.id?.includes('strict') || rules.firmName?.toLowerCase().includes('strict')) {
+      pipeline.addRule(new MandatoryStopLossRule());
+    }
+
+    return pipeline;
+  }
+
   /**
    * Evaluación Pre-Trade Síncrona:
-   * Verifica apalancamiento, margen disponible, límites de posición y reglas de Prop Firm
-   * antes de emitir la orden al EMS o al mercado.
+   * Calcula el tamaño institucional y pasa el contexto por la tubería de reglas desacopladas.
    */
   public static evaluateOrderRisk(
     req: OrderRequest,
     metrics: AccountMetrics,
     currentPrice: number,
-    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES
+    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES,
+    customPipeline?: RiskPipeline
   ): RiskCheckResult {
     if (currentPrice <= 0) {
       return {
@@ -40,20 +77,7 @@ export class RiskEngine {
       };
     }
 
-    // 1. Verificación de apalancamiento permitido por la Prop Firm
-    if (req.leverage > rules.maxLeverage) {
-      return {
-        allowed: false,
-        reason: `Apalancamiento de ${req.leverage}x excede el límite máximo permitido por la firma (${rules.maxLeverage}x).`,
-        requiredMargin: 0,
-        notionalUsd: 0,
-        sizeUnits: 0,
-        estimatedLossUsd: 0,
-        estimatedProfitUsd: 0
-      };
-    }
-
-    // 2. Cálculo de tamaño institucional
+    // 1. Cálculo de tamaño institucional y notional
     let notionalUsd = 0;
     let requiredMargin = 0;
     let estimatedLossUsd = 0;
@@ -64,7 +88,6 @@ export class RiskEngine {
       const slPercent = Math.max(0.1, req.slPercent);
       const riskAmountUsd = (metrics.settledBalance * riskPercent) / 100;
       
-      // En modo riesgo, la pérdida en SL debe ser exactamente riskAmountUsd
       notionalUsd = riskAmountUsd / (slPercent / 100);
       requiredMargin = Math.max(10, Math.round(notionalUsd / req.leverage));
       estimatedLossUsd = riskAmountUsd;
@@ -79,25 +102,27 @@ export class RiskEngine {
 
     const sizeUnits = notionalUsd / currentPrice;
 
-    // 3. Verificación de margen libre
-    if (requiredMargin > metrics.availableBalance) {
-      return {
-        allowed: false,
-        reason: `Margen insuficiente. Requiere $${requiredMargin.toLocaleString()} USDT, pero solo hay disponible $${metrics.availableBalance.toFixed(2)} USDT.`,
-        requiredMargin,
-        notionalUsd,
-        sizeUnits,
-        estimatedLossUsd,
-        estimatedProfitUsd
-      };
-    }
+    // 2. Construir el contexto de pre-trade
+    const ctx: PreTradeContext = {
+      req,
+      currentPrice,
+      metrics,
+      rules,
+      requiredMargin,
+      notionalUsd,
+      sizeUnits,
+      estimatedLossUsd,
+      estimatedProfitUsd
+    };
 
-    // 4. Verificación de regla de pérdida máxima permitida en una sola operación
-    const maxAllowedSingleLoss = (metrics.settledBalance * rules.maxDailyLossPercent) / 100;
-    if (estimatedLossUsd > maxAllowedSingleLoss) {
+    // 3. Ejecución a través del pipeline de reglas
+    const pipeline = customPipeline || this.defaultPipeline;
+    const ruleResult = pipeline.executePreTrade(ctx);
+
+    if (!ruleResult.passed) {
       return {
         allowed: false,
-        reason: `El riesgo de la orden ($${estimatedLossUsd.toFixed(2)}) supera el límite diario de la Prop Firm ($${maxAllowedSingleLoss.toFixed(2)} / ${rules.maxDailyLossPercent}%).`,
+        reason: ruleResult.reason || 'Orden rechazada por el motor de riesgo.',
         requiredMargin,
         notionalUsd,
         sizeUnits,
@@ -118,12 +143,13 @@ export class RiskEngine {
 
   /**
    * Monitor de Drawdown para Prop Firms:
-   * Evalúa si la cuenta ha alcanzado el límite diario o total permitido.
+   * Evalúa la equidad y pérdidas frente a los límites diarios y totales.
    */
   public static checkPropFirmStatus(
     metrics: AccountMetrics,
     dailyStartEquity: number,
-    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES
+    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES,
+    customPipeline?: RiskPipeline
   ): { breached: boolean; reason?: string; dailyLossPct: number; totalLossPct: number } {
     const dailyLossUsd = Math.max(0, dailyStartEquity - metrics.equity);
     const dailyLossPct = dailyStartEquity > 0 ? (dailyLossUsd / dailyStartEquity) * 100 : 0;
@@ -131,19 +157,19 @@ export class RiskEngine {
     const totalLossUsd = Math.max(0, rules.initialBalance - metrics.equity);
     const totalLossPct = rules.initialBalance > 0 ? (totalLossUsd / rules.initialBalance) * 100 : 0;
 
-    if (dailyLossPct >= rules.maxDailyLossPercent) {
-      return {
-        breached: true,
-        reason: `Límite diario de pérdida alcanzado (${dailyLossPct.toFixed(2)}% >= ${rules.maxDailyLossPercent}%). Cuenta pausada por reglas de Prop Firm.`,
-        dailyLossPct,
-        totalLossPct
-      };
-    }
+    const ctx: InFlightContext = {
+      metrics,
+      dailyStartEquity,
+      rules
+    };
 
-    if (totalLossPct >= rules.maxTotalDrawdownPercent) {
+    const pipeline = customPipeline || this.defaultPipeline;
+    const ruleResult = pipeline.executeInFlight(ctx);
+
+    if (!ruleResult.passed) {
       return {
         breached: true,
-        reason: `Drawdown máximo total alcanzado (${totalLossPct.toFixed(2)}% >= ${rules.maxTotalDrawdownPercent}%). Regla de Prop Firm infringida.`,
+        reason: ruleResult.reason,
         dailyLossPct,
         totalLossPct
       };
@@ -156,3 +182,4 @@ export class RiskEngine {
     };
   }
 }
+export * from './rules';

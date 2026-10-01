@@ -1,23 +1,25 @@
 /**
- * ZYTI Trade - Market Data Feed Contracts
- * Modelos de datos universales para streaming WebSocket de exchanges reales (Binance, Bybit, OKX, CCXT)
- * y el motor de agregación de velas a 60 FPS en Web Worker.
+ * ZYTI Trade - Market Feed & Connectivity Contracts
+ * Contratos neutrales y agnósticos de exchange para Spot y Futuros Perpetuos.
+ * Compatibles con Web Workers, React, Node.js y motores de Arbitraje.
  */
 
-export type SupportedExchange = 
-  | 'binance' 
-  | 'bybit' 
-  | 'okx' 
-  | 'kraken' 
-  | 'coinbase' 
-  | 'bitget' 
-  | 'simulated';
+export type MarketType = 'spot' | 'futures';
+
+export type AdapterConnectionStatus = 
+  | 'DISCONNECTED' 
+  | 'CONNECTING' 
+  | 'CONNECTED' 
+  | 'RECONNECTING' 
+  | 'ROTATING_24H';
 
 export interface MarketTick {
   symbol: string;
+  exchange: string;
+  marketType: MarketType;
   price: number;
-  volume: number;
   timestamp: number;
+  volume: number;
   side: 'buy' | 'sell';
 }
 
@@ -33,31 +35,43 @@ export interface KLineBar {
 export interface OrderBookLevel {
   price: number;
   amount: number;
-  total: number;
+  total?: number;
 }
 
 export interface OrderBookPayload {
+  symbol?: string;
+  exchange?: string;
+  marketType?: MarketType;
+  timestamp?: number;
   bids: OrderBookLevel[];
   asks: OrderBookLevel[];
 }
 
 export interface MarketStats {
   symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
   lastPrice: number;
   change24h: number;
   high24h: number;
   low24h: number;
   volume24h: number;
+  fundingRate?: number; // Para futuros perpetuos
+  nextFundingTime?: number;
 }
 
-export type MarketFeedCommand = 
-  | { type: 'SUBSCRIBE'; payload: { symbol: string; timeframe: string; exchange?: SupportedExchange } }
-  | { type: 'UNSUBSCRIBE'; payload?: { symbol?: string } }
+export type MarketFeedCommand =
+  | { type: 'SUBSCRIBE'; payload: { exchange?: string; symbol: string; timeframe?: string; marketType?: MarketType; subscriberId?: string } }
+  | { type: 'UNSUBSCRIBE'; payload: { exchange?: string; symbol: string; marketType?: MarketType; subscriberId?: string } }
   | { type: 'CHANGE_TIMEFRAME'; payload: { timeframe: string } }
-  | { type: 'SET_EXCHANGE'; payload: { exchange: SupportedExchange } };
+  | { type: 'SET_EXCHANGE'; payload: { exchange: string; marketType?: MarketType } };
 
-export type MarketFeedEvent = 
-  | { type: 'HISTORICAL_BARS'; payload: { bars: KLineBar[]; symbol: string; timeframe: string } }
-  | { type: 'TICK_UPDATE'; payload: { bar: KLineBar; stats: MarketStats } }
+export type MarketFeedEvent =
+  | { type: 'TICK_UPDATE'; payload: { symbol: string; bar: KLineBar; stats: MarketStats; exchange?: string; marketType?: MarketType } }
+  | { type: 'KLINE'; payload: { exchange: string; symbol: string; marketType: MarketType; bar: KLineBar } }
+  | { type: 'TICKER'; payload: { exchange: string; symbol: string; marketType: MarketType; stats: MarketStats } }
+  | { type: 'HISTORICAL_BARS'; payload: { symbol: string; bars: KLineBar[]; exchange?: string; marketType?: MarketType } }
   | { type: 'ORDERBOOK_UPDATE'; payload: OrderBookPayload }
-  | { type: 'CONNECTION_STATUS'; payload: { status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting'; exchange: SupportedExchange } };
+  | { type: 'STATUS_CHANGE'; payload: { exchange: string; marketType: MarketType; status: AdapterConnectionStatus; message?: string } }
+  | { type: 'ERROR'; payload: { exchange: string; message: string; code?: string } };
+

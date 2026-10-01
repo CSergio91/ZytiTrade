@@ -27,6 +27,7 @@ import { TerminalExchangeModal } from './terminal/TerminalExchangeModal';
 import { PositionChartOverlay } from './terminal/PositionChartOverlay';
 import { TerminalToast, ToastNotification } from './terminal/TerminalToast';
 import { playOrderFilledSound } from '../utils/audioAlerts';
+import { SlidersHorizontal, X } from 'lucide-react';
 
 interface TradingTerminalProps {
   currentLang: Language;
@@ -329,6 +330,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   // Posiciones abiertas (por defecto vacío, sin operaciones predeterminadas)
   const [positions, setPositions] = useState<PositionItem[]>([]);
+  const positionsRef = useRef<PositionItem[]>(positions);
+  positionsRef.current = positions;
+
+  // Registro de IDs cerrados para evitar duplicación de eventos o toasts
+  const closedPositionIdsRef = useRef<Set<string>>(new Set());
 
   // Saldo de cuenta Demo y gestión de riesgo en %
   const [demoBalance, setDemoBalance] = useState<number>(() => {
@@ -343,6 +349,25 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [slPercent, setSlPercent] = useState<number>(2);
   const [tpPercent, setTpPercent] = useState<number>(4);
   const [orderMode, setOrderMode] = useState<'amount' | 'risk'>('amount');
+
+  // Control de apertura, minimizado y cierre individual del panel de trading y libro de órdenes
+  const [isTradingSidebarOpen, setIsTradingSidebarOpen] = useState<boolean>(true);
+  const [isOrderFormMinimized, setIsOrderFormMinimized] = useState<boolean>(false);
+  const [isOrderFormClosed, setIsOrderFormClosed] = useState<boolean>(false);
+  const [isOrderBookMinimized, setIsOrderBookMinimized] = useState<boolean>(false);
+  const [isOrderBookClosed, setIsOrderBookClosed] = useState<boolean>(false);
+
+  const handleToggleTradingSidebar = useCallback(() => {
+    setIsTradingSidebarOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsOrderFormClosed(false);
+        setIsOrderBookClosed(false);
+      }
+      setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      return next;
+    });
+  }, []);
 
   // Sistema de notificaciones Toast sonoras para TP, SL y ejecución
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -404,17 +429,33 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           setStats(payload.stats);
           const currentP = payload.stats.lastPrice;
 
-          setPositions((prevPositions) => {
-            if (prevPositions.length === 0) return prevPositions;
-            
+          const currentPositions = positionsRef.current;
+          if (currentPositions.length > 0) {
             const evaluation = TradingEngine.evaluatePositionsOnTick(
-              prevPositions,
+              currentPositions,
               currentP,
               payload.stats.symbol
             );
 
-            // Despachar Toasts y alertas sonoras de TP o SL
+            // Actualizar posiciones
+            setPositions(evaluation.updatedPositions);
+
+            // Actualizar saldo realizado si hubo ejecuciones de TP o SL
+            if (evaluation.balanceDelta !== 0) {
+              setDemoBalance((prevB) => {
+                const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
+                try {
+                  localStorage.setItem('zyti_demo_balance', nextB.toString());
+                } catch {}
+                return nextB;
+              });
+            }
+
+            // Despachar Toasts y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
             evaluation.events.forEach((evt) => {
+              if (closedPositionIdsRef.current.has(evt.position.id)) return;
+              closedPositionIdsRef.current.add(evt.position.id);
+
               if (evt.type === 'TP_HIT') {
                 addToastRef.current({
                   type: 'tp',
@@ -453,19 +494,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                 setTimeout(() => setOrderSuccess(null), 4000);
               }
             });
-
-            if (evaluation.balanceDelta !== 0) {
-              setDemoBalance((prevB) => {
-                const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
-                try {
-                  localStorage.setItem('zyti_demo_balance', nextB.toString());
-                } catch {}
-                return nextB;
-              });
-            }
-
-            return evaluation.updatedPositions;
-          });
+          }
         }
       } else if (type === 'ORDERBOOK_UPDATE') {
         if (payload.bids && payload.asks) {
@@ -687,43 +716,56 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
   };
 
+  const handleUpdatePreviewSLTP = useCallback((newSlPct?: number, newTpPct?: number) => {
+    if (newSlPct !== undefined && !isNaN(newSlPct) && newSlPct > 0) {
+      setSlPercent(Math.max(0.1, Number(newSlPct.toFixed(1))));
+    }
+    if (newTpPct !== undefined && !isNaN(newTpPct) && newTpPct > 0) {
+      setTpPercent(Math.max(0.1, Number(newTpPct.toFixed(1))));
+    }
+  }, []);
+
   // Cerrar posición manualmente: calcula PnL realizado y actualiza el saldo de la cuenta
   const handleClosePosition = (id: string) => {
-    setPositions((prev) => {
-      const { remainingPositions, closedPosition, realizedPnL } = TradingEngine.closePosition(prev, id);
-      if (closedPosition) {
-        setDemoBalance((prevB) => {
-          const nextB = Number((prevB + realizedPnL).toFixed(2));
-          try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
-          return nextB;
-        });
+    if (closedPositionIdsRef.current.has(id)) return;
+    
+    const currentPositions = positionsRef.current;
+    const { remainingPositions, closedPosition, realizedPnL } = TradingEngine.closePosition(currentPositions, id);
+    if (!closedPosition) return;
 
-        // Toast sonoro al cerrar manualmente
-        addToast({
-          type: realizedPnL >= 0 ? 'tp' : 'sl',
-          title: isEs ? 'Posición Cerrada a Mercado' : 'Position Closed at Market',
-          message: isEs
-            ? `Operación ${closedPosition.side} en ${closedPosition.symbol} liquidada a precio actual.`
-            : `${closedPosition.side} position on ${closedPosition.symbol} settled at current market price.`,
-          symbol: closedPosition.symbol,
-          pnlUsdt: realizedPnL,
-          pnlPercent: closedPosition.pnlPercentNum,
-          price: closedPosition.mark
-        });
+    closedPositionIdsRef.current.add(id);
 
-        setOrderSuccess(
-          isEs
-            ? `Posición ${closedPosition.symbol} cerrada. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
-            : `Position ${closedPosition.symbol} closed. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
-        );
-        setTimeout(() => setOrderSuccess(null), 3000);
-      }
-      return remainingPositions;
+    setPositions(remainingPositions);
+    setDemoBalance((prevB) => {
+      const nextB = Number((prevB + realizedPnL).toFixed(2));
+      try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
+      return nextB;
     });
+
+    // Toast sonoro al cerrar manualmente (despachado una sola vez)
+    addToast({
+      type: realizedPnL >= 0 ? 'tp' : 'sl',
+      title: isEs ? 'Posición Cerrada a Mercado' : 'Position Closed at Market',
+      message: isEs
+        ? `Operación ${closedPosition.side} en ${closedPosition.symbol} liquidada a precio actual.`
+        : `${closedPosition.side} position on ${closedPosition.symbol} settled at current market price.`,
+      symbol: closedPosition.symbol,
+      pnlUsdt: realizedPnL,
+      pnlPercent: closedPosition.pnlPercentNum,
+      price: closedPosition.mark
+    });
+
+    setOrderSuccess(
+      isEs
+        ? `Posición ${closedPosition.symbol} cerrada. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
+        : `Position ${closedPosition.symbol} closed. PnL: ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} USDT`
+    );
+    setTimeout(() => setOrderSuccess(null), 3000);
   };
 
   // Resetear el saldo demo al valor inicial de $10,000
   const resetDemoBalance = () => {
+    closedPositionIdsRef.current.clear();
     setPositions([]); // Cierra todas las posiciones
     setDemoBalance(10000);
     try { localStorage.setItem('zyti_demo_balance', '10000'); } catch {}
@@ -852,6 +894,15 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       orderSuccess={orderSuccess}
       quickTradeEnabled={quickTradeEnabled}
       isDesktop={isDesktop}
+      isMinimized={isOrderFormMinimized}
+      onToggleMinimize={() => setIsOrderFormMinimized((m) => !m)}
+      onClose={() => {
+        setIsOrderFormClosed(true);
+        if (isOrderBookClosed) {
+          setIsTradingSidebarOpen(false);
+        }
+        setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      }}
       onToggleQuickTrade={toggleQuickTrade}
       setSide={setSide}
       setOrderType={setOrderType}
@@ -866,8 +917,37 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   );
 
   const renderOrderBook = () => (
-    <TerminalOrderBook orderBook={orderBook} />
+    <TerminalOrderBook
+      orderBook={orderBook}
+      isMinimized={isOrderBookMinimized}
+      onToggleMinimize={() => setIsOrderBookMinimized((m) => !m)}
+      onClose={() => {
+        setIsOrderBookClosed(true);
+        if (isOrderFormClosed) {
+          setIsTradingSidebarOpen(false);
+        }
+        setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      }}
+    />
   );
+
+  // Cálculos de configuración previa de trading para proyectar en el gráfico
+  const isPreviewLong = side === 'buy';
+  const previewSlPrice = isPreviewLong
+    ? Number((stats.lastPrice * (1 - slPercent / 100)).toFixed(2))
+    : Number((stats.lastPrice * (1 + slPercent / 100)).toFixed(2));
+  const previewTpPrice = isPreviewLong
+    ? Number((stats.lastPrice * (1 + tpPercent / 100)).toFixed(2))
+    : Number((stats.lastPrice * (1 - tpPercent / 100)).toFixed(2));
+
+  const previewRiskAmountUsd = (demoBalance * riskPercent) / 100;
+  const previewNotionalUsd = orderMode === 'risk'
+    ? (slPercent > 0 ? previewRiskAmountUsd / (slPercent / 100) : 1000)
+    : (parseFloat(amount) || 1000) * leverage;
+  const previewEstimatedLossUsd = orderMode === 'risk'
+    ? previewRiskAmountUsd
+    : previewNotionalUsd * (slPercent / 100);
+  const previewEstimatedProfitUsd = previewNotionalUsd * (tpPercent / 100);
 
   return (
     <div className="h-screen w-screen bg-[#fbf9f4] text-slate-900 flex flex-col font-sans overflow-hidden select-none">
@@ -903,6 +983,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
+            isTradingSidebarOpen={isTradingSidebarOpen}
+            onToggleTradingSidebar={handleToggleTradingSidebar}
             onToggleNavPosition={toggleNavPosition}
             onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
             onCloseMobileNav={() => setIsMobileNavOpen(false)}
@@ -933,16 +1015,29 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               className="w-full h-full block" 
             />
 
-            {/* OVERLAY INTERACTIVO: ENTRADA, TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES */}
+            {/* OVERLAY INTERACTIVO: ENTRADAS (AZUL), TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES + PREVIEW */}
             <PositionChartOverlay
               chart={chartInstanceRef.current}
-              position={positions.find((p) => p.symbol === selectedPair) || null}
+              positions={positions.filter((p) => p.symbol === selectedPair)}
               currentPrice={stats.lastPrice}
               demoBalance={demoBalance}
               isEs={isEs}
+              tradeSetupPreview={{
+                enabled: isTradingSidebarOpen && !isOrderFormClosed && !isOrderFormMinimized,
+                side,
+                entryPrice: stats.lastPrice,
+                slPercent,
+                tpPercent,
+                slPrice: previewSlPrice,
+                tpPrice: previewTpPrice,
+                estimatedLossUsd: previewEstimatedLossUsd,
+                estimatedProfitUsd: previewEstimatedProfitUsd
+              }}
               onUpdatePositionSLTP={handleUpdatePositionSLTP}
               onClosePosition={handleClosePosition}
+              onUpdatePreviewSLTP={handleUpdatePreviewSLTP}
             />
+
           </div>
 
           {/* DESKTOP: TABLA INFERIOR DE POSICIONES ABIERTAS (h-36) */}
@@ -954,11 +1049,16 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
         </div>
 
-        {/* DESKTOP (>= 1024px): PANEL LATERAL ESTRECHO (280px) */}
-        <div className="terminal-desktop-sidebar no-scrollbar">
-          {renderOrderBook()}
-          {renderOrderForm()}
-        </div>
+        {/* DESKTOP (>= 1024px): PANEL LATERAL ESTRECHO (280px) CON TRADING ARRIBA Y LIBRO ABAJO */}
+        {isTradingSidebarOpen && (!isOrderFormClosed || !isOrderBookClosed) && (
+          <div className="terminal-desktop-sidebar no-scrollbar">
+            {/* 1. PANEL DE TRADING ARRIBA */}
+            {!isOrderFormClosed && renderOrderForm()}
+
+            {/* 2. LIBRO DE ÓRDENES ABAJO */}
+            {!isOrderBookClosed && renderOrderBook()}
+          </div>
+        )}
 
         {/* NAVEGACIÓN LATERAL EN ESCRITORIO (DERECHA) */}
         {navPosition === 'right' && (
@@ -967,6 +1067,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
+            isTradingSidebarOpen={isTradingSidebarOpen}
+            onToggleTradingSidebar={handleToggleTradingSidebar}
             onToggleNavPosition={toggleNavPosition}
             onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
             onCloseMobileNav={() => setIsMobileNavOpen(false)}
@@ -1010,6 +1112,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           navPosition={navPosition}
           isMobileNavOpen={isMobileNavOpen}
           activeSection={activeSection}
+          isTradingSidebarOpen={isTradingSidebarOpen}
+          onToggleTradingSidebar={handleToggleTradingSidebar}
           onToggleNavPosition={toggleNavPosition}
           onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
           onCloseMobileNav={() => setIsMobileNavOpen(false)}
