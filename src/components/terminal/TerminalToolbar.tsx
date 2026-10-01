@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, MoreHorizontal, Search, X, Check } from 'lucide-react';
-import { ALL_TIMEFRAMES, ALL_INDICATORS, IndicatorOption } from './types';
+import { ALL_TIMEFRAMES, ALL_INDICATORS, IndicatorOption, sortTimeframes } from './types';
 
 interface TerminalToolbarProps {
   isEs: boolean;
@@ -29,10 +29,12 @@ export const TerminalToolbar: React.FC<TerminalToolbarProps> = ({
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState('');
 
-  // Lista de temporalidades visibles en la barra (favoritas + activa si no está entre favoritas)
-  const visibleTimeframes = favoriteTimeframes.includes(timeframe)
-    ? favoriteTimeframes
-    : [...favoriteTimeframes, timeframe];
+  // Lista de temporalidades visibles en la barra siempre organizadas de menor a mayor
+  const visibleTimeframes = sortTimeframes(
+    favoriteTimeframes.includes(timeframe)
+      ? favoriteTimeframes
+      : [...favoriteTimeframes, timeframe]
+  );
 
   // Indicadores filtrados por el buscador
   const filteredIndicators = ALL_INDICATORS.filter((ind) => 

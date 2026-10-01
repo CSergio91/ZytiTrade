@@ -84,6 +84,9 @@ function mapTimeframeToBybit(tf: string): string {
   return map[tf] || '15';
 }
 
+// Cache de últimos precios reales conocidos por par
+const lastKnownPrices: Record<string, number> = { ...BASE_PRICES };
+
 /**
  * Obtiene velas históricas oficiales vía REST con timeout y fallback estocástico
  */
@@ -99,67 +102,76 @@ async function fetchHistoricalKlines(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3500);
 
-    if (exchange === 'binance') {
-      const tf = mapTimeframeToBinance(timeframe);
-      // Intentar primero api.binance.com (disponible globalmente sin CORS ni bloqueo regional) y luego fapi
-      const endpoints = [
-        `https://api.binance.com/api/v3/klines?symbol=${clean}&interval=${tf}&limit=200`,
-        `https://fapi.binance.com/fapi/v1/klines?symbol=${clean}&interval=${tf}&limit=200`
-      ];
+    const tf = mapTimeframeToBinance(timeframe);
 
-      for (const ep of endpoints) {
-        try {
-          const res = await fetch(ep, { signal: controller.signal });
-          if (res.ok) {
-            const json = await res.json();
-            if (Array.isArray(json) && json.length > 0) {
-              clearTimeout(timeout);
-              return json.map((r: any) => ({
-                timestamp: r[0],
-                open: parseFloat(r[1]),
-                high: parseFloat(r[2]),
-                low: parseFloat(r[3]),
-                close: parseFloat(r[4]),
-                volume: parseFloat(r[5])
-              }));
-            }
+    // Endpoints priorizados:
+    // 1. Si es Bybit, intentar endpoint oficial Bybit v5
+    if (exchange === 'bybit') {
+      try {
+        const bybitTf = mapTimeframeToBybit(timeframe);
+        const category = marketType === 'futures' ? 'linear' : 'spot';
+        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${clean}&interval=${bybitTf}&limit=200`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.result?.list && Array.isArray(json.result.list) && json.result.list.length > 0) {
+            clearTimeout(timeout);
+            const list = [...json.result.list].reverse();
+            return list.map((r: any) => ({
+              timestamp: parseInt(r[0], 10),
+              open: parseFloat(r[1]),
+              high: parseFloat(r[2]),
+              low: parseFloat(r[3]),
+              close: parseFloat(r[4]),
+              volume: parseFloat(r[5])
+            }));
           }
-        } catch {}
-      }
-    } else if (exchange === 'bybit') {
-      const tf = mapTimeframeToBybit(timeframe);
-      const category = marketType === 'futures' ? 'linear' : 'spot';
-      const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${clean}&interval=${tf}&limit=200`;
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.result?.list && Array.isArray(json.result.list)) {
-          const list = [...json.result.list].reverse();
-          return list.map((r: any) => ({
-            timestamp: parseInt(r[0], 10),
-            open: parseFloat(r[1]),
-            high: parseFloat(r[2]),
-            low: parseFloat(r[3]),
-            close: parseFloat(r[4]),
-            volume: parseFloat(r[5])
-          }));
         }
-      }
+      } catch {}
+    }
+
+    // 2. Binance REST global (alta disponibilidad, sin problemas de CORS en navegadores)
+    const binanceEndpoints = [
+      `https://api.binance.com/api/v3/klines?symbol=${clean}&interval=${tf}&limit=200`,
+      `https://fapi.binance.com/fapi/v1/klines?symbol=${clean}&interval=${tf}&limit=200`
+    ];
+
+    for (const ep of binanceEndpoints) {
+      try {
+        const res = await fetch(ep, { signal: controller.signal });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            clearTimeout(timeout);
+            const bars = json.map((r: any) => ({
+              timestamp: r[0],
+              open: parseFloat(r[1]),
+              high: parseFloat(r[2]),
+              low: parseFloat(r[3]),
+              close: parseFloat(r[4]),
+              volume: parseFloat(r[5])
+            }));
+            const lastClose = bars[bars.length - 1].close;
+            if (lastClose > 0) {
+              lastKnownPrices[symbol] = lastClose;
+            }
+            return bars;
+          }
+        }
+      } catch {}
     }
   } catch (err) {
-    // Si hay CORS de navegador, restricción o red caída, recurrir grácilmente al generador local
+    // Si hay restricción o red caída, recurrir grácilmente al generador local convergente
   }
 
   return generateFallbackHistoricalBars(symbol, timeframe);
 }
 
 /**
- * Generador matemático de respaldo local (300 barras) si falla la API REST del exchange
+ * Generador matemático de respaldo local (200 barras) que converge exactamente en el precio real
  */
 function generateFallbackHistoricalBars(symbol: string, timeframe: string, count = 200): KLineBar[] {
-  const base = BASE_PRICES[symbol] || 68450.0;
+  const base = lastKnownPrices[symbol] || BASE_PRICES[symbol] || 68450.0;
   const bars: KLineBar[] = [];
 
   const timeframeMs: Record<string, number> = {
@@ -176,18 +188,17 @@ function generateFallbackHistoricalBars(symbol: string, timeframe: string, count
 
   const stepMs = timeframeMs[timeframe] || 15 * 60 * 1000;
   const now = Date.now();
-  let price = base * 0.95;
+  let price = base;
 
   for (let i = count; i >= 1; i--) {
     const timestamp = now - i * stepMs;
-    const drift = (base - price) * 0.005;
-    const volatility = base * 0.0035;
-    const delta = drift + (Math.random() - 0.49) * volatility;
+    const volatility = base * 0.0015;
+    const delta = (Math.random() - 0.5) * volatility;
 
     const open = price;
     const close = Math.max(open * 0.5, open + delta);
-    const wick1 = Math.random() * (volatility * 0.8);
-    const wick2 = Math.random() * (volatility * 0.8);
+    const wick1 = Math.random() * (volatility * 0.6);
+    const wick2 = Math.random() * (volatility * 0.6);
     const high = Math.max(open, close) + wick1;
     const low = Math.min(open, close) - wick2;
     const volume = Math.floor(10 + Math.random() * 85);
@@ -202,6 +213,14 @@ function generateFallbackHistoricalBars(symbol: string, timeframe: string, count
     });
 
     price = close;
+  }
+
+  // Anclar la última vela exactamente al precio base real para evitar saltos artificiales
+  if (bars.length > 0) {
+    const last = bars[bars.length - 1];
+    last.close = base;
+    last.high = Math.max(last.high, base);
+    last.low = Math.min(last.low, base);
   }
 
   return bars;
@@ -345,7 +364,8 @@ async function startFeed(
         bar: lastBar,
         stats: initialStats,
         exchange,
-        marketType
+        marketType,
+        isInitialBars: true
       }
     });
 

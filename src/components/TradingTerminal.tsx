@@ -9,11 +9,13 @@ import {
   DEFAULT_FAV_TIMEFRAMES, 
   DEFAULT_FAV_INDICATORS, 
   ALL_INDICATORS,
-  ClosedTradeItem
+  ClosedTradeItem,
+  sortTimeframes
 } from './terminal/types';
 import { 
   TradingEngine, 
   PositionItem, 
+  LimitOrderItem,
   OrderRequest, 
   AccountMetrics,
   generateTradeId 
@@ -284,9 +286,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [favoriteTimeframes, setFavoriteTimeframes] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('zyti_fav_timeframes');
-      return saved ? JSON.parse(saved) : DEFAULT_FAV_TIMEFRAMES;
+      return sortTimeframes(saved ? JSON.parse(saved) : DEFAULT_FAV_TIMEFRAMES);
     } catch {
-      return DEFAULT_FAV_TIMEFRAMES;
+      return sortTimeframes(DEFAULT_FAV_TIMEFRAMES);
     }
   });
 
@@ -353,8 +355,45 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const positionsRef = useRef<PositionItem[]>(positions);
   positionsRef.current = positions;
 
+  // Órdenes Límites pendientes con persistencia en localStorage
+  const [limitOrders, setLimitOrders] = useState<LimitOrderItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_limit_orders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const limitOrdersRef = useRef<LimitOrderItem[]>(limitOrders);
+  limitOrdersRef.current = limitOrders;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrders));
+    } catch {}
+  }, [limitOrders]);
+
+  // Precio límite configurado en el formulario
+  const [limitPrice, setLimitPrice] = useState<string>('');
+  const lastInitializedPairRef = useRef<string>('');
+
+  useEffect(() => {
+    if (stats.lastPrice > 0) {
+      if (!limitPrice || lastInitializedPairRef.current !== selectedPair) {
+        lastInitializedPairRef.current = selectedPair;
+        setLimitPrice(stats.lastPrice.toString());
+      }
+    }
+  }, [selectedPair, stats.lastPrice, limitPrice]);
+
   // Registro de IDs cerrados para evitar duplicación de eventos o toasts
   const closedPositionIdsRef = useRef<Set<string>>(new Set());
+
+  // Registro de IDs de órdenes límites ejecutadas para evitar ejecuciones concurrentes por ticks
+  const filledLimitOrderIdsRef = useRef<Set<string>>(new Set());
+
+  // Seguro contra clics múltiples rápidos en colocación de órdenes
+  const isSubmittingOrderRef = useRef<boolean>(false);
 
   // Historial de operaciones cerradas con persistencia local
   const [tradeHistory, setTradeHistory] = useState<ClosedTradeItem[]>(() => {
@@ -567,68 +606,128 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           setStats(payload.stats);
           const currentP = payload.stats.lastPrice;
 
-          const currentPositions = positionsRef.current;
-          if (currentPositions.length > 0) {
-            const evaluation = TradingEngine.evaluatePositionsOnTick(
-              currentPositions,
-              currentP,
-              payload.stats.symbol
-            );
+          // Solo evaluar TP/SL en ticks en vivo de WebSocket, NUNCA en la carga inicial de velas históricas
+          if (!payload.isInitialBars) {
+            const currentPositions = positionsRef.current;
+            if (currentPositions.length > 0) {
+              const tickSymbol = payload.stats?.symbol || payload.symbol;
+              const tickExchange = payload.exchange || payload.stats?.exchange;
+              const evaluation = TradingEngine.evaluatePositionsOnTick(
+                currentPositions,
+                currentP,
+                tickSymbol,
+                tickExchange
+              );
 
-            // Actualizar posiciones
-            setPositions(evaluation.updatedPositions);
+              // Actualizar posiciones sincrónicamente en la referencia y en el estado
+              positionsRef.current = evaluation.updatedPositions;
+              setPositions(evaluation.updatedPositions);
 
-            // Actualizar saldo realizado si hubo ejecuciones de TP o SL
-            if (evaluation.balanceDelta !== 0) {
-              setDemoBalance((prevB) => {
-                const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
-                try {
-                  localStorage.setItem('zyti_demo_balance', nextB.toString());
-                } catch {}
-                return nextB;
+              // Actualizar saldo realizado si hubo ejecuciones de TP o SL
+              if (evaluation.balanceDelta !== 0) {
+                setDemoBalance((prevB) => {
+                  const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
+                  try {
+                    localStorage.setItem('zyti_demo_balance', nextB.toString());
+                  } catch {}
+                  return nextB;
+                });
+              }
+
+              // Despachar Toasts, registrar en historial y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
+              evaluation.events.forEach((evt) => {
+                if (closedPositionIdsRef.current.has(evt.position.id)) return;
+                closedPositionIdsRef.current.add(evt.position.id);
+
+                // Registrar en Historial
+                recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL');
+
+                if (evt.type === 'TP_HIT') {
+                  addToastRef.current({
+                    type: 'tp',
+                    title: isEs ? '¡Take Profit Alcanzado!' : 'Take Profit Triggered!',
+                    symbol: evt.position.symbol,
+                    pnlUsdt: evt.realizedPnL,
+                    pnlPercent: evt.position.pnlPercentNum,
+                    price: evt.price
+                  });
+                  setOrderSuccess(
+                    isEs
+                      ? `¡Take Profit alcanzado en ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                      : `Take Profit hit on ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                  );
+                  setTimeout(() => setOrderSuccess(null), 4000);
+                } else if (evt.type === 'SL_HIT') {
+                  addToastRef.current({
+                    type: 'sl',
+                    title: isEs ? 'Stop Loss Ejecutado' : 'Stop Loss Triggered',
+                    symbol: evt.position.symbol,
+                    pnlUsdt: evt.realizedPnL,
+                    pnlPercent: evt.position.pnlPercentNum,
+                    price: evt.price
+                  });
+                  setOrderSuccess(
+                    isEs
+                      ? `Stop Loss ejecutado en ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                      : `Stop Loss triggered on ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                  );
+                  setTimeout(() => setOrderSuccess(null), 4000);
+                }
               });
             }
 
-            // Despachar Toasts, registrar en historial y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
-            evaluation.events.forEach((evt) => {
-              if (closedPositionIdsRef.current.has(evt.position.id)) return;
-              closedPositionIdsRef.current.add(evt.position.id);
+            // Evaluación de Órdenes Límite pendientes en TICK_UPDATE
+            const currentLimits = limitOrdersRef.current.filter(
+              (o) => o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+            );
+            if (currentLimits.length > 0) {
+              const tickSymbol = payload.stats?.symbol || payload.symbol;
+              const tickExchange = payload.exchange || payload.stats?.exchange;
+              const limitEval = TradingEngine.evaluateLimitOrdersOnTick(
+                currentLimits,
+                currentP,
+                tickSymbol,
+                tickExchange
+              );
 
-              // Registrar en Historial
-              recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL');
+              if (limitEval.filledOrders.length > 0) {
+                // Registrar inmediatamente los IDs ejecutados para prevenir cualquier ejecución duplicada por ticks concurrentes
+                limitEval.filledOrders.forEach((filled) => {
+                  filledLimitOrderIdsRef.current.add(filled.id);
+                });
 
-              if (evt.type === 'TP_HIT') {
-                addToastRef.current({
-                  type: 'tp',
-                  title: isEs ? '¡Take Profit Alcanzado!' : 'Take Profit Triggered!',
-                  symbol: evt.position.symbol,
-                  pnlUsdt: evt.realizedPnL,
-                  pnlPercent: evt.position.pnlPercentNum,
-                  price: evt.price
+                // Actualizar inmediatamente y de forma síncrona las referencias mutables antes del próximo mensaje de WebSocket
+                limitOrdersRef.current = limitEval.remainingOrders;
+                positionsRef.current = [...limitEval.newlyOpenedPositions, ...positionsRef.current];
+
+                try {
+                  localStorage.setItem('zyti_limit_orders', JSON.stringify(limitEval.remainingOrders));
+                } catch {}
+
+                setLimitOrders(limitEval.remainingOrders);
+                setPositions((prev) => [...limitEval.newlyOpenedPositions, ...prev]);
+                playOrderFilledSound();
+
+                limitEval.filledOrders.forEach((filled) => {
+                  const isBuy = filled.side === 'buy';
+                  const subtype = filled.orderSubtype || (isBuy ? (filled.limitPrice <= filled.placedAtPrice ? 'LIMIT' : 'STOP') : (filled.limitPrice >= filled.placedAtPrice ? 'LIMIT' : 'STOP'));
+                  const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${subtype === 'LIMIT' ? 'Limit' : 'Stop'}`;
+                  addToastRef.current({
+                    type: isBuy ? 'buy' : 'sell',
+                    title: isEs ? `¡Orden ${orderLabel} Ejecutada!` : `${orderLabel} Filled!`,
+                    message: `${orderLabel.toUpperCase()} • ${filled.size} (${filled.leverage}x)`,
+                    symbol: filled.symbol,
+                    price: filled.limitPrice
+                  });
+                  setOrderSuccess(
+                    isEs
+                      ? `¡Orden ${orderLabel} ejecutada a $${filled.limitPrice.toLocaleString()}!`
+                      : `${orderLabel} order filled at $${filled.limitPrice.toLocaleString()}!`
+                  );
+                  setTimeout(() => setOrderSuccess(null), 3500);
                 });
-                setOrderSuccess(
-                  isEs
-                    ? `¡Take Profit alcanzado en ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
-                    : `Take Profit hit on ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
-                );
-                setTimeout(() => setOrderSuccess(null), 4000);
-              } else if (evt.type === 'SL_HIT') {
-                addToastRef.current({
-                  type: 'sl',
-                  title: isEs ? 'Stop Loss Ejecutado' : 'Stop Loss Triggered',
-                  symbol: evt.position.symbol,
-                  pnlUsdt: evt.realizedPnL,
-                  pnlPercent: evt.position.pnlPercentNum,
-                  price: evt.price
-                });
-                setOrderSuccess(
-                  isEs
-                    ? `Stop Loss ejecutado en ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
-                    : `Stop Loss triggered on ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
-                );
-                setTimeout(() => setOrderSuccess(null), 4000);
               }
-            });
+            }
           }
         }
       } else if (type === 'TICKER') {
@@ -637,11 +736,15 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           const currentP = payload.stats.lastPrice;
           const currentPositions = positionsRef.current;
           if (currentPositions.length > 0) {
+            const tickSymbol = payload.stats?.symbol || payload.symbol;
+            const tickExchange = payload.exchange || payload.stats?.exchange;
             const evaluation = TradingEngine.evaluatePositionsOnTick(
               currentPositions,
               currentP,
-              payload.stats.symbol
+              tickSymbol,
+              tickExchange
             );
+            positionsRef.current = evaluation.updatedPositions;
             setPositions(evaluation.updatedPositions);
             if (evaluation.balanceDelta !== 0) {
               setDemoBalance((prevB) => {
@@ -680,6 +783,59 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                 });
               }
             });
+          }
+
+          // Evaluación de Órdenes Límite pendientes en TICKER
+          const currentLimitsTicker = limitOrdersRef.current.filter(
+            (o) => o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+          );
+          if (currentLimitsTicker.length > 0) {
+            const tickSymbol = payload.stats?.symbol || payload.symbol;
+            const tickExchange = payload.exchange || payload.stats?.exchange;
+            const limitEval = TradingEngine.evaluateLimitOrdersOnTick(
+              currentLimitsTicker,
+              currentP,
+              tickSymbol,
+              tickExchange
+            );
+
+            if (limitEval.filledOrders.length > 0) {
+              // Registrar inmediatamente los IDs ejecutados para prevenir cualquier ejecución duplicada por ticks concurrentes
+              limitEval.filledOrders.forEach((filled) => {
+                filledLimitOrderIdsRef.current.add(filled.id);
+              });
+
+              // Actualizar inmediatamente y de forma síncrona las referencias mutables antes del próximo mensaje de WebSocket
+              limitOrdersRef.current = limitEval.remainingOrders;
+              positionsRef.current = [...limitEval.newlyOpenedPositions, ...positionsRef.current];
+
+              try {
+                localStorage.setItem('zyti_limit_orders', JSON.stringify(limitEval.remainingOrders));
+              } catch {}
+
+              setLimitOrders(limitEval.remainingOrders);
+              setPositions((prev) => [...limitEval.newlyOpenedPositions, ...prev]);
+              playOrderFilledSound();
+
+              limitEval.filledOrders.forEach((filled) => {
+                const isBuy = filled.side === 'buy';
+                const subtype = filled.orderSubtype || (isBuy ? (filled.limitPrice <= filled.placedAtPrice ? 'LIMIT' : 'STOP') : (filled.limitPrice >= filled.placedAtPrice ? 'LIMIT' : 'STOP'));
+                const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${subtype === 'LIMIT' ? 'Limit' : 'Stop'}`;
+                addToastRef.current({
+                  type: isBuy ? 'buy' : 'sell',
+                  title: isEs ? `¡Orden ${orderLabel} Ejecutada!` : `${orderLabel} Filled!`,
+                  message: `${orderLabel.toUpperCase()} • ${filled.size} (${filled.leverage}x)`,
+                  symbol: filled.symbol,
+                  price: filled.limitPrice
+                });
+                setOrderSuccess(
+                  isEs
+                    ? `¡Orden ${orderLabel} ejecutada a $${filled.limitPrice.toLocaleString()}!`
+                    : `${orderLabel} order filled at $${filled.limitPrice.toLocaleString()}!`
+                );
+                setTimeout(() => setOrderSuccess(null), 3500);
+              });
+            }
           }
         }
       } else if (type === 'ORDERBOOK_UPDATE') {
@@ -962,10 +1118,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (e) e.stopPropagation();
     setFavoriteTimeframes((prev) => {
       const next = prev.includes(tf) ? prev.filter((item) => item !== tf) : [...prev, tf];
+      const sorted = sortTimeframes(next);
       try {
-        localStorage.setItem('zyti_fav_timeframes', JSON.stringify(next));
+        localStorage.setItem('zyti_fav_timeframes', JSON.stringify(sorted));
       } catch {}
-      return next;
+      return sorted;
     });
   };
 
@@ -990,8 +1147,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     });
   };
 
-  // Métricas de cuenta centralizadas por el TradingEngine
-  const accountMetrics = TradingEngine.calculateAccountMetrics(demoBalance, positions);
+  // Métricas de cuenta centralizadas por el TradingEngine (incluyendo margen comprometido en órdenes pendientes)
+  const accountMetrics = TradingEngine.calculateAccountMetrics(demoBalance, positions, limitOrders);
 
   const handleUpdatePositionSLTP = (id: string, slPrice?: number | null, tpPrice?: number | null) => {
     setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
@@ -1161,7 +1318,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   // Resetear el saldo demo al valor inicial de $10,000
   const resetDemoBalance = () => {
     closedPositionIdsRef.current.clear();
-    setPositions([]); // Cierra todas las posiciones
+    filledLimitOrderIdsRef.current.clear();
+    setPositions([]);
+    positionsRef.current = [];
+    setLimitOrders([]);
+    limitOrdersRef.current = [];
+    try { localStorage.removeItem('zyti_limit_orders'); } catch {}
     setDemoBalance(10000);
     try { localStorage.setItem('zyti_demo_balance', '10000'); } catch {}
     addToast({
@@ -1171,15 +1333,150 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     });
   };
 
+  // Cancelar orden límite individual
+  const handleCancelLimitOrder = useCallback((orderId: string) => {
+    const { remainingOrders } = TradingEngine.cancelLimitOrder(limitOrdersRef.current, orderId);
+    limitOrdersRef.current = remainingOrders;
+    setLimitOrders(remainingOrders);
+    try { localStorage.setItem('zyti_limit_orders', JSON.stringify(remainingOrders)); } catch {}
+    addToast({
+      type: 'info',
+      title: isEs ? 'Orden Límite Cancelada' : 'Limit Order Cancelled',
+      message: isEs ? 'La orden pendiente fue cancelada y se liberó su margen.' : 'Pending limit order cancelled and margin unlocked.'
+    });
+  }, [isEs, addToast]);
+
+  // Cancelar todas las órdenes límites pendientes
+  const handleCancelAllLimitOrders = useCallback(() => {
+    const count = limitOrdersRef.current.length;
+    if (count === 0) return;
+    limitOrdersRef.current = [];
+    setLimitOrders([]);
+    try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+    addToast({
+      type: 'info',
+      title: isEs ? 'Órdenes Límites Canceladas' : 'All Limit Orders Cancelled',
+      message: isEs ? `Se cancelaron ${count} órdenes pendientes y se liberó el margen.` : `${count} pending limit orders cancelled.`
+    });
+  }, [isEs, addToast]);
+
+  // Modificar orden límite pendiente de forma interactiva (arrastrar en gráfico o editar en tabla)
+  const handleUpdateLimitOrder = useCallback((
+    orderId: string,
+    newLimitPrice?: number,
+    newSlPrice?: number | null,
+    newTpPrice?: number | null
+  ) => {
+    const updated = TradingEngine.updateLimitOrder(
+      limitOrdersRef.current,
+      orderId,
+      newLimitPrice,
+      newSlPrice,
+      newTpPrice,
+      stats.lastPrice
+    );
+    limitOrdersRef.current = updated;
+    setLimitOrders(updated);
+    try {
+      localStorage.setItem('zyti_limit_orders', JSON.stringify(updated));
+    } catch {}
+
+    const ord = updated.find((o) => o.id === orderId);
+    if (ord) {
+      addToast({
+        type: 'info',
+        title: isEs ? 'Orden Límite Modificada' : 'Limit Order Updated',
+        message: `${ord.side.toUpperCase()} • ${ord.size} @ $${(newLimitPrice ?? ord.limitPrice).toLocaleString()}`,
+        symbol: ord.symbol,
+        price: newLimitPrice ?? ord.limitPrice
+      });
+    }
+  }, [stats.lastPrice, isEs, addToast]);
+
+  // Arrastre interactivo de la línea de entrada preview (modo Limit) en el gráfico
+  const handleUpdatePreviewEntry = useCallback((newPrice: number) => {
+    if (newPrice > 0 && !isNaN(newPrice)) {
+      setLimitPrice(newPrice.toFixed(2));
+    }
+  }, []);
+
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingOrderRef.current) return;
+    isSubmittingOrderRef.current = true;
+    setTimeout(() => { isSubmittingOrderRef.current = false; }, 600);
+
     const entryTs = (() => {
       const d = chartInstanceRef.current?.getDataList();
       return d && d.length > 0 ? d[d.length - 1].timestamp : Math.floor(Date.now() / 60000) * 60000;
     })();
 
+    if (orderType === 'limit') {
+      const limitP = parseFloat(limitPrice);
+      if (!limitP || isNaN(limitP) || limitP <= 0) {
+        setOrderSuccess(isEs ? 'Introduce un precio límite válido' : 'Enter a valid limit price');
+        setTimeout(() => setOrderSuccess(null), 3000);
+        return;
+      }
+
+      const orderReq: OrderRequest = {
+        symbol: selectedPair,
+        exchange: currentExchange,
+        marketType: currentMarketType,
+        side,
+        orderType: 'limit',
+        orderMode,
+        amountUsdt: parseFloat(amount) || 1000,
+        riskPercent,
+        slPercent,
+        tpPercent,
+        leverage
+      };
+
+      const result = TradingEngine.createLimitOrder(
+        orderReq,
+        limitP,
+        stats.lastPrice,
+        accountMetrics
+      );
+
+      if (!result.success || !result.limitOrder) {
+        setOrderSuccess(result.error || (isEs ? 'Error al crear orden límite' : 'Limit order error'));
+        setTimeout(() => setOrderSuccess(null), 4000);
+        return;
+      }
+
+      limitOrdersRef.current = [result.limitOrder!, ...limitOrdersRef.current];
+      setLimitOrders(limitOrdersRef.current);
+      try {
+        localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrdersRef.current));
+      } catch {}
+
+      playOrderFilledSound();
+      const isBuy = side === 'buy';
+      const subtype = result.limitOrder.orderSubtype || (isBuy ? (limitP <= stats.lastPrice ? 'LIMIT' : 'STOP') : (limitP >= stats.lastPrice ? 'LIMIT' : 'STOP'));
+      const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${subtype === 'LIMIT' ? 'Limit' : 'Stop'}`;
+      addToast({
+        type: isBuy ? 'buy' : 'sell',
+        title: isEs ? `¡Orden ${orderLabel} Colocada!` : `${orderLabel} Order Placed!`,
+        message: `${orderLabel.toUpperCase()} • ${result.limitOrder.size} @ $${limitP.toLocaleString()}`,
+        symbol: selectedPair,
+        price: limitP
+      });
+
+      setOrderSuccess(
+        isEs
+          ? `¡Orden ${orderLabel} colocada a $${limitP.toLocaleString()}!`
+          : `${orderLabel} order placed at $${limitP.toLocaleString()}!`
+      );
+      setTimeout(() => setOrderSuccess(null), 3000);
+      return;
+    }
+
     const orderReq: OrderRequest = {
       symbol: selectedPair,
+      exchange: currentExchange,
+      marketType: currentMarketType,
       side,
       orderType,
       orderMode,
@@ -1237,6 +1534,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     const orderReq: OrderRequest = {
       symbol: selectedPair,
+      exchange: currentExchange,
+      marketType: currentMarketType,
       side: quickSide,
       orderType: 'market',
       orderMode: 'amount',
@@ -1274,6 +1573,50 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   };
 
+  // Al hacer clic sobre cualquier posición en la lista, cambiar de inmediato al par y exchange que se está operando
+  const handleSelectPositionItem = useCallback((pos: PositionItem) => {
+    if (pos.symbol && pos.symbol !== selectedPair) {
+      handleSelectPair(pos.symbol);
+    }
+    if (pos.exchange && pos.exchange !== currentExchange) {
+      handleSelectExchange(pos.exchange);
+    }
+    if (pos.marketType && pos.marketType !== currentMarketType) {
+      handleSelectMarketType(pos.marketType as MarketType);
+    }
+    setMobileSheet(null);
+  }, [selectedPair, currentExchange, currentMarketType, handleSelectPair, handleSelectExchange, handleSelectMarketType]);
+
+  const handleSelectOrderType = useCallback((type: 'market' | 'limit') => {
+    setOrderType(type);
+    if (type === 'limit' && stats.lastPrice > 0) {
+      setLimitPrice(stats.lastPrice.toString());
+    }
+  }, [stats.lastPrice]);
+
+  // Al hacer clic sobre cualquier orden límite en la lista, cambiar de inmediato al par, exchange y cargar en panel
+  const handleSelectLimitOrderItem = useCallback((ord: LimitOrderItem) => {
+    if (ord.symbol && ord.symbol !== selectedPair) {
+      handleSelectPair(ord.symbol);
+    }
+    if (ord.exchange && ord.exchange !== currentExchange) {
+      handleSelectExchange(ord.exchange);
+    }
+    if (ord.marketType && ord.marketType !== currentMarketType) {
+      handleSelectMarketType(ord.marketType as MarketType);
+    }
+    setOrderType('limit');
+    setSide(ord.side);
+    setLimitPrice(ord.limitPrice.toString());
+    if (ord.slPercent) setSlPercent(ord.slPercent);
+    if (ord.tpPercent) setTpPercent(ord.tpPercent);
+    if (ord.leverage) setLeverage(ord.leverage);
+    setIsTradingSidebarOpen(true);
+    setIsOrderFormClosed(false);
+    setIsOrderFormMinimized(false);
+    setMobileSheet(null);
+  }, [selectedPair, currentExchange, currentMarketType, handleSelectPair, handleSelectExchange, handleSelectMarketType]);
+
   const renderOrderForm = () => (
     <TerminalOrderForm
       isEs={isEs}
@@ -1282,6 +1625,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       demoBalance={demoBalance}
       side={side}
       orderType={orderType}
+      limitPrice={limitPrice}
+      setLimitPrice={setLimitPrice}
       amount={amount}
       leverage={leverage}
       riskPercent={riskPercent}
@@ -1302,7 +1647,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       }}
       onToggleQuickTrade={toggleQuickTrade}
       setSide={setSide}
-      setOrderType={setOrderType}
+      setOrderType={handleSelectOrderType}
       setAmount={setAmount}
       setLeverage={setLeverage}
       setRiskPercent={setRiskPercent}
@@ -1330,12 +1675,16 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   // Cálculos de configuración previa de trading para proyectar en el gráfico
   const isPreviewLong = side === 'buy';
+  const effectiveRefPrice = (orderType === 'limit' && parseFloat(limitPrice) > 0)
+    ? parseFloat(limitPrice)
+    : stats.lastPrice;
+
   const previewSlPrice = isPreviewLong
-    ? Number((stats.lastPrice * (1 - slPercent / 100)).toFixed(2))
-    : Number((stats.lastPrice * (1 + slPercent / 100)).toFixed(2));
+    ? Number((effectiveRefPrice * (1 - slPercent / 100)).toFixed(2))
+    : Number((effectiveRefPrice * (1 + slPercent / 100)).toFixed(2));
   const previewTpPrice = isPreviewLong
-    ? Number((stats.lastPrice * (1 + tpPercent / 100)).toFixed(2))
-    : Number((stats.lastPrice * (1 - tpPercent / 100)).toFixed(2));
+    ? Number((effectiveRefPrice * (1 + tpPercent / 100)).toFixed(2))
+    : Number((effectiveRefPrice * (1 - tpPercent / 100)).toFixed(2));
 
   const previewRiskAmountUsd = (demoBalance * riskPercent) / 100;
   const previewNotionalUsd = orderMode === 'risk'
@@ -1418,17 +1767,19 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               className="w-full h-full block" 
             />
 
-            {/* OVERLAY INTERACTIVO: ENTRADAS (AZUL), TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES + PREVIEW */}
+            {/* OVERLAY INTERACTIVO: ENTRADAS (AZUL), TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES + PREVIEW + ÓRDENES LÍMITES */}
             <PositionChartOverlay
               chart={chartInstanceRef.current}
               positions={positions.filter((p) => p.symbol === selectedPair)}
+              limitOrders={limitOrders.filter((o) => o.symbol === selectedPair)}
               currentPrice={stats.lastPrice}
               demoBalance={demoBalance}
               isEs={isEs}
               tradeSetupPreview={{
                 enabled: isTradingSidebarOpen && !isOrderFormClosed && !isOrderFormMinimized,
+                orderType,
                 side,
-                entryPrice: stats.lastPrice,
+                entryPrice: effectiveRefPrice,
                 slPercent,
                 tpPercent,
                 slPrice: previewSlPrice,
@@ -1438,7 +1789,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               }}
               onUpdatePositionSLTP={handleUpdatePositionSLTP}
               onClosePosition={handleClosePosition}
+              onCancelLimitOrder={handleCancelLimitOrder}
+              onUpdateLimitOrder={handleUpdateLimitOrder}
               onUpdatePreviewSLTP={handleUpdatePreviewSLTP}
+              onUpdatePreviewEntry={handleUpdatePreviewEntry}
               onSetBreakEven={handleSetBreakEven}
             />
 
@@ -1452,15 +1806,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
           </div>
 
-          {/* DESKTOP: TABLA INFERIOR DE POSICIONES ABIERTAS (h-36 / RESIZABLE) */}
+          {/* DESKTOP: TABLA INFERIOR DE POSICIONES ABIERTAS Y ÓRDENES LÍMITES (h-36 / RESIZABLE) */}
           <TerminalPositions
             isEs={isEs}
             positions={positions}
+            limitOrders={limitOrders}
             history={tradeHistory}
             demoBalance={demoBalance}
             onClosePosition={handleClosePosition}
             onCloseAllPositions={handleCloseAllPositions}
+            onCancelLimitOrder={handleCancelLimitOrder}
+            onCancelAllLimitOrders={handleCancelAllLimitOrders}
+            onUpdateLimitOrder={handleUpdateLimitOrder}
             onSetBreakEven={handleSetBreakEven}
+            onSelectPosition={handleSelectPositionItem}
+            onSelectLimitOrder={handleSelectLimitOrderItem}
           />
 
         </div>
@@ -1500,6 +1860,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           isEs={isEs}
           activeSheet={mobileSheet}
           positions={positions}
+          limitOrders={limitOrders}
           history={tradeHistory}
           demoBalance={demoBalance}
           riskPercent={riskPercent}
@@ -1515,7 +1876,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           renderOrderBook={renderOrderBook}
           onClosePosition={handleClosePosition}
           onCloseAllPositions={handleCloseAllPositions}
+          onCancelLimitOrder={handleCancelLimitOrder}
+          onCancelAllLimitOrders={handleCancelAllLimitOrders}
           onSetBreakEven={handleSetBreakEven}
+          onSelectPosition={handleSelectPositionItem}
+          onSelectLimitOrder={handleSelectLimitOrderItem}
         />
       )}
 

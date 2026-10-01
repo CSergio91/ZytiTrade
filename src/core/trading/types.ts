@@ -4,6 +4,7 @@
  * Compatibles con Web Workers, Node.js, PostgreSQL y microservicios.
  */
 
+export type MarketType = 'spot' | 'futures';
 export type OrderSide = 'buy' | 'sell';
 export type PositionSide = 'LONG' | 'SHORT';
 export type OrderType = 'market' | 'limit';
@@ -11,6 +12,8 @@ export type PositionStatus = 'OPEN' | 'CLOSED';
 
 export interface OrderRequest {
   symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
   side: OrderSide;
   orderType: OrderType;
   orderMode: 'amount' | 'risk';
@@ -26,6 +29,8 @@ export interface PositionItem {
   id: string; // UUID v4 / v7
   userId?: string;
   symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
   side: PositionSide;
   orderType: OrderType;
   status: PositionStatus;
@@ -48,6 +53,38 @@ export interface PositionItem {
   isProfit: boolean;
   createdAt: string; // ISO 8601
   closedAt?: string | null;
+}
+
+export interface LimitOrderItem {
+  id: string; // UUID v4 / v7
+  userId?: string;
+  symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
+  side: OrderSide;
+  orderType: 'limit';
+  orderSubtype?: 'LIMIT' | 'STOP';
+  status: 'PENDING' | 'FILLED' | 'CANCELLED';
+  limitPrice: number;
+  placedAtPrice: number; // Precio de mercado en el momento de colocación o ajuste de la orden
+  size: string;
+  sizeUnits: number;
+  amountUsdt: number;
+  collateralUsdt: number;
+  leverage: number;
+  riskPercent?: number;
+  slPercent: number;
+  tpPercent: number;
+  slPrice: number;
+  tpPrice: number;
+  createdAt: string; // ISO 8601
+  filledAt?: string | null;
+}
+
+export interface LimitEvaluationResult {
+  remainingOrders: LimitOrderItem[];
+  filledOrders: LimitOrderItem[];
+  newlyOpenedPositions: PositionItem[];
 }
 
 export interface AccountMetrics {

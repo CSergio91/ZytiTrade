@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Chart } from 'klinecharts';
-import { PositionItem } from './types';
-import { X, ShieldAlert, Target } from 'lucide-react';
+import { PositionItem, LimitOrderItem } from './types';
+import { X, ShieldAlert, Target, Clock } from 'lucide-react';
 
 export interface TradeSetupPreview {
   enabled: boolean;
+  orderType?: 'market' | 'limit';
   side: 'buy' | 'sell';
   entryPrice: number;
   slPercent: number;
@@ -18,6 +19,7 @@ export interface TradeSetupPreview {
 interface PositionChartOverlayProps {
   chart: Chart | null;
   positions: PositionItem[];
+  limitOrders?: LimitOrderItem[];
   currentPrice: number;
   demoBalance: number;
   isEs: boolean;
@@ -25,7 +27,17 @@ interface PositionChartOverlayProps {
   onUpdatePositionSLTP: (id: string, slPrice?: number | null, tpPrice?: number | null) => void;
   onSetBreakEven?: (pos: PositionItem) => void;
   onClosePosition: (id: string) => void;
+  onCancelLimitOrder?: (id: string) => void;
   onUpdatePreviewSLTP?: (slPercent?: number, tpPercent?: number) => void;
+  onUpdatePreviewEntry?: (newPrice: number) => void;
+  onUpdateLimitOrder?: (id: string, newLimitPrice?: number, newSlPrice?: number | null, newTpPrice?: number | null) => void;
+}
+
+interface LimitOrderCoords {
+  id: string;
+  limitY: number | null;
+  slY: number | null;
+  tpY: number | null;
 }
 
 interface PositionCoords {
@@ -40,6 +52,7 @@ interface PositionCoords {
 export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
   chart,
   positions,
+  limitOrders = [],
   currentPrice,
   demoBalance,
   isEs,
@@ -47,12 +60,16 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
   onUpdatePositionSLTP,
   onSetBreakEven,
   onClosePosition,
-  onUpdatePreviewSLTP
+  onCancelLimitOrder,
+  onUpdatePreviewSLTP,
+  onUpdatePreviewEntry,
+  onUpdateLimitOrder
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Coordenadas calculadas para cada posición abierta
+  // Coordenadas calculadas para cada posición abierta y orden límite
   const [positionsCoords, setPositionsCoords] = useState<PositionCoords[]>([]);
+  const [limitOrdersCoords, setLimitOrdersCoords] = useState<LimitOrderCoords[]>([]);
   
   // Coordenadas calculadas para la previa (cuando no hay posiciones abiertas)
   const [previewCoords, setPreviewCoords] = useState<{
@@ -63,16 +80,17 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
     zoneEndX: number;
   }>({ entryY: null, slY: null, tpY: null, entryX: 0, zoneEndX: 0 });
 
-  // Estado de arrastre (tanto para posición abierta como para previsualización)
+  // Estado de arrastre (posiciones abiertas, orden previa u orden límite pendiente)
   const [draggingItem, setDraggingItem] = useState<{
-    type: 'position' | 'preview';
+    type: 'position' | 'preview' | 'limit';
     positionId?: string;
-    target: 'sl' | 'tp' | 'auto';
+    target: 'entry' | 'sl' | 'tp' | 'auto';
     dragPrice: number | null;
     dragPixelY: number | null;
   } | null>(null);
 
   const hasOpenPositions = positions.length > 0;
+  const hasLimitOrders = limitOrders.length > 0;
   const isPreviewMode = !hasOpenPositions && Boolean(tradeSetupPreview?.enabled);
 
   // Conversor pixel Y -> precio en el gráfico KLineChart
@@ -89,8 +107,9 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
 
   // Sincronización de coordenadas según estado del gráfico KLineChart
   const syncCoordinates = useCallback(() => {
-    if (!chart || (!hasOpenPositions && !tradeSetupPreview?.enabled)) {
+    if (!chart || (!hasOpenPositions && !hasLimitOrders && !tradeSetupPreview?.enabled)) {
       setPositionsCoords([]);
+      setLimitOrdersCoords([]);
       setPreviewCoords({ entryY: null, slY: null, tpY: null, entryX: 0, zoneEndX: 0 });
       return;
     }
@@ -174,8 +193,33 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
 
         setPreviewCoords({ entryY, slY, tpY, entryX, zoneEndX });
       }
+
+      // 3. Sincronizar coordenadas de órdenes límites pendientes
+      if (hasLimitOrders) {
+        const newLimitCoords: LimitOrderCoords[] = limitOrders.map((ord) => {
+          const limitCoord = chart.convertToPixel({ value: ord.limitPrice }, { paneId: 'candle_pane' }) as { y?: number } | undefined;
+          const limitY = limitCoord && typeof limitCoord.y === 'number' && !isNaN(limitCoord.y) ? Math.round(limitCoord.y) : null;
+
+          let slY: number | null = null;
+          if (ord.slPrice != null) {
+            const c = chart.convertToPixel({ value: ord.slPrice }, { paneId: 'candle_pane' }) as { y?: number } | undefined;
+            if (c && typeof c.y === 'number' && !isNaN(c.y)) slY = Math.round(c.y);
+          }
+
+          let tpY: number | null = null;
+          if (ord.tpPrice != null) {
+            const c = chart.convertToPixel({ value: ord.tpPrice }, { paneId: 'candle_pane' }) as { y?: number } | undefined;
+            if (c && typeof c.y === 'number' && !isNaN(c.y)) tpY = Math.round(c.y);
+          }
+
+          return { id: ord.id, limitY, slY, tpY };
+        });
+        setLimitOrdersCoords(newLimitCoords);
+      } else {
+        setLimitOrdersCoords([]);
+      }
     } catch {}
-  }, [chart, positions, hasOpenPositions, isPreviewMode, tradeSetupPreview]);
+  }, [chart, positions, limitOrders, hasOpenPositions, hasLimitOrders, isPreviewMode, tradeSetupPreview]);
 
   useEffect(() => {
     syncCoordinates();
@@ -207,13 +251,19 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
   const positionsCoordsRef = useRef(positionsCoords);
   positionsCoordsRef.current = positionsCoords;
 
+  const limitOrdersRef = useRef<LimitOrderItem[]>(limitOrders);
+  limitOrdersRef.current = limitOrders;
+
+  const limitOrdersCoordsRef = useRef(limitOrdersCoords);
+  limitOrdersCoordsRef.current = limitOrdersCoords;
+
   const currentPriceRef = useRef(currentPrice);
   currentPriceRef.current = currentPrice;
 
-  // Pointer event handlers para arrastrar SL o TP en posiciones u orden previa
+  // Pointer event handlers para arrastrar SL o TP en posiciones, orden previa u orden límite
   const handlePointerDown = (
-    type: 'position' | 'preview',
-    target: 'sl' | 'tp' | 'auto',
+    type: 'position' | 'preview' | 'limit',
+    target: 'entry' | 'sl' | 'tp' | 'auto',
     e: React.PointerEvent,
     posId?: string
   ) => {
@@ -233,6 +283,17 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
           ? (pos.tpPrice ?? pos.entry)
           : pos.entry;
         initPixelY = target === 'sl' ? coord.slY : target === 'tp' ? coord.tpY : coord.entryY;
+      }
+    } else if (type === 'limit' && posId) {
+      const ord = limitOrders.find((o) => o.id === posId);
+      const coord = limitOrdersCoords.find((c) => c.id === posId);
+      if (ord && coord) {
+        initPrice = target === 'sl'
+          ? (ord.slPrice ?? ord.limitPrice)
+          : target === 'tp'
+          ? (ord.tpPrice ?? ord.limitPrice)
+          : ord.limitPrice;
+        initPixelY = target === 'sl' ? coord.slY : target === 'tp' ? coord.tpY : coord.limitY;
       }
     } else if (type === 'preview' && tradeSetupPreview) {
       initPrice = target === 'sl'
@@ -265,6 +326,14 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
       if (rawPrice === null || rawPrice <= 0) return;
 
       if (currentDrag.type === 'preview' && tradeSetupPreview) {
+        if (currentDrag.target === 'entry') {
+          const clampedPrice = rawPrice;
+          setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: pixelY } : null);
+          draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: pixelY };
+          onUpdatePreviewEntry?.(clampedPrice);
+          return;
+        }
+
         const isLong = tradeSetupPreview.side === 'buy';
         const ep = tradeSetupPreview.entryPrice;
 
@@ -294,6 +363,31 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             onUpdatePreviewSLTP(undefined, Number(((delta / ep) * 100).toFixed(1)));
           }
         }
+      } else if (currentDrag.type === 'limit' && currentDrag.positionId) {
+        const ord = limitOrdersRef.current.find((o) => o.id === currentDrag.positionId);
+        if (!ord) return;
+
+        const isLong = ord.side === 'buy';
+        const ep = ord.limitPrice;
+        let clampedPrice = rawPrice;
+        const target = currentDrag.target;
+
+        if (target === 'entry') {
+          clampedPrice = rawPrice;
+        } else if (target === 'sl') {
+          clampedPrice = isLong ? Math.min(rawPrice, Number((ep * 0.999).toFixed(2))) : Math.max(rawPrice, Number((ep * 1.001).toFixed(2)));
+        } else if (target === 'tp') {
+          clampedPrice = isLong ? Math.max(rawPrice, Number((ep * 1.001).toFixed(2))) : Math.min(rawPrice, Number((ep * 0.999).toFixed(2)));
+        }
+
+        let activePixelY = pixelY;
+        try {
+          const pCoord = chart.convertToPixel({ value: clampedPrice }, { paneId: 'candle_pane' }) as { y?: number } | undefined;
+          if (pCoord && typeof pCoord.y === 'number' && !isNaN(pCoord.y)) activePixelY = Math.round(pCoord.y);
+        } catch {}
+
+        setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: activePixelY } : null);
+        draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: activePixelY };
       } else if (currentDrag.type === 'position' && currentDrag.positionId) {
         const pos = positionsRef.current.find((p) => p.id === currentDrag.positionId);
         const coord = positionsCoordsRef.current.find((c) => c.id === currentDrag.positionId);
@@ -311,12 +405,9 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
         let clampedPrice = rawPrice;
         if (isLong) {
           if (target === 'sl') {
-            // LONG: SL no debe superar el precio de mercado actual para evitar ejecución instantánea,
-            // pero puede superar la entrada hacia arriba tanto como se desee para trailing stop / asegurar beneficios
             const maxAllowedSL = Number((cp * 0.9999).toFixed(2));
             clampedPrice = Math.min(rawPrice, maxAllowedSL);
 
-            // Imán sutil a Break-Even solo si está a menos de 4 píxeles en pantalla de la entrada
             if (coord.entryY !== null && Math.abs(pixelY - coord.entryY) <= 4) {
               clampedPrice = ep;
             }
@@ -325,14 +416,10 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             clampedPrice = Math.max(rawPrice, minAllowedTP);
           }
         } else {
-          // SHORT
           if (target === 'sl') {
-            // SHORT: SL no debe ser menor al precio de mercado actual para evitar ejecución instantánea,
-            // pero puede descender por debajo de la entrada para trailing stop / asegurar beneficios en caída
             const minAllowedSL = Number((cp * 1.0001).toFixed(2));
             clampedPrice = Math.max(rawPrice, minAllowedSL);
 
-            // Imán sutil a Break-Even solo si está a menos de 4 píxeles en pantalla de la entrada
             if (coord.entryY !== null && Math.abs(pixelY - coord.entryY) <= 4) {
               clampedPrice = ep;
             }
@@ -357,22 +444,37 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
 
     const onWindowPointerUp = () => {
       const currentDrag = draggingItemRef.current;
-      if (currentDrag && currentDrag.type === 'position' && currentDrag.positionId && currentDrag.dragPrice) {
-        const pos = positionsRef.current.find((p) => p.id === currentDrag.positionId);
-        if (pos) {
-          let finalTarget = currentDrag.target;
-          if (finalTarget === 'auto') {
-            const isLong = pos.side === 'LONG';
-            finalTarget = isLong
-              ? (currentDrag.dragPrice > pos.entry ? 'tp' : 'sl')
-              : (currentDrag.dragPrice < pos.entry ? 'tp' : 'sl');
-          }
+      if (currentDrag) {
+        if (currentDrag.type === 'position' && currentDrag.positionId && currentDrag.dragPrice) {
+          const pos = positionsRef.current.find((p) => p.id === currentDrag.positionId);
+          if (pos) {
+            let finalTarget = currentDrag.target;
+            if (finalTarget === 'auto') {
+              const isLong = pos.side === 'LONG';
+              finalTarget = isLong
+                ? (currentDrag.dragPrice > pos.entry ? 'tp' : 'sl')
+                : (currentDrag.dragPrice < pos.entry ? 'tp' : 'sl');
+            }
 
-          if (finalTarget === 'sl') {
-            onUpdatePositionSLTP(pos.id, currentDrag.dragPrice, pos.tpPrice ?? null);
-          } else if (finalTarget === 'tp') {
-            onUpdatePositionSLTP(pos.id, pos.slPrice ?? null, currentDrag.dragPrice);
+            if (finalTarget === 'sl') {
+              onUpdatePositionSLTP(pos.id, currentDrag.dragPrice, pos.tpPrice ?? null);
+            } else if (finalTarget === 'tp') {
+              onUpdatePositionSLTP(pos.id, pos.slPrice ?? null, currentDrag.dragPrice);
+            }
           }
+        } else if (currentDrag.type === 'limit' && currentDrag.positionId && currentDrag.dragPrice && onUpdateLimitOrder) {
+          const ord = limitOrdersRef.current.find((o) => o.id === currentDrag.positionId);
+          if (ord) {
+            if (currentDrag.target === 'entry') {
+              onUpdateLimitOrder(ord.id, currentDrag.dragPrice, ord.slPrice, ord.tpPrice);
+            } else if (currentDrag.target === 'sl') {
+              onUpdateLimitOrder(ord.id, ord.limitPrice, currentDrag.dragPrice, ord.tpPrice);
+            } else if (currentDrag.target === 'tp') {
+              onUpdateLimitOrder(ord.id, ord.limitPrice, ord.slPrice, currentDrag.dragPrice);
+            }
+          }
+        } else if (currentDrag.type === 'preview' && currentDrag.target === 'entry' && currentDrag.dragPrice && onUpdatePreviewEntry) {
+          onUpdatePreviewEntry(currentDrag.dragPrice);
         }
       }
 
@@ -385,9 +487,9 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
       window.removeEventListener('pointermove', onWindowPointerMove);
       window.removeEventListener('pointerup', onWindowPointerUp);
     };
-  }, [chart, pixelToPrice, onUpdatePreviewSLTP, onUpdatePositionSLTP, previewCoords.entryY, tradeSetupPreview, draggingItem]);
+  }, [chart, pixelToPrice, onUpdatePreviewSLTP, onUpdatePreviewEntry, onUpdateLimitOrder, onUpdatePositionSLTP, previewCoords.entryY, tradeSetupPreview, draggingItem]);
 
-  if (!hasOpenPositions && !isPreviewMode) return null;
+  if (!hasOpenPositions && !hasLimitOrders && !isPreviewMode) return null;
 
   return (
     <div
@@ -737,52 +839,97 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
               strokeWidth={0.75}
               strokeDasharray="4 3"
             />
+            {/* Línea invisible para arrastrar la entrada previa desde cualquier punto de la línea */}
+            <line
+              x1={0}
+              y1={previewCoords.entryY}
+              x2="100%"
+              y2={previewCoords.entryY}
+              stroke="transparent"
+              strokeWidth={16}
+              className="pointer-events-auto cursor-ns-resize touch-none"
+              onPointerDown={(e) => handlePointerDown('preview', tradeSetupPreview.orderType === 'limit' ? 'entry' : 'auto', e)}
+            />
 
             {/* LÍNEA TP PREVIA — VERDE Y FINA (0.75px) */}
             {previewCoords.tpY !== null && (
-              <line
-                x1={0}
-                y1={previewCoords.tpY}
-                x2="100%"
-                y2={previewCoords.tpY}
-                stroke="#10b981"
-                strokeWidth={0.75}
-                strokeDasharray="4 3"
-              />
+              <>
+                <line
+                  x1={0}
+                  y1={previewCoords.tpY}
+                  x2="100%"
+                  y2={previewCoords.tpY}
+                  stroke="#10b981"
+                  strokeWidth={0.75}
+                  strokeDasharray="4 3"
+                />
+                <line
+                  x1={0}
+                  y1={previewCoords.tpY}
+                  x2="100%"
+                  y2={previewCoords.tpY}
+                  stroke="transparent"
+                  strokeWidth={16}
+                  className="pointer-events-auto cursor-ns-resize touch-none"
+                  onPointerDown={(e) => handlePointerDown('preview', 'tp', e)}
+                />
+              </>
             )}
 
             {/* LÍNEA SL PREVIA — ROJA Y FINA (0.75px) */}
             {previewCoords.slY !== null && (
-              <line
-                x1={0}
-                y1={previewCoords.slY}
-                x2="100%"
-                y2={previewCoords.slY}
-                stroke="#ef4444"
-                strokeWidth={0.75}
-                strokeDasharray="4 3"
-              />
+              <>
+                <line
+                  x1={0}
+                  y1={previewCoords.slY}
+                  x2="100%"
+                  y2={previewCoords.slY}
+                  stroke="#ef4444"
+                  strokeWidth={0.75}
+                  strokeDasharray="4 3"
+                />
+                <line
+                  x1={0}
+                  y1={previewCoords.slY}
+                  x2="100%"
+                  y2={previewCoords.slY}
+                  stroke="transparent"
+                  strokeWidth={16}
+                  className="pointer-events-auto cursor-ns-resize touch-none"
+                  onPointerDown={(e) => handlePointerDown('preview', 'sl', e)}
+                />
+              </>
             )}
           </svg>
 
-          {/* BADGE PREVIO DE ENTRADA — AZUL */}
+          {/* BADGE PREVIO DE ENTRADA — AZUL O AMBER (ARRASTRABLE EN TODO EL CUERPO) */}
           <div
             style={{ top: `${previewCoords.entryY}px` }}
-            className="absolute right-16 -translate-y-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900/95 text-white border border-blue-500 shadow-md text-[9px] font-mono font-bold z-30 pointer-events-auto"
+            onPointerDown={(e) => handlePointerDown('preview', tradeSetupPreview.orderType === 'limit' ? 'entry' : 'auto', e)}
+            className={`absolute right-16 -translate-y-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-white shadow-md text-[9px] font-mono font-bold z-30 pointer-events-auto cursor-ns-resize touch-none select-none transition-all ${
+              tradeSetupPreview.orderType === 'limit'
+                ? 'bg-amber-950/95 border border-amber-500 hover:border-amber-400'
+                : 'bg-slate-900/95 border border-blue-500 hover:border-blue-400'
+            }`}
+            title={tradeSetupPreview.orderType === 'limit' ? (isEs ? 'Arrastra para modificar el precio límite' : 'Drag to adjust limit price') : (isEs ? 'Arrastra para mover SL o TP' : 'Drag to adjust SL or TP')}
           >
-            <span className="px-1 py-0.2 rounded text-[8px] font-black bg-blue-600">
-              CONFIG {tradeSetupPreview.side === 'buy' ? 'LONG' : 'SHORT'}
+            <span className={`px-1 py-0.2 rounded text-[8px] font-black ${
+              tradeSetupPreview.orderType === 'limit'
+                ? (tradeSetupPreview.side === 'buy' ? 'bg-emerald-600' : 'bg-red-600')
+                : 'bg-blue-600'
+            }`}>
+              {tradeSetupPreview.orderType === 'limit'
+                ? (tradeSetupPreview.side === 'buy'
+                    ? (tradeSetupPreview.entryPrice < currentPrice ? 'BUY LIMIT' : 'BUY STOP')
+                    : (tradeSetupPreview.entryPrice > currentPrice ? 'SELL LIMIT' : 'SELL STOP'))
+                : `CONFIG ${tradeSetupPreview.side === 'buy' ? 'LONG' : 'SHORT'}`}
             </span>
-            <span className="text-slate-300">
+            <span className="text-slate-200">
               @${tradeSetupPreview.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
-            <div
-              onPointerDown={(e) => handlePointerDown('preview', 'auto', e)}
-              className="cursor-ns-resize px-1 text-slate-400 hover:text-amber-400 touch-none"
-              title={isEs ? 'Arrastra para mover SL o TP' : 'Drag to adjust SL or TP'}
-            >
+            <span className="px-1 text-amber-400 hover:text-white">
               ⇅
-            </div>
+            </span>
           </div>
 
           {/* BADGE PREVIO TAKE PROFIT ARRASTRABLE (ACTUALIZA PANEL EN TIEMPO REAL) */}
@@ -818,6 +965,271 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
               <span className="text-red-400">⇅</span>
             </div>
           )}
+        </>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* CASO 3: ÓRDENES LÍMITES PENDIENTES ARRASTRABLES (ENTRADA, SL Y TP) */}
+      {/* ---------------------------------------------------------------- */}
+      {hasLimitOrders && (
+        <>
+          <svg className="w-full h-full absolute inset-0 pointer-events-none">
+            {limitOrdersCoords.map((coord) => {
+              const ord = limitOrders.find((o) => o.id === coord.id);
+              if (!ord || coord.limitY === null) return null;
+              const isBuy = ord.side === 'buy';
+
+              const isDraggingThis = draggingItem?.type === 'limit' && draggingItem?.positionId === ord.id;
+              const activeLimitY = isDraggingThis && draggingItem.target === 'entry' && draggingItem.dragPixelY !== null
+                ? draggingItem.dragPixelY
+                : coord.limitY;
+              const activeSlY = isDraggingThis && draggingItem.target === 'sl' && draggingItem.dragPixelY !== null
+                ? draggingItem.dragPixelY
+                : coord.slY;
+              const activeTpY = isDraggingThis && draggingItem.target === 'tp' && draggingItem.dragPixelY !== null
+                ? draggingItem.dragPixelY
+                : coord.tpY;
+
+              return (
+                <g key={`svg-limit-${ord.id}`}>
+                  {/* Línea horizontal del precio límite */}
+                  <line
+                    x1={0}
+                    y1={activeLimitY}
+                    x2="100%"
+                    y2={activeLimitY}
+                    stroke={isBuy ? '#10b981' : '#f43f5e'}
+                    strokeWidth={1.25}
+                    strokeDasharray="6 4"
+                    opacity={0.9}
+                  />
+                  {/* Línea invisible ancha interactiva para arrastrar la orden límite desde cualquier punto de la línea horizontal */}
+                  <line
+                    x1={0}
+                    y1={activeLimitY}
+                    x2="100%"
+                    y2={activeLimitY}
+                    stroke="transparent"
+                    strokeWidth={16}
+                    className="pointer-events-auto cursor-ns-resize touch-none"
+                    onPointerDown={(e) => handlePointerDown('limit', 'entry', e, ord.id)}
+                  />
+                  {/* Línea SL proyectada si existe */}
+                  {activeSlY !== null && (
+                    <>
+                      <line
+                        x1={0}
+                        y1={activeSlY}
+                        x2="100%"
+                        y2={activeSlY}
+                        stroke="#ef4444"
+                        strokeWidth={0.75}
+                        strokeDasharray="3 3"
+                        opacity={0.5}
+                      />
+                      <line
+                        x1={0}
+                        y1={activeSlY}
+                        x2="100%"
+                        y2={activeSlY}
+                        stroke="transparent"
+                        strokeWidth={16}
+                        className="pointer-events-auto cursor-ns-resize touch-none"
+                        onPointerDown={(e) => handlePointerDown('limit', 'sl', e, ord.id)}
+                      />
+                    </>
+                  )}
+                  {/* Línea TP proyectada si existe */}
+                  {activeTpY !== null && (
+                    <>
+                      <line
+                        x1={0}
+                        y1={activeTpY}
+                        x2="100%"
+                        y2={activeTpY}
+                        stroke="#10b981"
+                        strokeWidth={0.75}
+                        strokeDasharray="3 3"
+                        opacity={0.5}
+                      />
+                      <line
+                        x1={0}
+                        y1={activeTpY}
+                        x2="100%"
+                        y2={activeTpY}
+                        stroke="transparent"
+                        strokeWidth={16}
+                        className="pointer-events-auto cursor-ns-resize touch-none"
+                        onPointerDown={(e) => handlePointerDown('limit', 'tp', e, ord.id)}
+                      />
+                    </>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* BADGES DE ÓRDENES LÍMITES ARRASTRABLES */}
+          {limitOrdersCoords.map((coord, idx) => {
+            const ord = limitOrders.find((o) => o.id === coord.id);
+            if (!ord || coord.limitY === null) return null;
+            const isBuy = ord.side === 'buy';
+            const offsetRight = 72 + (idx * 16);
+
+            const isDraggingThis = draggingItem?.type === 'limit' && draggingItem?.positionId === ord.id;
+            const activeLimitY = isDraggingThis && draggingItem.target === 'entry' && draggingItem.dragPixelY !== null
+              ? draggingItem.dragPixelY
+              : coord.limitY;
+            const activeLimitPrice = isDraggingThis && draggingItem.target === 'entry' && draggingItem.dragPrice !== null
+              ? draggingItem.dragPrice
+              : ord.limitPrice;
+
+            const activeSlY = isDraggingThis && draggingItem.target === 'sl' && draggingItem.dragPixelY !== null
+              ? draggingItem.dragPixelY
+              : coord.slY;
+            const activeSlPrice = isDraggingThis && draggingItem.target === 'sl' && draggingItem.dragPrice !== null
+              ? draggingItem.dragPrice
+              : ord.slPrice;
+
+            const activeTpY = isDraggingThis && draggingItem.target === 'tp' && draggingItem.dragPixelY !== null
+              ? draggingItem.dragPixelY
+              : coord.tpY;
+            const activeTpPrice = isDraggingThis && draggingItem.target === 'tp' && draggingItem.dragPrice !== null
+              ? draggingItem.dragPrice
+              : ord.tpPrice;
+
+            return (
+              <React.Fragment key={`limit-group-${ord.id}`}>
+                {/* BADGE PRINCIPAL PRECIO LÍMITE (ARRASTRABLE EN TODO EL CUERPO DEL BADGE) */}
+                <div
+                  style={{ top: `${activeLimitY}px`, right: `${offsetRight}px` }}
+                  onPointerDown={(e) => handlePointerDown('limit', 'entry', e, ord.id)}
+                  className={`absolute -translate-y-1/2 pointer-events-auto flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-white shadow-md text-[9px] font-mono font-bold z-30 transition-all cursor-ns-resize touch-none select-none ${
+                    isBuy
+                      ? 'bg-slate-950/95 border border-emerald-500/80 shadow-emerald-950/50 hover:border-emerald-400'
+                      : 'bg-slate-950/95 border border-rose-500/80 shadow-rose-950/50 hover:border-rose-400'
+                  }`}
+                  title={isEs ? 'Arrastra para modificar el precio de la orden pendiente' : 'Drag to adjust pending order price'}
+                >
+                  <span className={`px-1 py-0.2 rounded text-[8px] font-black ${
+                    isBuy ? 'bg-emerald-600' : 'bg-rose-600'
+                  }`}>
+                    {isBuy
+                      ? (activeLimitPrice < currentPrice ? 'BUY LIMIT' : 'BUY STOP')
+                      : (activeLimitPrice > currentPrice ? 'SELL LIMIT' : 'SELL STOP')} {ord.leverage}x
+                  </span>
+                  <span className="text-slate-200">
+                    {ord.size} @ ${activeLimitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+
+                  {/* Arrastrar límite */}
+                  <span className="px-1 text-amber-400 hover:text-white">
+                    ⇅
+                  </span>
+
+                  {/* Botones para añadir SL o TP si no los tiene aún */}
+                  {!ord.tpPrice && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        handlePointerDown('limit', 'tp', e, ord.id);
+                      }}
+                      className="px-1 py-0.2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[8px] font-black cursor-ns-resize flex items-center gap-0.5 touch-none"
+                      title={isEs ? 'Arrastrar para crear TP' : 'Drag to place TP'}
+                    >
+                      +TP ⇅
+                    </button>
+                  )}
+
+                  {!ord.slPrice && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        handlePointerDown('limit', 'sl', e, ord.id);
+                      }}
+                      className="px-1 py-0.2 rounded bg-red-600 hover:bg-red-500 text-white text-[8px] font-black cursor-ns-resize flex items-center gap-0.5 touch-none"
+                      title={isEs ? 'Arrastrar para crear SL' : 'Drag to place SL'}
+                    >
+                      +SL ⇅
+                    </button>
+                  )}
+
+                  {onCancelLimitOrder && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCancelLimitOrder(ord.id);
+                      }}
+                      className="p-0.5 rounded hover:bg-red-500/30 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                      title={isEs ? 'Cancelar orden pendiente' : 'Cancel pending order'}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* BADGE TAKE PROFIT DE LA ORDEN LÍMITE (ARRASTRABLE EN TODO EL CUERPO) */}
+                {activeTpY !== null && activeTpPrice && (
+                  <div
+                    style={{ top: `${activeTpY}px`, right: `${offsetRight}px` }}
+                    onPointerDown={(e) => handlePointerDown('limit', 'tp', e, ord.id)}
+                    className="absolute -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-950/95 text-emerald-200 border border-emerald-500 shadow-md text-[9px] font-mono font-bold z-30 pointer-events-auto cursor-ns-resize touch-none select-none"
+                    title={isEs ? 'Arrastrar para mover TP' : 'Drag to move TP'}
+                  >
+                    <Target className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>TP ${activeTpPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="text-emerald-400">⇅</span>
+                    {onUpdateLimitOrder && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateLimitOrder(ord.id, ord.limitPrice, ord.slPrice, null);
+                        }}
+                        className="p-0.5 rounded hover:bg-slate-700/60 text-slate-300 hover:text-white cursor-pointer"
+                        title={isEs ? 'Quitar TP' : 'Remove TP'}
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* BADGE STOP LOSS DE LA ORDEN LÍMITE (ARRASTRABLE EN TODO EL CUERPO) */}
+                {activeSlY !== null && activeSlPrice && (
+                  <div
+                    style={{ top: `${activeSlY}px`, right: `${offsetRight}px` }}
+                    onPointerDown={(e) => handlePointerDown('limit', 'sl', e, ord.id)}
+                    className="absolute -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-950/95 text-red-200 border border-red-500 shadow-md text-[9px] font-mono font-bold z-30 pointer-events-auto cursor-ns-resize touch-none select-none"
+                    title={isEs ? 'Arrastrar para mover SL' : 'Drag to move SL'}
+                  >
+                    <ShieldAlert className="w-2.5 h-2.5 text-red-400" />
+                    <span>SL ${activeSlPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="text-red-400">⇅</span>
+                    {onUpdateLimitOrder && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateLimitOrder(ord.id, ord.limitPrice, null, ord.tpPrice);
+                        }}
+                        className="p-0.5 rounded hover:bg-slate-700/60 text-slate-300 hover:text-white cursor-pointer"
+                        title={isEs ? 'Quitar SL' : 'Remove SL'}
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
         </>
       )}
     </div>

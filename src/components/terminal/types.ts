@@ -1,3 +1,5 @@
+import { MarketType } from '../../core/trading/types';
+
 export interface TimeframeOption {
   value: string;
   label: string;
@@ -35,6 +37,48 @@ export const ALL_TIMEFRAMES: TimeframeOption[] = [
 
 export const DEFAULT_FAV_TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D'];
 
+/**
+ * Ordena un arreglo de temporalidades de menor a mayor duración temporal (segundos -> minutos -> horas -> días -> semanas -> meses -> años)
+ */
+export const sortTimeframes = (tfs: string[]): string[] => {
+  const getSeconds = (tf: string): number => {
+    const match = tf.match(/^(\d+)([smhdwMyY]|min|seg|d|D|W|w|M)$/);
+    if (!match) return 999999999;
+    const num = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 's':
+      case 'seg':
+        return num;
+      case 'm':
+      case 'min':
+        return num * 60;
+      case 'h':
+        return num * 3600;
+      case 'd':
+      case 'D':
+        return num * 86400;
+      case 'w':
+      case 'W':
+        return num * 604800;
+      case 'M':
+        return num * 2592000;
+      case 'y':
+      case 'Y':
+        return num * 31536000;
+      default:
+        return 999999999;
+    }
+  };
+
+  return [...new Set(tfs)].sort((a, b) => {
+    const secA = getSeconds(a);
+    const secB = getSeconds(b);
+    if (secA !== secB) return secA - secB;
+    return a.localeCompare(b);
+  });
+};
+
 export interface IndicatorOption {
   name: string;
   label: string;
@@ -69,6 +113,8 @@ export interface PositionItem {
   id: string; // UUID v4 listo para PostgreSQL / Supabase
   userId?: string;
   symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
   side: 'LONG' | 'SHORT';
   orderType: 'market' | 'limit';
   status: 'OPEN' | 'CLOSED';
@@ -91,6 +137,32 @@ export interface PositionItem {
   isProfit: boolean;
   createdAt: string; // ISO 8601
   closedAt?: string | null;
+}
+
+export interface LimitOrderItem {
+  id: string;
+  userId?: string;
+  symbol: string;
+  exchange?: string;
+  marketType?: MarketType;
+  side: 'buy' | 'sell';
+  orderType: 'limit';
+  orderSubtype?: 'LIMIT' | 'STOP';
+  status: 'PENDING' | 'FILLED' | 'CANCELLED';
+  limitPrice: number;
+  placedAtPrice: number; // Precio de mercado en el momento de creación o ajuste de la orden
+  size: string;
+  sizeUnits: number;
+  amountUsdt: number;
+  collateralUsdt: number;
+  leverage: number;
+  riskPercent?: number;
+  slPercent: number;
+  tpPercent: number;
+  slPrice: number;
+  tpPrice: number;
+  createdAt: string;
+  filledAt?: string | null;
 }
 
 export interface ClosedTradeItem {

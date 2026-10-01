@@ -8,6 +8,8 @@ interface TerminalOrderFormProps {
   demoBalance: number;
   side: 'buy' | 'sell';
   orderType: 'market' | 'limit';
+  limitPrice?: string;
+  setLimitPrice?: (price: string) => void;
   amount: string;
   leverage: number;
   riskPercent: number;
@@ -39,6 +41,8 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
   demoBalance,
   side,
   orderType,
+  limitPrice,
+  setLimitPrice,
   amount,
   leverage,
   riskPercent,
@@ -64,14 +68,18 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
 }) => {
   const isLong = side === 'buy';
 
-  // Cálculos de SL y TP estimados en precio
+  const parsedLimit = parseFloat(limitPrice || '');
+  const limitPriceNum = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : (currentPrice > 0 ? currentPrice : 0);
+  const executionRefPrice = orderType === 'limit' && limitPriceNum > 0 ? limitPriceNum : currentPrice;
+
+  // Cálculos de SL y TP estimados en precio basados en precio límite (si es limit) o de mercado
   const calculatedSlPrice = isLong
-    ? currentPrice * (1 - slPercent / 100)
-    : currentPrice * (1 + slPercent / 100);
+    ? executionRefPrice * (1 - slPercent / 100)
+    : executionRefPrice * (1 + slPercent / 100);
 
   const calculatedTpPrice = isLong
-    ? currentPrice * (1 + tpPercent / 100)
-    : currentPrice * (1 - tpPercent / 100);
+    ? executionRefPrice * (1 + tpPercent / 100)
+    : executionRefPrice * (1 - tpPercent / 100);
 
   // Cálculo de tamaño y riesgo institucional con apalancamiento
   const riskAmountUsd = (demoBalance * riskPercent) / 100;
@@ -189,7 +197,12 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => setOrderType('limit')}
+          onClick={() => {
+            setOrderType('limit');
+            if (currentPrice > 0) {
+              setLimitPrice?.(currentPrice.toString());
+            }
+          }}
           className={`flex-1 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
             orderType === 'limit'
               ? 'bg-slate-950 text-white border-slate-950'
@@ -230,6 +243,55 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
 
       {/* FORMULARIO */}
       <form onSubmit={onSubmit} className="space-y-2.5">
+        {/* PRECIO LÍMITE (SOLO VISIBLE EN MODO 'LIMIT') */}
+        {orderType === 'limit' && (
+          <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-200/90 space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-800">
+              <span className="flex items-center gap-1 text-amber-900 font-black">
+                <Target className="w-3 h-3 text-amber-600" />
+                <span>{isEs ? 'Precio de la Orden (USDT)' : 'Order Price (USDT)'}</span>
+              </span>
+              {currentPrice > 0 && limitPriceNum > 0 && (
+                <span className={`font-mono text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                  isLong
+                    ? (limitPriceNum < currentPrice
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : limitPriceNum > currentPrice
+                          ? 'bg-purple-100 text-purple-800 border-purple-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-200')
+                    : (limitPriceNum > currentPrice
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : limitPriceNum < currentPrice
+                          ? 'bg-purple-100 text-purple-800 border-purple-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-200')
+                }`}>
+                  {isLong
+                    ? (limitPriceNum < currentPrice ? 'BUY LIMIT' : limitPriceNum > currentPrice ? 'BUY STOP' : (isEs ? 'AL MERCADO' : 'AT MARKET'))
+                    : (limitPriceNum > currentPrice ? 'SELL LIMIT' : limitPriceNum < currentPrice ? 'SELL STOP' : (isEs ? 'AL MERCADO' : 'AT MARKET'))}
+                  {' '}
+                  {limitPriceNum !== currentPrice && `${limitPriceNum > currentPrice ? '+' : ''}${(((limitPriceNum - currentPrice) / currentPrice) * 100).toFixed(2)}%`}
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <input
+                type="number"
+                step="any"
+                min="0.000001"
+                value={limitPrice ?? ''}
+                onChange={(e) => setLimitPrice?.(e.target.value)}
+                placeholder={currentPrice.toString()}
+                className="w-full pl-2.5 pr-12 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-500 shadow-2xs"
+                required
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400">
+                USDT
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* MONTO O RIESGO SEGÚN EL MODO */}
         {orderMode === 'amount' ? (
           <div>
@@ -459,9 +521,15 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
         >
           <Zap className="w-3.5 h-3.5 fill-current" />
           <span>
-            {isLong
-              ? `${isEs ? 'Comprar' : 'Buy'} ${selectedPair.split('/')[0]}`
-              : `${isEs ? 'Vender' : 'Sell'} ${selectedPair.split('/')[0]}`}
+            {orderType === 'limit'
+              ? `${isEs ? 'Colocar' : 'Place'} ${
+                  isLong
+                    ? (limitPriceNum < currentPrice ? 'Buy Limit' : limitPriceNum > currentPrice ? 'Buy Stop' : 'Buy Limit')
+                    : (limitPriceNum > currentPrice ? 'Sell Limit' : limitPriceNum < currentPrice ? 'Sell Stop' : 'Sell Limit')
+                } @ $${limitPriceNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : isLong
+                ? `${isEs ? 'Comprar' : 'Buy'} ${selectedPair.split('/')[0]}`
+                : `${isEs ? 'Vender' : 'Sell'} ${selectedPair.split('/')[0]}`}
           </span>
         </button>
       </form>
