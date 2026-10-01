@@ -58,9 +58,9 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   const isPnlProfit = unrealizedPnL >= 0;
 
   return (
-    <header className="h-11 sm:h-13 border-b border-[#ded5c5] bg-[#fbf9f4] px-2 sm:px-4 flex items-center justify-between shrink-0 z-50 select-none overflow-visible relative">
+    <header className="h-10 sm:h-13 border-b border-[#ded5c5] bg-[#fbf9f4] px-1.5 sm:px-4 flex items-center justify-between shrink-0 z-50 select-none overflow-visible relative">
       {/* PARTE IZQUIERDA: SELECTOR DE EXCHANGE & PAR + PRECIO + PNL + SALDO CUENTA DEMO */}
-      <div className="flex items-center gap-2 sm:gap-3 py-0.5 overflow-visible relative">
+      <div className="flex items-center gap-1 sm:gap-2.5 py-0.5 min-w-0 overflow-visible relative">
         {/* SELECTOR INTERACTIVO DE EXCHANGE (BINANCE, BYBIT, KUCOIN, OKX, ETC) Y PAR CON PRECIO INTEGRADO */}
         <ExchangePairSelector
           currentExchange={currentExchange}
@@ -101,14 +101,15 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
       </div>
 
       {/* PARTE DERECHA: EXCLUSIVO HAMBURGUESA MÓVIL (< 1024px) */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+      <div className="flex items-center shrink-0 ml-1">
         <button
           type="button"
           onClick={onToggleMobileNav}
-          className="lg:hidden terminal-mobile-hamburger p-1 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-colors shadow-xs"
+          className="lg:hidden terminal-mobile-hamburger p-1.5 sm:p-2 rounded-xl text-slate-800 hover:text-slate-950 bg-white hover:bg-[#ede5d6] border border-[#ded5c5] cursor-pointer transition-all shadow-xs active:scale-95"
           title={isEs ? 'Menú ZYTI Trade' : 'ZYTI Trade Menu'}
+          aria-label={isEs ? 'Abrir menú de navegación lateral' : 'Open lateral navigation menu'}
         >
-          <Menu className="w-3.5 h-3.5" />
+          <Menu className="w-4 h-4 text-slate-800" />
         </button>
       </div>
     </header>

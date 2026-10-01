@@ -66,7 +66,7 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border shadow-xs font-mono font-bold transition-all cursor-pointer select-none group ${
+        className={`flex items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-xl border shadow-xs font-mono font-bold transition-all cursor-pointer select-none group shrink-0 ${
           activePropAccount 
             ? 'bg-amber-500/15 border-amber-400 text-amber-950 hover:bg-amber-500/25'
             : 'bg-amber-100/70 border-amber-200/90 hover:border-amber-400 text-amber-950'
@@ -74,16 +74,16 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
         title={isEs ? 'Clic para alternar cuentas de fondeo o simulación' : 'Click to switch prop firm or demo accounts'}
       >
         {activePropAccount ? (
-          <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          <Award className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-600 shrink-0" />
         ) : (
-          <Wallet className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+          <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-700 shrink-0" />
         )}
-        <div className="flex flex-col text-left leading-none max-w-[130px] sm:max-w-[180px]">
-          <span className="text-[8px] uppercase font-bold text-amber-800 truncate">
-            {activePropAccount ? `${activePropAccount.firmName} • ${activePropAccount.accountNumber}` : (isEs ? 'Fondeo Demo' : 'Prop Demo')}
+        <div className="flex flex-col text-left leading-none max-w-[85px] sm:max-w-[180px]">
+          <span className="text-[7.5px] sm:text-[8px] uppercase font-bold text-amber-800 truncate">
+            {activePropAccount ? `${activePropAccount.firmName}` : (isEs ? 'Demo' : 'Demo')}
           </span>
           <span
-            className={`text-[11px] sm:text-xs font-black transition-colors ${
+            className={`text-[10px] sm:text-xs font-black transition-colors ${
               unrealizedPnL > 0 ? 'text-emerald-700' : unrealizedPnL < 0 ? 'text-red-700' : 'text-amber-950'
             }`}
           >
@@ -91,7 +91,7 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
           </span>
         </div>
         <ChevronDown
-          className={`w-3 h-3 text-amber-700/70 transition-transform group-hover:text-amber-900 ${
+          className={`w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-700/70 transition-transform group-hover:text-amber-900 shrink-0 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />

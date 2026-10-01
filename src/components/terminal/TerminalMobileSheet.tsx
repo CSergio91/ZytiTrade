@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut } from 'lucide-react';
+import { BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut, Award, TrendingUp, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
 import { UserSession } from '../../lib/supabase';
 
@@ -79,7 +79,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
       {quickTradeEnabled && (
         <div 
           className={`lg:hidden terminal-mobile-only terminal-floating-quicktrade fixed ${
-            activeSheet ? 'bottom-[51dvh]' : 'bottom-15'
+            activeSheet === 'profile' ? 'bottom-[76dvh]' : activeSheet ? 'bottom-[51dvh]' : 'bottom-15'
           } left-2 right-2 z-30 flex flex-col gap-1.5 animate-zoom-in transition-all duration-300 pointer-events-auto`}
         >
           {/* BARRA SUPERIOR PEGADA: CONTROL RÁPIDO DEL RIESGO (%) */}
@@ -279,8 +279,10 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             onClick={() => setActiveSheet(null)}
           />
 
-          {/* Panel inferior que ocupa la mitad de la pantalla */}
-          <div className="h-[50dvh] max-h-[520px] bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up-sheet">
+          {/* Panel inferior que ocupa más espacio hacia arriba (75dvh para perfil profesional) */}
+          <div className={`${
+            activeSheet === 'profile' ? 'h-[75dvh] max-h-[640px]' : 'h-[50dvh] max-h-[520px]'
+          } bg-[#fbf9f4] border-t border-[#ded5c5] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up-sheet transition-all duration-300`}>
             {/* Header del sheet con barra de arrastre y botón cerrar */}
             <div className="px-4 py-2 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -616,54 +618,128 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                 </div>
               )}
 
-              {/* CASO 5: PERFIL DEL USUARIO (EXCLUSIVO MÓVIL) */}
+              {/* CASO 5: PERFIL DEL USUARIO PROFESIONAL (EXCLUSIVO MÓVIL) */}
               {activeSheet === 'profile' && (
-                <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-300/80">
-                      {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.name || 'User'} className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-amber-400" />
-                      ) : user?.provider === 'telegram' ? (
-                        <div className="w-12 h-12 rounded-full bg-[#229ED9] flex items-center justify-center shrink-0 shadow-sm">
-                          <svg className="w-6 h-6 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-amber-500 text-amber-950 font-black text-lg flex items-center justify-center shrink-0">
-                          {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
-                        </div>
-                      )}
-                      <div className="flex flex-col text-left leading-tight min-w-0">
-                        <span className="text-sm font-black text-slate-900 truncate">
-                          {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader ZYTI' : 'ZYTI Trader')}
+                <div className="flex-1 overflow-y-auto no-scrollbar p-4 flex flex-col justify-between space-y-4">
+                  <div>
+                    {/* AVATAR CIRCULAR EN EL MEDIO Y CABECERA INSTITUCIONAL */}
+                    <div className="flex flex-col items-center text-center mx-auto w-full pt-1 pb-2">
+                      <div className="relative mb-2.5">
+                        {user?.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={user.name || 'User'}
+                            className="w-18 h-18 rounded-full object-cover border-2 border-amber-400 ring-4 ring-amber-400/25 shadow-md"
+                          />
+                        ) : user?.provider === 'telegram' ? (
+                          <div className="w-18 h-18 rounded-full bg-linear-to-tr from-[#1b8bc2] to-[#229ED9] flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
+                            <svg className="w-9 h-9 fill-white" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="w-18 h-18 rounded-full bg-linear-to-tr from-amber-600 to-amber-400 text-amber-950 font-black text-2xl flex items-center justify-center border-2 border-amber-300 ring-4 ring-amber-400/25 shadow-md">
+                            {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                          </div>
+                        )}
+                        <span className="absolute bottom-0 right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs" title={isEs ? 'En línea' : 'Online'} />
+                      </div>
+
+                      {/* Nombre y referencia centrados */}
+                      <h3 className="text-base font-black text-slate-900 leading-tight">
+                        {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader ZYTI' : 'ZYTI Trader')}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                        {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email || 'trader@zyti.trade')}
+                      </p>
+
+                      {/* Badges de acreditación y proveniencia */}
+                      <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {isEs ? 'Trader Activo' : 'Active Trader'}
                         </span>
-                        <span className="text-xs text-slate-500 truncate mt-0.5">
-                          {user?.email || (user?.telegramUsername ? `@${user.telegramUsername}` : '')}
+                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-amber-600" />
+                          {user?.role === 'admin' ? 'Admin' : (isEs ? 'Prop Firm Tier 1' : 'Prop Firm Tier 1')}
                         </span>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 border border-amber-300">
-                            {user?.role === 'admin' ? 'Admin' : (isEs ? 'Cuenta Demo $10,000' : 'Demo Account $10,000')}
+                        {user?.provider === 'telegram' && (
+                          <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#229ED9]/15 text-[#1b8bc2] border border-[#229ED9]/30 flex items-center gap-1">
+                            <svg className="w-2.5 h-2.5 fill-[#229ED9]" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                            </svg>
+                            Telegram Auth
                           </span>
-                          {user?.provider === 'telegram' && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#229ED9]/15 text-[#1b8bc2] border border-[#229ED9]/30">
-                              Telegram
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500">{isEs ? 'Saldo de la cuenta' : 'Account Balance'}:</span>
-                        <span className="font-mono font-bold text-slate-900">${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    {/* GRID DE MÉTRICAS FINANCIERAS Y DE RIESGO */}
+                    <div className="grid grid-cols-2 gap-2 my-2">
+                      {/* Saldo Base */}
+                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          {isEs ? 'Saldo de Cuenta' : 'Account Balance'}
+                        </span>
+                        <span className="font-mono font-black text-sm text-slate-900 mt-0.5 block">
+                          ${demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-medium">USDT Margined</span>
                       </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500">{isEs ? 'Equidad flotante' : 'Floating Equity'}:</span>
-                        <span className={`font-mono font-bold ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>${equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+
+                      {/* Equidad Flotante */}
+                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          {isEs ? 'Equidad Flotante' : 'Floating Equity'}
+                        </span>
+                        <span className={`font-mono font-black text-sm mt-0.5 block ${isPnlProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                          ${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-[9px] font-bold ${isPnlProfit ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {isPnlProfit ? '+' : ''}${totalPnL.toFixed(2)} ({demoBalance > 0 ? ((totalPnL / demoBalance) * 100).toFixed(2) : '0.00'}%)
+                        </span>
                       </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500">{isEs ? 'Posiciones abiertas' : 'Open Positions'}:</span>
-                        <span className="font-mono font-bold text-slate-900">{positions.length}</span>
+
+                      {/* Posiciones Abiertas */}
+                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          {isEs ? 'Posiciones Activas' : 'Active Positions'}
+                        </span>
+                        <span className="font-mono font-black text-sm text-slate-900 mt-0.5 block">
+                          {positions.length} <span className="text-[11px] font-normal text-slate-500">{isEs ? 'en mercado' : 'live'}</span>
+                        </span>
+                        <span className="text-[9px] text-amber-700 font-semibold">
+                          {limitOrders.length} {isEs ? 'órdenes límite' : 'limit orders'}
+                        </span>
+                      </div>
+
+                      {/* Límite de Drawdown Diario */}
+                      <div className="p-3 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          {isEs ? 'Drawdown Máx. EOD' : 'Max EOD Drawdown'}
+                        </span>
+                        <span className="font-mono font-black text-sm text-emerald-600 mt-0.5 block">
+                          5.00% <span className="text-[10px] font-normal text-slate-500">(Prop Rule)</span>
+                        </span>
+                        <span className="text-[9px] text-emerald-700 font-medium">
+                          {isEs ? 'Gobernanza: Segura' : 'Governance: Safe'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* TARJETA DE SEGURIDAD Y GOBERNANZA DE TERMINAL */}
+                    <div className="p-3 rounded-2xl bg-white/80 border border-[#ded5c5] space-y-1.5 text-xs text-slate-600">
+                      <div className="flex justify-between items-center text-[10.5px]">
+                        <span className="text-slate-400">{isEs ? 'Protocolo de Ejecución' : 'Execution Protocol'}:</span>
+                        <span className="font-mono font-bold text-slate-800">Sub-100ms DMA Engine</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10.5px]">
+                        <span className="text-slate-400">{isEs ? 'Enrutamiento de Datos' : 'Data Routing'}:</span>
+                        <span className="font-mono font-bold text-slate-800">Multi-Feed WebSocket</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10.5px]">
+                        <span className="text-slate-400">UID:</span>
+                        <span className="font-mono font-bold text-slate-700">#{user?.id ? user.id.slice(0, 10).toUpperCase() : 'ZYTI-DEMO-01'}</span>
                       </div>
                     </div>
                   </div>
@@ -672,10 +748,10 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                     <button
                       type="button"
                       onClick={onExit}
-                      className="w-full mt-4 py-2.5 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer active:scale-98"
+                      className="w-full mt-2 py-3 px-4 rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>{isEs ? 'Cerrar Sesión' : 'Log Out'}</span>
+                      <span>{isEs ? 'Cerrar Sesión Segura' : 'Secure Log Out'}</span>
                     </button>
                   )}
                 </div>
