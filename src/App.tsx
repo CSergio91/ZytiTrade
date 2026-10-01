@@ -275,7 +275,6 @@ export const App: React.FC = () => {
       <>
         <NotFoundPage 
           currentLang={currentLang}
-          onLanguageChange={handleLanguageChange}
           onTradeNow={handleOpenTerminalOrAuth}
           onNavigateHome={navigateToLanding}
         />
