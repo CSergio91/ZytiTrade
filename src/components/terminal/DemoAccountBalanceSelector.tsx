@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Wallet, ChevronDown, Check, ShieldAlert } from 'lucide-react';
+import { Wallet, ChevronDown, Check, ShieldAlert, Award } from 'lucide-react';
+import { PropFirmAccount } from '../../lib/supabase';
 
 export const DEMO_ACCOUNT_TIERS = [
   { amount: 1000, label: '$1,000', tier: 'Micro Challenge' },
@@ -17,7 +18,10 @@ interface DemoAccountBalanceSelectorProps {
   currentBalance: number;
   unrealizedPnL: number;
   isEs: boolean;
+  accounts?: PropFirmAccount[];
+  activeAccountId?: string;
   onSelectAmount: (amount: number) => void;
+  onSelectAccount?: (account: PropFirmAccount | null) => void;
   onResetToCurrent: () => void;
 }
 
@@ -25,7 +29,10 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
   currentBalance,
   unrealizedPnL,
   isEs,
+  accounts = [],
+  activeAccountId,
   onSelectAmount,
+  onSelectAccount,
   onResetToCurrent
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,6 +53,7 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
   }, [isOpen]);
 
   const equity = currentBalance + unrealizedPnL;
+  const activePropAccount = accounts.find((a) => a.id === activeAccountId);
   const activeTier = DEMO_ACCOUNT_TIERS.find((t) => t.amount === currentBalance) || {
     amount: currentBalance,
     label: `$${currentBalance.toLocaleString()}`,
@@ -54,17 +62,25 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
 
   return (
     <div className="relative shrink-0" ref={containerRef}>
-      {/* BADGE CLICABLE DE BALANCE */}
+      {/* BADGE CLICABLE DE BALANCE / CUENTA ACTIVA */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-amber-100/70 border border-amber-200/90 hover:border-amber-400 text-amber-950 shadow-xs font-mono font-bold transition-all cursor-pointer select-none group"
-        title={isEs ? 'Clic para cambiar tamaño de cuenta o resetear' : 'Click to change account size or reset'}
+        className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border shadow-xs font-mono font-bold transition-all cursor-pointer select-none group ${
+          activePropAccount 
+            ? 'bg-amber-500/15 border-amber-400 text-amber-950 hover:bg-amber-500/25'
+            : 'bg-amber-100/70 border-amber-200/90 hover:border-amber-400 text-amber-950'
+        }`}
+        title={isEs ? 'Clic para alternar cuentas de fondeo o simulación' : 'Click to switch prop firm or demo accounts'}
       >
-        <Wallet className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-        <div className="flex flex-col text-left leading-none">
-          <span className="text-[8.5px] uppercase font-bold text-amber-800">
-            {isEs ? 'Fondeo Demo' : 'Prop Demo'}
+        {activePropAccount ? (
+          <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        ) : (
+          <Wallet className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+        )}
+        <div className="flex flex-col text-left leading-none max-w-[130px] sm:max-w-[180px]">
+          <span className="text-[8px] uppercase font-bold text-amber-800 truncate">
+            {activePropAccount ? `${activePropAccount.firmName} • ${activePropAccount.accountNumber}` : (isEs ? 'Fondeo Demo' : 'Prop Demo')}
           </span>
           <span
             className={`text-[11px] sm:text-xs font-black transition-colors ${
@@ -81,21 +97,67 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
         />
       </button>
 
-      {/* DROPDOWN DE TALLAS DE CUENTA INSTITUCIONAL */}
+      {/* DROPDOWN DE CUENTAS VINCULADAS & TALLAS INSTITUCIONALES */}
       {isOpen && (
         <>
           <div 
             className="fixed inset-0 z-40 bg-transparent" 
             onClick={() => setIsOpen(false)} 
           />
-          <div className="absolute top-full left-0 mt-1.5 w-68 sm:w-76 bg-white border border-[#ded5c5] rounded-2xl shadow-2xl py-3 px-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+          <div className="absolute top-full left-0 mt-1.5 w-76 sm:w-84 bg-white border border-[#ded5c5] rounded-2xl shadow-2xl py-3 px-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+            
+            {/* CUENTAS DE FONDEO OFICIALES VINCULADAS AL TRADER */}
+            {accounts.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <span className="text-[10px] font-mono uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1">
+                    <Award className="w-3 h-3 text-amber-600" />
+                    {isEs ? 'Cuentas Oficiales de Fondeo' : 'Official Prop Firm Accounts'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {accounts.map((acc) => {
+                    const isSelected = acc.id === activeAccountId;
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => {
+                          if (onSelectAccount) onSelectAccount(acc);
+                          setIsOpen(false);
+                        }}
+                        className={`w-full text-left p-2 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500/15 border-amber-500 text-amber-950 font-bold'
+                            : 'bg-slate-50 hover:bg-amber-50 border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-slate-900">{acc.firmName}</span>
+                          <span className="text-[10px] font-mono text-slate-500">{acc.accountNumber}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-emerald-700">
+                            ${acc.initialBalance.toLocaleString()}
+                          </span>
+                          {isSelected && <Check className="w-4 h-4 text-amber-600" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-slate-200 my-2.5" />
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider">
-                {isEs ? 'Tallas de Cuenta Prop Firm' : 'Prop Firm Account Sizes'}
+                {isEs ? 'Simulador Demo ZYTI' : 'ZYTI Demo Simulator'}
               </span>
               <button
                 type="button"
                 onClick={() => {
+                  if (onSelectAccount) onSelectAccount(null);
                   onResetToCurrent();
                   setIsOpen(false);
                 }}

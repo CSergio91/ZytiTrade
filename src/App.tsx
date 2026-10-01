@@ -11,7 +11,8 @@ import { DownloadSection } from './components/DownloadSection';
 import { FooterSection } from './components/FooterSection';
 import { AuthModal } from './components/AuthModal';
 import { TradingTerminal } from './components/TradingTerminal';
-import { getStoredSession, UserSession } from './lib/supabase';
+import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
+import { getStoredSession, setStoredSession, UserSession, supabase } from './lib/supabase';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -168,17 +169,27 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const TOTAL_SCREENS = 8;
+  const handleLogout = async () => {
+    // 1. Cerrar sesión en Supabase
+    try { await supabase.auth.signOut(); } catch {}
 
-  if (currentView === 'terminal') {
-    return (
-      <TradingTerminal 
-        currentLang={currentLang} 
-        user={currentUser} 
-        onExit={navigateToLanding} 
-      />
-    );
-  }
+    // 2. Limpiar sesión local y estado de la terminal demo
+    setStoredSession(null);
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('zyti_user_session');
+      localStorage.removeItem('zyti_demo_balance');
+      localStorage.removeItem('zyti_limit_orders');
+      localStorage.removeItem('zyti_daily_start_equity');
+    } catch {}
+
+    // 3. Navegar a la landing y abrir el modal de login
+    //    Usamos un pequeño delay para que el cambio de vista se aplique antes de abrir el modal
+    navigateToLanding();
+    setTimeout(() => setAuthModalOpen(true), 80);
+  };
+
+  const TOTAL_SCREENS = 8;
 
   const handleOpenTerminalOrAuth = () => {
     if (currentUser) {
@@ -187,6 +198,27 @@ export const App: React.FC = () => {
       setAuthModalOpen(true);
     }
   };
+
+  // Guard: si el terminal se intenta cargar sin sesión (ej: localStorage corrupto),
+  // redirigir a landing y abrir el modal de login automáticamente
+  if (currentView === 'terminal' && !currentUser) {
+    setTimeout(() => {
+      navigateToLanding();
+      setAuthModalOpen(true);
+    }, 0);
+  }
+
+  if (currentView === 'terminal' && currentUser) {
+    return (
+      <TerminalErrorBoundary onExit={handleLogout} lang={currentLang}>
+        <TradingTerminal 
+          currentLang={currentLang} 
+          user={currentUser} 
+          onExit={handleLogout} 
+        />
+      </TerminalErrorBoundary>
+    );
+  }
 
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden font-sans bg-[#fbf9f4] text-slate-900">

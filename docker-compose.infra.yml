@@ -1,0 +1,44 @@
+services:
+  # ============================================================================
+  # 1. BASE DE DATOS POSTGRESQL (100% Compatible con Supabase y Prisma)
+  # ============================================================================
+  zyti-db:
+    image: postgres:16-alpine
+    container_name: zyti-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zyti_trade
+      POSTGRES_USER: zyti_admin
+      POSTGRES_PASSWORD: zyti_secret_pass_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - zyti_pg_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zyti_admin -d zyti_trade"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # 2. REDIS IN-MEMORY (Para Fan-Out WebSocket y Cache de Velas Tick-a-Tick)
+  # ============================================================================
+  zyti-redis:
+    image: redis:7-alpine
+    container_name: zyti-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - zyti_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  zyti_pg_data:
+  zyti_redis_data:

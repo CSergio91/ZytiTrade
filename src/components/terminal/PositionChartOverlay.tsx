@@ -87,6 +87,8 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
     target: 'entry' | 'sl' | 'tp' | 'auto';
     dragPrice: number | null;
     dragPixelY: number | null;
+    initPrice?: number;
+    hasMoved?: boolean;
   } | null>(null);
 
   const hasOpenPositions = positions.length > 0;
@@ -161,7 +163,12 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             if (c && typeof c.y === 'number' && !isNaN(c.y)) tpY = Math.round(c.y);
           }
 
-          const zoneEndX = entryX + Math.round(candleWidth * 12);
+          // La caja abarca desde la vela de entrada hasta la última vela viva actual (+ 4 velas hacia adelante)
+          // Si la posición es nueva, asegura al menos 12 velas de ancho visual
+          const minInitialWidth = Math.round(candleWidth * 12);
+          const currentExtent = Math.max(0, lastCandleX - entryX) + Math.round(candleWidth * 4);
+          const dynamicWidth = Math.max(minInitialWidth, currentExtent);
+          const zoneEndX = Math.min(canvasWidth - 10, entryX + dynamicWidth);
 
           return { id: pos.id, entryY, slY, tpY, entryX, zoneEndX };
         });
@@ -304,13 +311,17 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
       initPixelY = target === 'sl' ? previewCoords.slY : target === 'tp' ? previewCoords.tpY : previewCoords.entryY;
     }
 
-    setDraggingItem({
+    const newItem = {
       type,
       positionId: posId,
       target,
       dragPrice: initPrice > 0 ? Number(initPrice.toFixed(2)) : null,
-      dragPixelY: initPixelY
-    });
+      dragPixelY: initPixelY,
+      initPrice: initPrice > 0 ? Number(initPrice.toFixed(2)) : undefined,
+      hasMoved: false
+    };
+    draggingItemRef.current = newItem;
+    setDraggingItem(newItem);
   };
 
   // Listener global en window para arrastre continuo y sin pérdida de eventos
@@ -325,11 +336,13 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
       const rawPrice = pixelToPrice(pixelY);
       if (rawPrice === null || rawPrice <= 0) return;
 
+      const hasMoved = currentDrag.hasMoved || (currentDrag.initPrice !== undefined && Math.abs(rawPrice - currentDrag.initPrice) >= 0.02);
+
       if (currentDrag.type === 'preview' && tradeSetupPreview) {
         if (currentDrag.target === 'entry') {
           const clampedPrice = rawPrice;
-          setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: pixelY } : null);
-          draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: pixelY };
+          setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: pixelY, hasMoved } : null);
+          draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: pixelY, hasMoved };
           onUpdatePreviewEntry?.(clampedPrice);
           return;
         }
@@ -351,8 +364,8 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
           if (target === 'tp') clampedPrice = Math.min(rawPrice, Number((ep * 0.999).toFixed(2)));
         }
 
-        setDraggingItem((prev) => prev ? { ...prev, target, dragPrice: clampedPrice, dragPixelY: pixelY } : null);
-        draggingItemRef.current = { ...currentDrag, target, dragPrice: clampedPrice, dragPixelY: pixelY };
+        setDraggingItem((prev) => prev ? { ...prev, target, dragPrice: clampedPrice, dragPixelY: pixelY, hasMoved } : null);
+        draggingItemRef.current = { ...currentDrag, target, dragPrice: clampedPrice, dragPixelY: pixelY, hasMoved };
 
         if (onUpdatePreviewSLTP) {
           if (target === 'sl') {
@@ -386,8 +399,8 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
           if (pCoord && typeof pCoord.y === 'number' && !isNaN(pCoord.y)) activePixelY = Math.round(pCoord.y);
         } catch {}
 
-        setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: activePixelY } : null);
-        draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: activePixelY };
+        setDraggingItem((prev) => prev ? { ...prev, dragPrice: clampedPrice, dragPixelY: activePixelY, hasMoved } : null);
+        draggingItemRef.current = { ...currentDrag, dragPrice: clampedPrice, dragPixelY: activePixelY, hasMoved };
       } else if (currentDrag.type === 'position' && currentDrag.positionId) {
         const pos = positionsRef.current.find((p) => p.id === currentDrag.positionId);
         const coord = positionsCoordsRef.current.find((c) => c.id === currentDrag.positionId);
@@ -437,14 +450,28 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
           }
         } catch {}
 
-        setDraggingItem((prev) => prev ? { ...prev, target, dragPrice: clampedPrice, dragPixelY: activePixelY } : null);
-        draggingItemRef.current = { ...currentDrag, target, dragPrice: clampedPrice, dragPixelY: activePixelY };
+        setDraggingItem((prev) => prev ? { ...prev, target, dragPrice: clampedPrice, dragPixelY: activePixelY, hasMoved } : null);
+        draggingItemRef.current = { ...currentDrag, target, dragPrice: clampedPrice, dragPixelY: activePixelY, hasMoved };
       }
     };
 
     const onWindowPointerUp = () => {
       const currentDrag = draggingItemRef.current;
       if (currentDrag) {
+        // VALIDACIÓN ESTRICTA: Si el usuario solo hizo click/tap sin desplazar la orden o línea, NO disparar modificación
+        const didActuallyMove = Boolean(
+          currentDrag.hasMoved &&
+          currentDrag.initPrice !== undefined &&
+          currentDrag.dragPrice !== null &&
+          Math.abs(currentDrag.dragPrice - currentDrag.initPrice) >= 0.02
+        );
+
+        if (!didActuallyMove) {
+          setDraggingItem(null);
+          draggingItemRef.current = null;
+          return;
+        }
+
         if (currentDrag.type === 'position' && currentDrag.positionId && currentDrag.dragPrice) {
           const pos = positionsRef.current.find((p) => p.id === currentDrag.positionId);
           if (pos) {
@@ -457,28 +484,41 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             }
 
             if (finalTarget === 'sl') {
-              onUpdatePositionSLTP(pos.id, currentDrag.dragPrice, pos.tpPrice ?? null);
+              if (!pos.slPrice || Math.abs(pos.slPrice - currentDrag.dragPrice) >= 0.02) {
+                onUpdatePositionSLTP(pos.id, currentDrag.dragPrice, pos.tpPrice ?? null);
+              }
             } else if (finalTarget === 'tp') {
-              onUpdatePositionSLTP(pos.id, pos.slPrice ?? null, currentDrag.dragPrice);
+              if (!pos.tpPrice || Math.abs(pos.tpPrice - currentDrag.dragPrice) >= 0.02) {
+                onUpdatePositionSLTP(pos.id, pos.slPrice ?? null, currentDrag.dragPrice);
+              }
             }
           }
         } else if (currentDrag.type === 'limit' && currentDrag.positionId && currentDrag.dragPrice && onUpdateLimitOrder) {
           const ord = limitOrdersRef.current.find((o) => o.id === currentDrag.positionId);
           if (ord) {
             if (currentDrag.target === 'entry') {
-              onUpdateLimitOrder(ord.id, currentDrag.dragPrice, ord.slPrice, ord.tpPrice);
+              if (Math.abs(ord.limitPrice - currentDrag.dragPrice) >= 0.02) {
+                onUpdateLimitOrder(ord.id, currentDrag.dragPrice, ord.slPrice, ord.tpPrice);
+              }
             } else if (currentDrag.target === 'sl') {
-              onUpdateLimitOrder(ord.id, ord.limitPrice, currentDrag.dragPrice, ord.tpPrice);
+              if (!ord.slPrice || Math.abs(ord.slPrice - currentDrag.dragPrice) >= 0.02) {
+                onUpdateLimitOrder(ord.id, ord.limitPrice, currentDrag.dragPrice, ord.tpPrice);
+              }
             } else if (currentDrag.target === 'tp') {
-              onUpdateLimitOrder(ord.id, ord.limitPrice, ord.slPrice, currentDrag.dragPrice);
+              if (!ord.tpPrice || Math.abs(ord.tpPrice - currentDrag.dragPrice) >= 0.02) {
+                onUpdateLimitOrder(ord.id, ord.limitPrice, ord.slPrice, currentDrag.dragPrice);
+              }
             }
           }
         } else if (currentDrag.type === 'preview' && currentDrag.target === 'entry' && currentDrag.dragPrice && onUpdatePreviewEntry) {
-          onUpdatePreviewEntry(currentDrag.dragPrice);
+          if (!tradeSetupPreview || Math.abs(tradeSetupPreview.entryPrice - currentDrag.dragPrice) >= 0.02) {
+            onUpdatePreviewEntry(currentDrag.dragPrice);
+          }
         }
       }
 
       setDraggingItem(null);
+      draggingItemRef.current = null;
     };
 
     window.addEventListener('pointermove', onWindowPointerMove);

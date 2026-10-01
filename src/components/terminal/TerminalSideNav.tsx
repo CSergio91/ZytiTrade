@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal, BookOpen, ListFilter, Check, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface TerminalSideNavProps {
   isEs: boolean;
@@ -7,7 +7,14 @@ interface TerminalSideNavProps {
   isMobileNavOpen: boolean;
   activeSection: string;
   isTradingSidebarOpen?: boolean;
+  showOrderForm?: boolean;
+  showOrderBook?: boolean;
+  showPositions?: boolean;
+  onOpenTradingPanel?: () => void;
   onToggleTradingSidebar?: () => void;
+  onToggleOrderForm?: () => void;
+  onToggleOrderBook?: () => void;
+  onTogglePositions?: () => void;
   onToggleNavPosition: () => void;
   onSelectSection: (section: 'none' | 'exchange' | string) => void;
   onCloseMobileNav: () => void;
@@ -42,50 +49,183 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   isMobileNavOpen,
   activeSection,
   isTradingSidebarOpen = true,
+  showOrderForm = true,
+  showOrderBook = true,
+  showPositions = true,
+  onOpenTradingPanel,
   onToggleTradingSidebar,
+  onToggleOrderForm,
+  onToggleOrderBook,
+  onTogglePositions,
   onToggleNavPosition,
   onSelectSection,
   onCloseMobileNav,
   onExit
 }) => {
   const [isClickedExpanded, setIsClickedExpanded] = useState(false);
+  const [isTradingSubmenuOpen, setIsTradingSubmenuOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_trading_submenu_open');
+      return saved !== null ? saved !== 'false' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleTradingSubmenu = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsTradingSubmenuOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('zyti_trading_submenu_open', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   return (
     <>
       {/* 1. BARRA LATERAL EN ESCRITORIO (>= 1024px) */}
-      <aside className="terminal-side-nav">
+      <aside 
+        className="terminal-side-nav"
+        onMouseLeave={() => setIsClickedExpanded(false)}
+      >
         {/* Contenedor base de 48px para reservar el espacio permanente en el layout */}
         <div className={`w-12 h-full ${navPosition === 'left' ? 'border-r' : 'border-l'} border-[#ded5c5] bg-[#fbf9f4]`} />
         
         {/* Menú flotante al hover o al click que vuela por encima del gráfico sin redimensionarlo ni empujarlo */}
         <div 
+          onMouseLeave={() => setIsClickedExpanded(false)}
           className={`absolute top-0 bottom-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} ${
-            isClickedExpanded ? 'w-56 shadow-2xl' : 'w-12 hover:w-56 shadow-xs hover:shadow-2xl'
+            isClickedExpanded ? 'w-64 shadow-2xl' : 'w-12 hover:w-64 shadow-xs hover:shadow-2xl'
           } bg-[#fbf9f4] border-[#ded5c5] transition-all duration-300 ease-out flex flex-col justify-between py-3 px-1.5 group z-40 overflow-hidden`}
         >
           {/* SECCIONES ARRIBA */}
-          <div className="space-y-1.5">
-            {/* SECCIÓN 1: TRADING (ABRIR / CERRAR PANEL DE TRADING Y LIBRO) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onToggleTradingSidebar) onToggleTradingSidebar();
-                setIsClickedExpanded(false);
-              }}
-              className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all cursor-pointer ${
-                isTradingSidebarOpen
-                  ? 'bg-amber-100 text-amber-950 font-black shadow-xs'
-                  : 'text-slate-700 hover:text-slate-950 hover:bg-white/80'
-              }`}
-              title={isEs ? 'Panel de Trading y Libro' : 'Trading Panel & Order Book'}
-            >
-              <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                <JapaneseCandlesticksIcon className="w-4.5 h-4.5" />
+          <div className="space-y-2">
+            {/* SECCIÓN 1: TRADING CON SUBMENÚS */}
+            <div className="space-y-1">
+              <div
+                className={`w-full flex items-center justify-between p-1.5 rounded-xl transition-all ${
+                  isTradingSidebarOpen && showOrderForm
+                    ? 'bg-amber-100/90 text-amber-950 font-black shadow-xs'
+                    : 'text-slate-700 hover:text-slate-950 hover:bg-white/90'
+                }`}
+              >
+                {/* Botón principal Trading: Abre panel si está oculto y expande opciones */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsClickedExpanded(true);
+                    setIsTradingSubmenuOpen(true);
+                    try { localStorage.setItem('zyti_trading_submenu_open', 'true'); } catch {}
+                    if (onOpenTradingPanel) {
+                      onOpenTradingPanel();
+                    } else if (onToggleTradingSidebar) {
+                      onToggleTradingSidebar();
+                    }
+                  }}
+                  className="flex items-center gap-3 flex-1 text-left cursor-pointer outline-none py-0.5"
+                  title={isEs ? 'Mostrar Panel de Trading' : 'Show Trading Panel'}
+                >
+                  <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                    <JapaneseCandlesticksIcon className="w-4.5 h-4.5" />
+                  </div>
+                  <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                    Trading
+                  </span>
+                </button>
+
+                {/* Botón chevron desacoplado para colapsar/desplegar submenú */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsClickedExpanded(true);
+                    handleToggleTradingSubmenu(e);
+                  }}
+                  className={`p-1 rounded-md hover:bg-amber-200/70 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer outline-none ${
+                    isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  title={isTradingSubmenuOpen ? (isEs ? 'Plegar submenú' : 'Collapse submenu') : (isEs ? 'Desplegar submenú' : 'Expand submenu')}
+                >
+                  {isTradingSubmenuOpen ? <ChevronDown className="w-3.5 h-3.5 text-amber-900" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500" />}
+                </button>
               </div>
-              <span className={`text-xs font-bold whitespace-nowrap ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                Trading
-              </span>
-            </button>
+
+              {/* SUBMENÚ DE PANELES DE TRADING */}
+              {isTradingSubmenuOpen && (
+                <div className={`pl-3 pr-1 py-1 space-y-1 ${isClickedExpanded ? 'block' : 'hidden group-hover:block'} transition-all`}>
+                  {/* SUBITEM 1: FORMULARIO DE ÓRDENES */}
+                  {onToggleOrderForm && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsClickedExpanded(true);
+                        onToggleOrderForm();
+                      }}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[11px] font-medium text-slate-700 hover:text-slate-950 hover:bg-white transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal className="w-3 h-3 text-slate-500" />
+                        <span className="whitespace-nowrap">{isEs ? 'Panel de Órdenes' : 'Order Form'}</span>
+                      </div>
+                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                        showOrderForm ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                      }`}>
+                        {showOrderForm && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                    </button>
+                  )}
+
+                  {/* SUBITEM 2: LIBRO DE ÓRDENES */}
+                  {onToggleOrderBook && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsClickedExpanded(true);
+                        onToggleOrderBook();
+                      }}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[11px] font-medium text-slate-700 hover:text-slate-950 hover:bg-white transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-3 h-3 text-slate-500" />
+                        <span className="whitespace-nowrap">{isEs ? 'Libro de Órdenes' : 'Order Book'}</span>
+                      </div>
+                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                        showOrderBook ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                      }`}>
+                        {showOrderBook && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                    </button>
+                  )}
+
+                  {/* SUBITEM 3: POSICIONES Y ÓRDENES PENDIENTES */}
+                  {onTogglePositions && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsClickedExpanded(true);
+                        onTogglePositions();
+                      }}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[11px] font-medium text-slate-700 hover:text-slate-950 hover:bg-white transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ListFilter className="w-3 h-3 text-slate-500" />
+                        <span className="whitespace-nowrap">{isEs ? 'Posiciones & Órdenes' : 'Positions & Orders'}</span>
+                      </div>
+                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                        showPositions ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300 bg-white'
+                      }`}>
+                        {showPositions && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* SECCIÓN 2: EXCHANGE */}
             <button
@@ -163,21 +303,83 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
 
               {/* SECCIONES TRADING Y EXCHANGE */}
               <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onToggleTradingSidebar) onToggleTradingSidebar();
-                    onCloseMobileNav();
-                  }}
-                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                    isTradingSidebarOpen
+                <div
+                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-colors ${
+                    isTradingSidebarOpen && showOrderForm
                       ? 'bg-amber-100 text-amber-950 font-black'
                       : 'text-slate-700 hover:bg-white'
                   }`}
                 >
-                  <JapaneseCandlesticksIcon className="w-4 h-4" />
-                  <span>Trading & Order Book</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenTradingPanel) onOpenTradingPanel();
+                      setIsTradingSubmenuOpen(true);
+                      onCloseMobileNav();
+                    }}
+                    className="flex items-center gap-3 flex-1 text-left cursor-pointer"
+                  >
+                    <JapaneseCandlesticksIcon className="w-4 h-4" />
+                    <span>Trading</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleToggleTradingSubmenu}
+                    className="p-1 rounded text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    {isTradingSubmenuOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                {isTradingSubmenuOpen && (
+                  <div className="pl-6 pr-2 py-1 space-y-1.5 animate-in fade-in duration-150">
+                    {onToggleOrderForm && (
+                      <button
+                        type="button"
+                        onClick={onToggleOrderForm}
+                        className="w-full flex items-center justify-between py-1 text-xs text-slate-700 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{isEs ? 'Panel de Órdenes' : 'Order Form'}</span>
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${showOrderForm ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300'}`}>
+                          {showOrderForm && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </button>
+                    )}
+                    {onToggleOrderBook && (
+                      <button
+                        type="button"
+                        onClick={onToggleOrderBook}
+                        className="w-full flex items-center justify-between py-1 text-xs text-slate-700 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{isEs ? 'Libro de Órdenes' : 'Order Book'}</span>
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${showOrderBook ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300'}`}>
+                          {showOrderBook && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </button>
+                    )}
+                    {onTogglePositions && (
+                      <button
+                        type="button"
+                        onClick={onTogglePositions}
+                        className="w-full flex items-center justify-between py-1 text-xs text-slate-700 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ListFilter className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{isEs ? 'Posiciones & Órdenes' : 'Positions & Orders'}</span>
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${showPositions ? 'bg-amber-500 border-amber-600 text-white' : 'border-slate-300'}`}>
+                          {showPositions && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <button
                   type="button"

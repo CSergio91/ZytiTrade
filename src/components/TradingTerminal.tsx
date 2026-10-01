@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { init, dispose, Chart, DeepPartial, Styles } from 'klinecharts';
 import { Language } from '../i18n/translations';
-import { UserSession } from '../lib/supabase';
+import { UserSession, PropFirmAccount } from '../lib/supabase';
 import { MarketStats, OrderBookPayload } from '../workers/marketData.worker';
 import { MarketType, AdapterConnectionStatus } from '../core/market-feed/types';
 
@@ -14,6 +14,9 @@ import {
 } from './terminal/types';
 import { 
   TradingEngine, 
+  RiskEngine,
+  DEFAULT_PROP_FIRM_RULES,
+  PropFirmRuleConfig,
   PositionItem, 
   LimitOrderItem,
   OrderRequest, 
@@ -33,7 +36,7 @@ import { CandleInfoModal } from './terminal/CandleInfoModal';
 import { TerminalToast, ToastNotification } from './terminal/TerminalToast';
 import { KLineBar } from '../core/market-feed/types';
 import { playOrderFilledSound } from '../utils/audioAlerts';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface TradingTerminalProps {
   currentLang: Language;
@@ -235,6 +238,24 @@ const generateId = (): string => {
     } catch {}
   }
   return 'pos_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+};
+
+// Obtención y control de la equidad de arranque del día UTC (00:00 UTC) para el motor de Prop Firm
+const getStoredDailyStartEquity = (currentBalance: number): number => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const saved = localStorage.getItem('zyti_daily_start_equity');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.date === today && typeof parsed.equity === 'number' && parsed.equity > 0) {
+        return parsed.equity;
+      }
+    }
+    localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: currentBalance }));
+    return currentBalance;
+  } catch {
+    return currentBalance;
+  }
 };
 
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
@@ -454,29 +475,118 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return 10000;
     }
   });
+  const demoBalanceRef = useRef(demoBalance);
+  demoBalanceRef.current = demoBalance;
+
   const [riskPercent, setRiskPercent] = useState<number>(1);
   const [slPercent, setSlPercent] = useState<number>(2);
   const [tpPercent, setTpPercent] = useState<number>(4);
   const [orderMode, setOrderMode] = useState<'amount' | 'risk'>('amount');
 
-  // Control de apertura, minimizado y cierre individual del panel de trading y libro de órdenes
-  const [isTradingSidebarOpen, setIsTradingSidebarOpen] = useState<boolean>(true);
+  // Control de visibilidad y minimizado de paneles con persistencia en localStorage
+  const [isTradingSidebarOpen, setIsTradingSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_trading_sidebar_open');
+      return saved !== null ? saved !== 'false' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [showOrderForm, setShowOrderForm] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_show_orderform');
+      return saved !== null ? saved !== 'false' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [showOrderBook, setShowOrderBook] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_show_orderbook');
+      return saved !== null ? saved !== 'false' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [showPositions, setShowPositions] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_show_positions');
+      return saved !== null ? saved !== 'false' : true;
+    } catch {
+      return true;
+    }
+  });
+
   const [isOrderFormMinimized, setIsOrderFormMinimized] = useState<boolean>(false);
-  const [isOrderFormClosed, setIsOrderFormClosed] = useState<boolean>(false);
   const [isOrderBookMinimized, setIsOrderBookMinimized] = useState<boolean>(false);
-  const [isOrderBookClosed, setIsOrderBookClosed] = useState<boolean>(false);
+
+  const isOrderFormClosed = !showOrderForm;
+  const isOrderBookClosed = !showOrderBook;
 
   const handleToggleTradingSidebar = useCallback(() => {
     setIsTradingSidebarOpen((prev) => {
       const next = !prev;
-      if (next) {
-        setIsOrderFormClosed(false);
-        setIsOrderBookClosed(false);
-      }
+      try { localStorage.setItem('zyti_trading_sidebar_open', String(next)); } catch {}
       setTimeout(() => chartInstanceRef.current?.resize(), 60);
       return next;
     });
   }, []);
+
+  const handleOpenTradingPanel = useCallback(() => {
+    setIsTradingSidebarOpen(true);
+    setShowOrderForm(true);
+    setIsOrderFormMinimized(false);
+    try {
+      localStorage.setItem('zyti_trading_sidebar_open', 'true');
+      localStorage.setItem('zyti_show_orderform', 'true');
+    } catch {}
+    setTimeout(() => chartInstanceRef.current?.resize(), 60);
+  }, []);
+
+  const handleToggleOrderForm = useCallback(() => {
+    setShowOrderForm((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('zyti_show_orderform', String(next)); } catch {}
+      setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      return next;
+    });
+  }, []);
+
+  const handleToggleOrderBook = useCallback(() => {
+    setShowOrderBook((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('zyti_show_orderbook', String(next)); } catch {}
+      setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      return next;
+    });
+  }, []);
+
+  const handleTogglePositions = useCallback(() => {
+    setShowPositions((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('zyti_show_positions', String(next)); } catch {}
+      setTimeout(() => chartInstanceRef.current?.resize(), 60);
+      return next;
+    });
+  }, []);
+
+  // Centinela de Drawdown en vivo y Gobernanza de Riesgo para Prop Firm
+  const propFirmRulesRef = useRef<PropFirmRuleConfig>(DEFAULT_PROP_FIRM_RULES);
+  const dailyStartEquityRef = useRef<number>(getStoredDailyStartEquity(demoBalance));
+  const [isAccountBreached, setIsAccountBreached] = useState<boolean>(false);
+  const [breachReason, setBreachReason] = useState<string>('');
+  const isBreachedRef = useRef<boolean>(false);
+  isBreachedRef.current = isAccountBreached;
+
+  // Menú contextual flotante de clic derecho en el gráfico
+  const [chartContextMenu, setChartContextMenu] = useState<{
+    x: number;
+    y: number;
+    price: number;
+  } | null>(null);
 
   // Sistema de notificaciones Toast sonoras para TP, SL y ejecución
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -498,6 +608,150 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const workerRef = useRef<Worker | null>(null);
+
+  // Escuchar clics fuera y tecla Escape para cerrar el menú contextual del gráfico
+  useEffect(() => {
+    const handleDismiss = () => setChartContextMenu(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setChartContextMenu(null);
+    };
+    window.addEventListener('click', handleDismiss);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleDismiss);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Liquidación de Emergencia ante infracción de Drawdown de Prop Firm
+  const handleEmergencyLiquidation = useCallback((reason: string) => {
+    const currentPositions = positionsRef.current;
+    let totalRealized = 0;
+    currentPositions.forEach((pos) => {
+      closedPositionIdsRef.current.add(pos.id);
+      recordClosedTradeRef.current(pos, 'SL');
+      totalRealized += (pos.pnlUsdt ?? 0);
+    });
+
+    positionsRef.current = [];
+    setPositions([]);
+
+    limitOrdersRef.current = [];
+    setLimitOrders([]);
+    try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+
+    setDemoBalance((prevB) => {
+      const nextB = Number((prevB + totalRealized).toFixed(2));
+      try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
+      return nextB;
+    });
+
+    addToastRef.current({
+      type: 'sl',
+      title: isEs ? '¡Límite de Riesgo Prop Firm Superado!' : 'Prop Firm Risk Breach!',
+      message: reason,
+      pnlUsdt: totalRealized
+    });
+  }, [isEs]);
+
+  const handleEmergencyLiquidationRef = useRef(handleEmergencyLiquidation);
+  handleEmergencyLiquidationRef.current = handleEmergencyLiquidation;
+
+  // Verificación reactiva en cada tick del límite de pérdida diaria y total (5% DD diario / 10% total)
+  const checkLiveRiskAndDrawdown = useCallback((livePositions: PositionItem[], currentBalanceVal: number) => {
+    if (isBreachedRef.current) return;
+    const metrics = TradingEngine.calculateAccountMetrics(
+      currentBalanceVal,
+      livePositions,
+      limitOrdersRef.current
+    );
+    const status = RiskEngine.checkPropFirmStatus(
+      metrics,
+      dailyStartEquityRef.current,
+      propFirmRulesRef.current
+    );
+    if (status.breached && !isBreachedRef.current) {
+      isBreachedRef.current = true;
+      setIsAccountBreached(true);
+      setBreachReason(status.reason || (isEs ? 'Límite máximo de Drawdown superado' : 'Maximum Drawdown limit breached'));
+      handleEmergencyLiquidationRef.current(status.reason || 'Drawdown limit reached');
+    }
+  }, [isEs]);
+
+  const checkLiveRiskAndDrawdownRef = useRef(checkLiveRiskAndDrawdown);
+  checkLiveRiskAndDrawdownRef.current = checkLiveRiskAndDrawdown;
+
+  // Colocación inmediata de orden pendiente desde el menú contextual de clic derecho en el gráfico
+  const handlePlacePendingOrderFromChart = (orderSide: 'buy' | 'sell', targetPrice: number) => {
+    setChartContextMenu(null);
+    if (isAccountBreached) {
+      addToast({
+        type: 'warning',
+        title: isEs ? 'Operativa Bloqueada' : 'Trading Blocked',
+        message: isEs
+          ? 'Cuenta en infracción de Drawdown de la Prop Firm. Restablece la cuenta para continuar.'
+          : 'Account in Drawdown breach. Reset account to continue.'
+      });
+      return;
+    }
+
+    const orderReq: OrderRequest = {
+      symbol: selectedPair,
+      exchange: currentExchange,
+      marketType: currentMarketType,
+      side: orderSide,
+      orderType: 'limit',
+      orderMode: 'amount',
+      amountUsdt: parseFloat(amount) || 1000,
+      riskPercent,
+      slPercent,
+      tpPercent,
+      leverage
+    };
+
+    const currentMetrics = TradingEngine.calculateAccountMetrics(demoBalance, positionsRef.current, limitOrdersRef.current);
+    const result = TradingEngine.createLimitOrder(
+      orderReq,
+      targetPrice,
+      stats.lastPrice,
+      currentMetrics
+    );
+
+    if (!result.success || !result.limitOrder) {
+      addToast({
+        type: 'warning',
+        title: isEs ? 'Error al crear orden' : 'Order Creation Error',
+        message: result.error || 'Error'
+      });
+      return;
+    }
+
+    limitOrdersRef.current = [result.limitOrder!, ...limitOrdersRef.current];
+    setLimitOrders(limitOrdersRef.current);
+    try {
+      localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrdersRef.current));
+    } catch {}
+
+    playOrderFilledSound();
+    const isBuy = orderSide === 'buy';
+    const subtype = result.limitOrder.orderSubtype || (isBuy ? (targetPrice <= stats.lastPrice ? 'LIMIT' : 'STOP') : (targetPrice >= stats.lastPrice ? 'LIMIT' : 'STOP'));
+    const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${subtype === 'LIMIT' ? 'Limit' : 'Stop'}`;
+
+    addToast({
+      type: isBuy ? 'buy' : 'sell',
+      title: isEs ? `¡Orden ${orderLabel} Colocada!` : `${orderLabel} Order Placed!`,
+      message: `${orderLabel.toUpperCase()} • ${result.limitOrder.size} @ $${targetPrice.toLocaleString()}`,
+      symbol: selectedPair,
+      price: targetPrice
+    });
+
+    setOrderSuccess(
+      isEs
+        ? `¡Orden ${orderLabel} colocada a $${targetPrice.toLocaleString()}!`
+        : `${orderLabel} order placed at $${targetPrice.toLocaleString()}!`
+    );
+    setTimeout(() => setOrderSuccess(null), 3000);
+  };
 
   // 1. Inicialización de KLineChart Canvas y Web Worker
   useEffect(() => {
@@ -622,6 +876,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               // Actualizar posiciones sincrónicamente en la referencia y en el estado
               positionsRef.current = evaluation.updatedPositions;
               setPositions(evaluation.updatedPositions);
+              checkLiveRiskAndDrawdownRef.current(evaluation.updatedPositions, demoBalanceRef.current);
 
               // Actualizar saldo realizado si hubo ejecuciones de TP o SL
               if (evaluation.balanceDelta !== 0) {
@@ -746,6 +1001,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             );
             positionsRef.current = evaluation.updatedPositions;
             setPositions(evaluation.updatedPositions);
+            checkLiveRiskAndDrawdownRef.current(evaluation.updatedPositions, demoBalanceRef.current);
             if (evaluation.balanceDelta !== 0) {
               setDemoBalance((prevB) => {
                 const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
@@ -1151,10 +1407,25 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const accountMetrics = TradingEngine.calculateAccountMetrics(demoBalance, positions, limitOrders);
 
   const handleUpdatePositionSLTP = (id: string, slPrice?: number | null, tpPrice?: number | null) => {
+    const target = positionsRef.current.find((p) => p.id === id);
+    if (!target) return;
+
+    const slChanged = slPrice !== undefined && (
+      (slPrice === null && target.slPrice !== null && target.slPrice !== undefined) ||
+      (slPrice !== null && (target.slPrice === null || target.slPrice === undefined || Math.abs(slPrice - target.slPrice) >= 0.02))
+    );
+    const tpChanged = tpPrice !== undefined && (
+      (tpPrice === null && target.tpPrice !== null && target.tpPrice !== undefined) ||
+      (tpPrice !== null && (target.tpPrice === null || target.tpPrice === undefined || Math.abs(tpPrice - target.tpPrice) >= 0.02))
+    );
+
+    if (!slChanged && !tpChanged) {
+      return;
+    }
+
     setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
 
-    const target = positionsRef.current.find((p) => p.id === id);
-    if (target && slPrice !== undefined) {
+    if (slPrice !== undefined) {
       if (slPrice !== null) {
         const isLong = target.side === 'LONG';
         const isBE = Math.abs(slPrice - target.entry) < 0.05;
@@ -1315,7 +1586,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 3000);
   };
 
-  // Resetear el saldo demo al valor inicial de $10,000
+  // Resetear el saldo demo al valor inicial de $10,000 y restaurar reglas de Prop Firm
   const resetDemoBalance = () => {
     closedPositionIdsRef.current.clear();
     filledLimitOrderIdsRef.current.clear();
@@ -1326,12 +1597,65 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     try { localStorage.removeItem('zyti_limit_orders'); } catch {}
     setDemoBalance(10000);
     try { localStorage.setItem('zyti_demo_balance', '10000'); } catch {}
+
+    // Resetear centinela de Drawdown y nuevo baseline diario
+    const today = new Date().toISOString().split('T')[0];
+    dailyStartEquityRef.current = 10000;
+    try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: 10000 })); } catch {}
+    isBreachedRef.current = false;
+    setIsAccountBreached(false);
+    setBreachReason('');
+
     addToast({
       type: 'info',
       title: isEs ? 'Cuenta Demo Restablecida' : 'Demo Account Reset',
-      message: isEs ? 'Saldo restablecido a $10,000.00 USDT iniciales.' : 'Balance reset to initial $10,000.00 USDT.'
+      message: isEs ? 'Saldo restablecido a $10,000.00 USDT iniciales y riesgo reiniciado.' : 'Balance reset to initial $10,000.00 USDT and risk cleared.'
     });
   };
+
+  const [activeAccountId, setActiveAccountId] = useState<string | undefined>(user?.activeAccountId);
+
+  const handleSelectAccount = useCallback((account: PropFirmAccount | null) => {
+    if (account) {
+      setActiveAccountId(account.id);
+      closedPositionIdsRef.current.clear();
+      filledLimitOrderIdsRef.current.clear();
+      setPositions([]);
+      positionsRef.current = [];
+      setLimitOrders([]);
+      limitOrdersRef.current = [];
+      try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+      setDemoBalance(account.initialBalance);
+      try { localStorage.setItem('zyti_demo_balance', account.initialBalance.toString()); } catch {}
+      if (account.rulesConfig) {
+        propFirmRulesRef.current = {
+          id: account.id,
+          firmName: account.firmName,
+          initialBalance: account.initialBalance,
+          maxDailyLossPercent: account.rulesConfig.maxDailyDrawdownPct ?? 5,
+          maxTotalDrawdownPercent: account.rulesConfig.maxTotalDrawdownPct ?? 10,
+          maxLeverage: account.rulesConfig.maxLeverage ?? 100
+        };
+      }
+      dailyStartEquityRef.current = account.initialBalance;
+      setIsAccountBreached(false);
+      isBreachedRef.current = false;
+      addToast({
+        type: 'info',
+        title: isEs ? 'Cuenta de Fondeo Vinculada' : 'Prop Firm Account Linked',
+        message: `${account.firmName} • ${account.accountNumber}`
+      });
+    } else {
+      setActiveAccountId(undefined);
+      resetDemoBalance();
+      propFirmRulesRef.current = DEFAULT_PROP_FIRM_RULES;
+      addToast({
+        type: 'info',
+        title: isEs ? 'Simulador Demo ZYTI' : 'ZYTI Demo Simulator',
+        message: isEs ? 'Operando en simulación libre' : 'Trading in free simulation'
+      });
+    }
+  }, [isEs, addToast]);
 
   // Cancelar orden límite individual
   const handleCancelLimitOrder = useCallback((orderId: string) => {
@@ -1367,6 +1691,23 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     newSlPrice?: number | null,
     newTpPrice?: number | null
   ) => {
+    const existing = limitOrdersRef.current.find((o) => o.id === orderId);
+    if (!existing) return;
+
+    const priceChanged = newLimitPrice !== undefined && Math.abs(newLimitPrice - existing.limitPrice) >= 0.02;
+    const slChanged = newSlPrice !== undefined && (
+      (newSlPrice === null && existing.slPrice !== null && existing.slPrice !== undefined) ||
+      (newSlPrice !== null && (existing.slPrice === null || existing.slPrice === undefined || Math.abs(newSlPrice - existing.slPrice) >= 0.02))
+    );
+    const tpChanged = newTpPrice !== undefined && (
+      (newTpPrice === null && existing.tpPrice !== null && existing.tpPrice !== undefined) ||
+      (newTpPrice !== null && (existing.tpPrice === null || existing.tpPrice === undefined || Math.abs(newTpPrice - existing.tpPrice) >= 0.02))
+    );
+
+    if (!priceChanged && !slChanged && !tpChanged) {
+      return;
+    }
+
     const updated = TradingEngine.updateLimitOrder(
       limitOrdersRef.current,
       orderId,
@@ -1402,6 +1743,16 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAccountBreached) {
+      addToast({
+        type: 'warning',
+        title: isEs ? 'Operativa Bloqueada' : 'Trading Blocked',
+        message: isEs
+          ? 'Has alcanzado el límite de Drawdown de la Prop Firm. Restablece la cuenta para continuar.'
+          : 'You reached the Prop Firm Drawdown limit. Reset account to continue.'
+      });
+      return;
+    }
     if (isSubmittingOrderRef.current) return;
     isSubmittingOrderRef.current = true;
     setTimeout(() => { isSubmittingOrderRef.current = false; }, 600);
@@ -1523,6 +1874,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const bestAsk = orderBook.asks[0]?.price || Number((stats.lastPrice * 1.0002).toFixed(2));
 
   const handleQuickTrade = (quickSide: 'buy' | 'sell') => {
+    if (isAccountBreached) {
+      addToast({
+        type: 'warning',
+        title: isEs ? 'Operativa Bloqueada' : 'Trading Blocked',
+        message: isEs
+          ? 'Has alcanzado el límite de Drawdown de la Prop Firm. Restablece la cuenta para continuar.'
+          : 'You reached the Prop Firm Drawdown limit. Reset account to continue.'
+      });
+      return;
+    }
+
     // Comprar se ejecuta al Ask, Vender se ejecuta al Bid
     const currentP = quickSide === 'buy' ? bestAsk : bestBid;
     const entryTs = (() => {
@@ -1612,7 +1974,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (ord.tpPercent) setTpPercent(ord.tpPercent);
     if (ord.leverage) setLeverage(ord.leverage);
     setIsTradingSidebarOpen(true);
-    setIsOrderFormClosed(false);
+    setShowOrderForm(true);
     setIsOrderFormMinimized(false);
     setMobileSheet(null);
   }, [selectedPair, currentExchange, currentMarketType, handleSelectPair, handleSelectExchange, handleSelectMarketType]);
@@ -1639,10 +2001,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       isMinimized={isOrderFormMinimized}
       onToggleMinimize={() => setIsOrderFormMinimized((m) => !m)}
       onClose={() => {
-        setIsOrderFormClosed(true);
-        if (isOrderBookClosed) {
-          setIsTradingSidebarOpen(false);
-        }
+        setShowOrderForm(false);
+        try { localStorage.setItem('zyti_show_orderform', 'false'); } catch {}
         setTimeout(() => chartInstanceRef.current?.resize(), 60);
       }}
       onToggleQuickTrade={toggleQuickTrade}
@@ -1664,10 +2024,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       isMinimized={isOrderBookMinimized}
       onToggleMinimize={() => setIsOrderBookMinimized((m) => !m)}
       onClose={() => {
-        setIsOrderBookClosed(true);
-        if (isOrderFormClosed) {
-          setIsTradingSidebarOpen(false);
-        }
+        setShowOrderBook(false);
+        try { localStorage.setItem('zyti_show_orderbook', 'false'); } catch {}
         setTimeout(() => chartInstanceRef.current?.resize(), 60);
       }}
     />
@@ -1715,10 +2073,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         currentExchange={currentExchange}
         currentMarketType={currentMarketType}
         connectionStatus={connectionStatus}
+        activeAccountId={activeAccountId}
         onSelectExchange={handleSelectExchange}
         onSelectMarketType={handleSelectMarketType}
         onSelectPair={handleSelectPair}
         onSelectBalanceAmount={handleSelectBalanceAmount}
+        onSelectAccount={handleSelectAccount}
         onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
         onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)}
         onResetBalance={resetDemoBalance}
@@ -1736,7 +2096,14 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
             isTradingSidebarOpen={isTradingSidebarOpen}
+            showOrderForm={showOrderForm}
+            showOrderBook={showOrderBook}
+            showPositions={showPositions}
+            onOpenTradingPanel={handleOpenTradingPanel}
             onToggleTradingSidebar={handleToggleTradingSidebar}
+            onToggleOrderForm={handleToggleOrderForm}
+            onToggleOrderBook={handleToggleOrderBook}
+            onTogglePositions={handleTogglePositions}
             onToggleNavPosition={toggleNavPosition}
             onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
             onCloseMobileNav={() => setIsMobileNavOpen(false)}
@@ -1760,12 +2127,160 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           />
 
           {/* CONTENEDOR KLINECHART v9.8.6 OFICIAL */}
-          <div className="terminal-chart-canvas-box overflow-hidden bg-[#fbf9f4] relative">
+          <div 
+            className="terminal-chart-canvas-box overflow-hidden bg-[#fbf9f4] relative"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (!chartInstanceRef.current || !chartContainerRef.current) return;
+              const rect = chartContainerRef.current.getBoundingClientRect();
+              const pixelY = e.clientY - rect.top;
+              try {
+                const converted = (chartInstanceRef.current as any).convertFromPixel([{ y: pixelY }], { paneId: 'candle_pane' });
+                const priceVal = converted?.[0]?.value;
+                if (typeof priceVal === 'number' && !isNaN(priceVal) && priceVal > 0) {
+                  const roundedPrice = Number(priceVal.toFixed(2));
+                  setChartContextMenu({
+                    x: Math.min(e.clientX, window.innerWidth - 240),
+                    y: Math.min(e.clientY, window.innerHeight - 200),
+                    price: roundedPrice
+                  });
+                }
+              } catch {}
+            }}
+          >
             <div 
               ref={chartContainerRef} 
               id="trading-terminal-chart" 
               className="w-full h-full block" 
             />
+
+            {/* BOTONES FLOTANTES SUPERIORES DE COMPRA / VENTA 1-CLICK EN ESCRITORIO (SOLO CUANDO EL PANEL DE TRADING ESTÁ OCULTO) */}
+            {isDesktop && (!isTradingSidebarOpen || !showOrderForm) && (
+              <div className="absolute top-3 right-16 z-30 flex items-center gap-1.5 pointer-events-auto bg-[#fbf9f4]/90 backdrop-blur-md p-1 rounded-xl border border-[#ded5c5] shadow-lg animate-in fade-in zoom-in-95 duration-200">
+                {/* BOTÓN VENTA 1-CLICK */}
+                <button
+                  type="button"
+                  onClick={() => handleQuickTrade('sell')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-700 border border-red-500/30 hover:border-red-500/70 font-mono font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs group"
+                  title={isEs ? 'Venta a Mercado Inmediata (1-Click)' : '1-Click Immediate Market Sell'}
+                >
+                  <span className="font-sans font-black text-[11px] uppercase tracking-wider text-red-700 group-hover:text-red-900">
+                    {isEs ? 'Vender' : 'Sell'}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-red-800">
+                    ${stats.lastPrice > 0 ? stats.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '---'}
+                  </span>
+                </button>
+
+                {/* BOTÓN COMPRA 1-CLICK */}
+                <button
+                  type="button"
+                  onClick={() => handleQuickTrade('buy')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 hover:border-emerald-500/70 font-mono font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs group"
+                  title={isEs ? 'Compra a Mercado Inmediata (1-Click)' : '1-Click Immediate Market Buy'}
+                >
+                  <span className="font-sans font-black text-[11px] uppercase tracking-wider text-emerald-700 group-hover:text-emerald-900">
+                    {isEs ? 'Comprar' : 'Buy'}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-emerald-800">
+                    ${stats.lastPrice > 0 ? stats.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '---'}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* BANNER DE INFRACCIÓN DE DRAWDOWN DE PROP FIRM (5% DIARIO O 10% TOTAL) */}
+            {isAccountBreached && (
+              <div className="absolute top-2 left-4 right-4 z-40 bg-red-950/95 border border-red-500/90 text-red-100 rounded-xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-900/80 text-red-200">
+                    <AlertTriangle className="w-5 h-5 text-red-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="font-black text-xs text-red-200 uppercase tracking-wider">
+                      {isEs ? 'Infracción de Reglas de Prop Firm' : 'Prop Firm Rule Breach'}
+                    </div>
+                    <div className="text-[11px] text-red-300 font-mono">
+                      {breachReason}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetDemoBalance}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-xs cursor-pointer shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{isEs ? 'Reiniciar Evaluación' : 'Reset Evaluation'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* MENÚ CONTEXTUAL FLOTANTE DE CLIC DERECHO EN EL GRÁFICO */}
+            {chartContextMenu && (
+              <div
+                style={{ top: `${chartContextMenu.y}px`, left: `${chartContextMenu.x}px` }}
+                onClick={(e) => e.stopPropagation()}
+                className="fixed z-50 min-w-56 bg-slate-950/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl p-2 font-mono text-xs"
+              >
+                <div className="px-2.5 py-1.5 border-b border-slate-800 flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    {selectedPair}
+                  </span>
+                  <span className="text-amber-400 font-black">
+                    ${chartContextMenu.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  {/* Botón Buy Limit / Buy Stop */}
+                  <button
+                    type="button"
+                    onClick={() => handlePlacePendingOrderFromChart('buy', chartContextMenu.price)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-emerald-300 hover:text-white hover:bg-emerald-950/70 border border-emerald-900/40 hover:border-emerald-500/80 transition-all cursor-pointer font-bold"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      {chartContextMenu.price <= stats.lastPrice ? 'Buy Limit' : 'Buy Stop'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      {chartContextMenu.price <= stats.lastPrice ? (isEs ? 'Retroceso' : 'Dip') : (isEs ? 'Ruptura' : 'Breakout')}
+                    </span>
+                  </button>
+
+                  {/* Botón Sell Limit / Sell Stop */}
+                  <button
+                    type="button"
+                    onClick={() => handlePlacePendingOrderFromChart('sell', chartContextMenu.price)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-rose-300 hover:text-white hover:bg-rose-950/70 border border-rose-900/40 hover:border-rose-500/80 transition-all cursor-pointer font-bold"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                      {chartContextMenu.price >= stats.lastPrice ? 'Sell Limit' : 'Sell Stop'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      {chartContextMenu.price >= stats.lastPrice ? (isEs ? 'Repunte' : 'Rally') : (isEs ? 'Ruptura' : 'Breakdown')}
+                    </span>
+                  </button>
+
+                  {/* Configurar en panel */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLimitPrice(chartContextMenu.price.toFixed(2));
+                      setOrderType('limit');
+                      setIsTradingSidebarOpen(true);
+                      setShowOrderForm(true);
+                      setChartContextMenu(null);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all cursor-pointer text-[11px]"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{isEs ? 'Configurar en Panel' : 'Set in Order Form'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* OVERLAY INTERACTIVO: ENTRADAS (AZUL), TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES + PREVIEW + ÓRDENES LÍMITES */}
             <PositionChartOverlay
@@ -1776,7 +2291,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               demoBalance={demoBalance}
               isEs={isEs}
               tradeSetupPreview={{
-                enabled: isTradingSidebarOpen && !isOrderFormClosed && !isOrderFormMinimized,
+                enabled: isTradingSidebarOpen && showOrderForm && !isOrderFormMinimized,
                 orderType,
                 side,
                 entryPrice: effectiveRefPrice,
@@ -1807,32 +2322,34 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           </div>
 
           {/* DESKTOP: TABLA INFERIOR DE POSICIONES ABIERTAS Y ÓRDENES LÍMITES (h-36 / RESIZABLE) */}
-          <TerminalPositions
-            isEs={isEs}
-            positions={positions}
-            limitOrders={limitOrders}
-            history={tradeHistory}
-            demoBalance={demoBalance}
-            onClosePosition={handleClosePosition}
-            onCloseAllPositions={handleCloseAllPositions}
-            onCancelLimitOrder={handleCancelLimitOrder}
-            onCancelAllLimitOrders={handleCancelAllLimitOrders}
-            onUpdateLimitOrder={handleUpdateLimitOrder}
-            onSetBreakEven={handleSetBreakEven}
-            onSelectPosition={handleSelectPositionItem}
-            onSelectLimitOrder={handleSelectLimitOrderItem}
-          />
+          {showPositions && (
+            <TerminalPositions
+              isEs={isEs}
+              positions={positions}
+              limitOrders={limitOrders}
+              history={tradeHistory}
+              demoBalance={demoBalance}
+              onClosePosition={handleClosePosition}
+              onCloseAllPositions={handleCloseAllPositions}
+              onCancelLimitOrder={handleCancelLimitOrder}
+              onCancelAllLimitOrders={handleCancelAllLimitOrders}
+              onUpdateLimitOrder={handleUpdateLimitOrder}
+              onSetBreakEven={handleSetBreakEven}
+              onSelectPosition={handleSelectPositionItem}
+              onSelectLimitOrder={handleSelectLimitOrderItem}
+            />
+          )}
 
         </div>
 
         {/* DESKTOP (>= 1024px): PANEL LATERAL ESTRECHO (280px) CON TRADING ARRIBA Y LIBRO ABAJO */}
-        {isTradingSidebarOpen && (!isOrderFormClosed || !isOrderBookClosed) && (
+        {isTradingSidebarOpen && (showOrderForm || showOrderBook) && (
           <div className="terminal-desktop-sidebar no-scrollbar">
             {/* 1. PANEL DE TRADING ARRIBA */}
-            {!isOrderFormClosed && renderOrderForm()}
+            {showOrderForm && renderOrderForm()}
 
             {/* 2. LIBRO DE ÓRDENES ABAJO */}
-            {!isOrderBookClosed && renderOrderBook()}
+            {showOrderBook && renderOrderBook()}
           </div>
         )}
 
@@ -1844,7 +2361,14 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
             isTradingSidebarOpen={isTradingSidebarOpen}
+            showOrderForm={showOrderForm}
+            showOrderBook={showOrderBook}
+            showPositions={showPositions}
+            onOpenTradingPanel={handleOpenTradingPanel}
             onToggleTradingSidebar={handleToggleTradingSidebar}
+            onToggleOrderForm={handleToggleOrderForm}
+            onToggleOrderBook={handleToggleOrderBook}
+            onTogglePositions={handleTogglePositions}
             onToggleNavPosition={toggleNavPosition}
             onSelectSection={(sec) => setActiveSection(sec === 'exchange' ? 'exchange' : 'none')}
             onCloseMobileNav={() => setIsMobileNavOpen(false)}
