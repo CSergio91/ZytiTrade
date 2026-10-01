@@ -270,12 +270,12 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                 </div>
               ) : (
                 <div className="w-6 h-6 rounded-full bg-amber-500 text-amber-950 font-black text-[11px] flex items-center justify-center shrink-0">
-                  {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                  {user?.name?.[0]?.toUpperCase() || user?.telegramUsername?.[0]?.toUpperCase() || 'T'}
                 </div>
               )}
               <div className={`flex flex-col text-left leading-tight min-w-0 ${isClickedExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                 <span className="text-[11px] font-black text-slate-900 truncate">
-                  {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader' : 'Trader')}
+                  {user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email.split('@')[0] : 'Trader'))}
                 </span>
                 <span className="text-[9px] font-bold text-amber-800 truncate">
                   {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Admin' : (isEs ? 'Trader Activo' : 'Active Trader'))}
@@ -342,12 +342,12 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                   </div>
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-amber-500 text-amber-950 font-black text-xs flex items-center justify-center shrink-0">
-                    {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+                    {user?.name?.[0]?.toUpperCase() || user?.telegramUsername?.[0]?.toUpperCase() || 'T'}
                   </div>
                 )}
                 <div className="flex flex-col text-left leading-tight min-w-0">
                   <span className="text-xs font-black text-slate-900 truncate">
-                    {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader' : 'Trader')}
+                    {user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email.split('@')[0] : 'Trader'))}
                   </span>
                   <span className="text-[10px] font-bold text-amber-800 truncate">
                     {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Administrador' : (isEs ? 'Cuenta Activa' : 'Active Account'))}

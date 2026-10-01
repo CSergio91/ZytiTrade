@@ -103,9 +103,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const propAccounts = await fetchTraderAccounts(userEmail);
       const userSession: UserSession = {
-        id: supaUserId, email: userEmail, name: fullName,
-        avatarUrl: tgUser.photo_url, provider: 'telegram', telegramUsername: tgUser.username,
-        role: 'trader', accounts: propAccounts,
+        id: supaUserId, 
+        email: '', // No inventamos email para Telegram; el usuario puede añadir su correo real en su perfil
+        name: fullName,
+        avatarUrl: tgUser.photo_url, 
+        provider: 'telegram', 
+        telegramUsername: tgUser.username,
+        role: 'trader', 
+        accounts: propAccounts,
         isVerified: true,
         activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
       };

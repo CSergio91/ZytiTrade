@@ -77,9 +77,16 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onSelectPosition,
   onSelectLimitOrder
 }) => {
+  const getInitialEmail = (u?: UserSession | null): string => {
+    if (!u?.email) return '';
+    if (u.email.endsWith('@telegram.org')) return '';
+    return u.email;
+  };
+
   const [positionsSubTab, setPositionsSubTab] = useState<'positions' | 'limits'>('positions');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
+  const [editEmail, setEditEmail] = useState(getInitialEmail(user));
   const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -87,6 +94,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   useEffect(() => {
     if (user?.name) setEditName(user.name);
     if (user?.avatarUrl) setEditAvatarUrl(user.avatarUrl);
+    setEditEmail(getInitialEmail(user));
   }, [user]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -94,9 +102,10 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
     if (!editName.trim()) return;
     setIsSavingProfile(true);
     try {
+      const cleanEmail = editEmail.trim() || undefined;
       const updatedUser: UserSession = {
         ...user,
-        email: user?.email || '',
+        email: cleanEmail || '',
         name: editName.trim(),
         avatarUrl: editAvatarUrl.trim() || undefined
       };
@@ -107,6 +116,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
             .from('profiles')
             .update({
               full_name: editName.trim(),
+              email: cleanEmail || null,
               avatar_url: editAvatarUrl.trim() || null,
               updated_at: new Date().toISOString()
             })
@@ -715,10 +725,10 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
                       {/* Nombre y referencia centrados */}
                       <h3 className="text-base font-black text-slate-900 leading-tight">
-                        {user?.name || user?.email?.split('@')[0] || (isEs ? 'Trader ZYTI' : 'ZYTI Trader')}
+                        {user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (isEs ? 'Trader ZYTI' : 'ZYTI Trader'))}
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                        {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email || 'trader@zyti.trade')}
+                        {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email : '')}
                       </p>
 
                       {/* Badges centrados */}
@@ -785,6 +795,19 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
                           <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                              {isEs ? 'Correo Electrónico (Opcional)' : 'Email Address (Optional)'}
+                            </label>
+                            <input
+                              type="email"
+                              value={editEmail}
+                              onChange={(e) => setEditEmail(e.target.value)}
+                              placeholder={isEs ? 'ej: usuario@gmail.com' : 'e.g. user@gmail.com'}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                               {isEs ? 'URL de Foto de Perfil (Opcional)' : 'Avatar Photo URL (Optional)'}
                             </label>
                             <input
@@ -811,9 +834,19 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                             <span className="text-slate-400">{isEs ? 'Nombre' : 'Name'}:</span>
                             <span className="font-bold text-slate-900">{user?.name || (isEs ? 'Sin definir' : 'Not set')}</span>
                           </div>
+                          {user?.telegramUsername && (
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-slate-400">Telegram:</span>
+                              <span className="font-mono text-[#1b8bc2] font-bold">@{user.telegramUsername}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between items-center py-1">
-                            <span className="text-slate-400">{isEs ? 'Identificador' : 'Handle'}:</span>
-                            <span className="font-mono text-slate-700">{user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email || 'trader')}</span>
+                            <span className="text-slate-400">{isEs ? 'Correo' : 'Email'}:</span>
+                            <span className="font-mono text-slate-700">
+                              {user?.email && !user.email.endsWith('@telegram.org') 
+                                ? user.email 
+                                : (isEs ? 'No configurado (Opcional)' : 'Not configured (Optional)')}
+                            </span>
                           </div>
                         </div>
                       )}
