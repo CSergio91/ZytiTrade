@@ -87,6 +87,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
   const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
   const telegramPopupRef = useRef<Window | null>(null);
+  const detectedTelegramIdRef = useRef<number | null>(null);
 
   const openCenteredPopup = (url: string, title: string, w = 550, h = 650) => {
     const left = Math.max(0, (window.screen.width - w) / 2);
@@ -201,6 +202,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTelegramAuthCode(code);
     setTelegramWaiting(true);
     setAwaitingOnboarding(false);
+    detectedTelegramIdRef.current = null;
     setErrorMsg(null);
     const deepLinkUrl = `https://t.me/${botName}?start=login_${code}`;
     telegramPopupRef.current = openCenteredPopup(deepLinkUrl, 'TelegramAuthPopup', 560, 680);
@@ -214,11 +216,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const pollUpdates = async () => {
       try {
-        const { data: sessionData } = await supabase
+        // 1. Consultar sesión por código (usando limit(1) para evitar fallos de múltiples filas)
+        const { data: sessionList } = await supabase
           .from('telegram_auth_sessions')
           .select('*')
           .eq('code', telegramAuthCode)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const sessionData = sessionList?.[0];
 
         if (sessionData && sessionData.user_id && sessionData.email) {
           active = false;
@@ -285,6 +291,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
+        // 2. Si ya detectamos el telegram_id del usuario, verificar directamente en public.profiles
+        if (detectedTelegramIdRef.current) {
+          const { data: profileList } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, telegram_username')
+            .eq('telegram_id', detectedTelegramIdRef.current)
+            .order('updated_at', { ascending: false });
+
+          const syncedProfile = profileList?.find((p) => p.email && p.email.includes('@'));
+          if (syncedProfile && syncedProfile.email) {
+            active = false;
+            setTelegramWaiting(false);
+            setAwaitingOnboarding(false);
+            closeTelegramPopup();
+            handleTelegramAuthSuccess({
+              id: detectedTelegramIdRef.current,
+              first_name: syncedProfile.full_name || 'Trader',
+              username: syncedProfile.telegram_username,
+              auth_date: Date.now(),
+              hash: 'profile_sync_' + telegramAuthCode,
+              email: syncedProfile.email,
+              userId: syncedProfile.id
+            });
+            return;
+          }
+        }
+
+        // 3. Consultar actualizaciones del bot de Telegram
         if (botToken) {
           const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
           if (res.ok) {
@@ -298,12 +332,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               if (match && match.message?.from) {
                 const from = match.message.from;
                 const chatId = match.message.chat.id;
+                detectedTelegramIdRef.current = from.id;
 
-                const { data: existingProfile } = await supabase
+                const { data: profileList } = await supabase
                   .from('profiles')
-                  .select('id, email, full_name')
+                  .select('id, email, full_name, telegram_username')
                   .eq('telegram_id', from.id)
-                  .maybeSingle();
+                  .order('updated_at', { ascending: false });
+
+                const existingProfile = profileList?.find((p) => p.email && p.email.includes('@'));
 
                 if (existingProfile && existingProfile.email) {
                   active = false;
@@ -353,12 +390,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       // 1. Primero comprobar si ya se guardó la sesión con email en telegram_auth_sessions
       if (telegramAuthCode) {
-        const { data: sessionData } = await supabase
+        const { data: sessionList } = await supabase
           .from('telegram_auth_sessions')
           .select('*')
           .eq('code', telegramAuthCode)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
+        const sessionData = sessionList?.[0];
         if (sessionData && sessionData.user_id && sessionData.email) {
           setTelegramWaiting(false);
           setAwaitingOnboarding(false);
@@ -383,7 +422,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       }
 
-      // 2. Comprobar actualizaciones recientes del bot de Telegram
+      // 2. Si ya tenemos el telegram_id detectado, verificar directamente en public.profiles
+      if (detectedTelegramIdRef.current) {
+        const { data: profileList } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, telegram_username')
+          .eq('telegram_id', detectedTelegramIdRef.current)
+          .order('updated_at', { ascending: false });
+
+        const existingProfile = profileList?.find((p) => p.email && p.email.includes('@'));
+        if (existingProfile && existingProfile.email) {
+          setTelegramWaiting(false);
+          setAwaitingOnboarding(false);
+          closeTelegramPopup();
+          await handleTelegramAuthSuccess({
+            id: detectedTelegramIdRef.current,
+            first_name: existingProfile.full_name || 'Trader',
+            username: existingProfile.telegram_username,
+            auth_date: Date.now(),
+            hash: 'manual_verify_' + Date.now(),
+            email: existingProfile.email,
+            userId: existingProfile.id
+          });
+          return;
+        }
+      }
+
+      // 3. Comprobar actualizaciones recientes del bot de Telegram
       const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.result) && data.result.length > 0) {
@@ -391,12 +456,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (lastMsg && lastMsg.message?.from) {
           const from = lastMsg.message.from;
           const chatId = lastMsg.message.chat.id;
+          detectedTelegramIdRef.current = from.id;
 
-          const { data: existingProfile } = await supabase
+          const { data: profileList } = await supabase
             .from('profiles')
-            .select('id, email, full_name')
+            .select('id, email, full_name, telegram_username')
             .eq('telegram_id', from.id)
-            .maybeSingle();
+            .order('updated_at', { ascending: false });
+
+          const existingProfile = profileList?.find((p) => p.email && p.email.includes('@'));
 
           if (existingProfile && existingProfile.email) {
             setTelegramWaiting(false);

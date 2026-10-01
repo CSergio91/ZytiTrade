@@ -245,19 +245,24 @@ export const TelegramOnboardingApp: React.FC = () => {
 
       // 3. Sincronizar sesión con la ventana web mediante telegram_auth_sessions
       let oldMessageId: number | null = null;
+      if (tgId) {
+        try {
+          await supabase
+            .from('telegram_auth_sessions')
+            .update({
+              user_id: userId,
+              email: email.trim(),
+              full_name: name.trim(),
+              telegram_username: tgUsername || undefined
+            })
+            .eq('telegram_id', tgId);
+        } catch (e) {
+          console.warn('[Telegram Onboarding] tgId session update notice:', e);
+        }
+      }
+
       if (authCode) {
         try {
-          // Consultar si ya teníamos el message_id del mensaje de invitación
-          const { data: existingSession } = await supabase
-            .from('telegram_auth_sessions')
-            .select('message_id')
-            .eq('code', authCode)
-            .maybeSingle();
-
-          if (existingSession?.message_id) {
-            oldMessageId = existingSession.message_id;
-          }
-
           await supabase
             .from('telegram_auth_sessions')
             .upsert({
@@ -266,8 +271,7 @@ export const TelegramOnboardingApp: React.FC = () => {
               email: email.trim(),
               full_name: name.trim(),
               telegram_id: tgId || undefined,
-              telegram_username: tgUsername || undefined,
-              message_id: oldMessageId || undefined
+              telegram_username: tgUsername || undefined
             });
         } catch (syncErr) {
           console.warn('[Telegram Onboarding] Auth session sync warning:', syncErr);
