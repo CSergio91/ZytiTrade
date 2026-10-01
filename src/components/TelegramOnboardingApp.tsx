@@ -1,9 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, CheckCircle2, Lock, Mail, User, Eye, EyeOff, 
-  ExternalLink, Sparkles, ArrowRight, AlertCircle 
+  ExternalLink, Sparkles, ArrowRight, AlertCircle, Loader2, Check 
 } from 'lucide-react';
 import { supabase, setStoredSession, UserSession } from '../lib/supabase';
+
+interface PasswordCriteria {
+  minLength: boolean;
+  hasNumberOrSpecial: boolean;
+}
+
+const getPasswordCriteria = (pwd: string): PasswordCriteria => ({
+  minLength: pwd.length >= 6,
+  hasNumberOrSpecial: /[\d\W_]/.test(pwd)
+});
+
+const getPasswordStrength = (pwd: string): { label: string; colorBg: string; colorText: string; percent: number } => {
+  if (!pwd) return { label: '', colorBg: '', colorText: '', percent: 0 };
+  let score = 0;
+  if (pwd.length >= 6) score++;
+  if (pwd.length >= 8) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[a-zA-Z]/.test(pwd)) score++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+
+  if (score <= 2) return { label: 'Débil', colorBg: 'bg-red-500', colorText: 'text-red-600', percent: 33 };
+  if (score <= 3) return { label: 'Media', colorBg: 'bg-amber-500', colorText: 'text-amber-600', percent: 66 };
+  return { label: 'Fuerte', colorBg: 'bg-emerald-500', colorText: 'text-emerald-600', percent: 100 };
+};
 
 export const TelegramOnboardingApp: React.FC = () => {
   const [name, setName] = useState('');
@@ -16,6 +40,13 @@ export const TelegramOnboardingApp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Validación de correo en tiempo real
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [emailFeedback, setEmailFeedback] = useState<string | null>(null);
+
+  const passwordCriteria = getPasswordCriteria(password);
+  const passwordStrength = getPasswordStrength(password);
 
   // Parámetros de Telegram y código de sesión
   const [authCode, setAuthCode] = useState<string | null>(null);
@@ -57,6 +88,56 @@ export const TelegramOnboardingApp: React.FC = () => {
     if (finalName) setName(finalName);
   }, []);
 
+  // Validación de correo en tiempo real contra Supabase (profiles)
+  useEffect(() => {
+    const clean = email.trim().toLowerCase();
+    if (!clean) {
+      setEmailStatus('idle');
+      setEmailFeedback(null);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(clean)) {
+      setEmailStatus('invalid');
+      setEmailFeedback('Formato de correo no válido');
+      return;
+    }
+
+    setEmailStatus('checking');
+    setEmailFeedback('Comprobando disponibilidad...');
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', clean)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.warn('[Email Check] query notice:', error);
+          setEmailStatus('available');
+          setEmailFeedback(null);
+          return;
+        }
+
+        if (data && data.email) {
+          setEmailStatus('taken');
+          setEmailFeedback('Este correo ya está registrado en ZYTI Trade');
+        } else {
+          setEmailStatus('available');
+          setEmailFeedback('Correo disponible');
+        }
+      } catch (_) {
+        setEmailStatus('available');
+        setEmailFeedback(null);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [email]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -65,8 +146,16 @@ export const TelegramOnboardingApp: React.FC = () => {
       setErrorMsg('Por favor ingresa tu nombre o alias de trader.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+    if (!email.trim() || emailStatus === 'invalid') {
       setErrorMsg('Ingresa un correo electrónico válido.');
+      return;
+    }
+    if (emailStatus === 'taken') {
+      setErrorMsg('Este correo ya está registrado. Por favor usa otro correo electrónico.');
+      return;
+    }
+    if (emailStatus === 'checking') {
+      setErrorMsg('Estamos comprobando la disponibilidad del correo, espera un segundo...');
       return;
     }
     if (password.length < 6) {
@@ -370,11 +459,36 @@ export const TelegramOnboardingApp: React.FC = () => {
               </div>
             </div>
 
-            {/* CAMPO 2: CORREO ELECTRÓNICO REAL */}
+            {/* CAMPO 2: CORREO ELECTRÓNICO REAL CON VALIDACIÓN EN TIEMPO REAL */}
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                Correo Electrónico Real
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold uppercase text-slate-600">
+                  Correo Electrónico Real
+                </label>
+                {emailStatus === 'checking' && (
+                  <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                    Comprobando...
+                  </span>
+                )}
+                {emailStatus === 'available' && (
+                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Disponible
+                  </span>
+                )}
+                {emailStatus === 'taken' && (
+                  <span className="text-[10px] text-red-600 font-bold flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Ya registrado
+                  </span>
+                )}
+                {emailStatus === 'invalid' && email.length > 3 && (
+                  <span className="text-[10px] text-amber-600 font-medium">
+                    Formato incompleto
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -382,20 +496,45 @@ export const TelegramOnboardingApp: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu.correo@gmail.com"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                  className={`w-full pl-9 pr-9 py-2.5 rounded-xl border text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 transition-all ${
+                    emailStatus === 'taken'
+                      ? 'border-red-400 bg-red-50/40 focus:border-red-500 focus:ring-red-400/20'
+                      : emailStatus === 'available'
+                      ? 'border-emerald-400 bg-emerald-50/20 focus:border-emerald-500 focus:ring-emerald-400/20'
+                      : 'border-slate-300 bg-slate-50 focus:border-amber-500 focus:ring-amber-400/20'
+                  }`}
                   required
                 />
+                {emailStatus === 'available' && (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+                {emailStatus === 'taken' && (
+                  <AlertCircle className="w-4 h-4 text-red-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
               </div>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                Lo usarás para notificaciones y acceso directo web.
-              </span>
+              {emailStatus === 'taken' ? (
+                <span className="text-[10.5px] text-red-600 font-semibold mt-1 block leading-snug">
+                  Este correo ya está registrado en ZYTI. Por favor usa otro correo diferente.
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Lo usarás para notificaciones y acceso directo institucional.
+                </span>
+              )}
             </div>
 
-            {/* CAMPO 3: CONTRASEÑA */}
+            {/* CAMPO 3: CONTRASEÑA CON VALIDACIÓN Y FUERZA EN TIEMPO REAL */}
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold uppercase text-slate-600">
+                  Contraseña
+                </label>
+                {password && (
+                  <span className={`text-[10px] font-bold ${passwordStrength.colorText}`}>
+                    Seguridad: {passwordStrength.label}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -415,13 +554,50 @@ export const TelegramOnboardingApp: React.FC = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+
+              {/* Barra de progreso y criterios en tiempo real */}
+              {password && (
+                <div className="mt-1.5 space-y-1">
+                  <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-300 ${passwordStrength.colorBg}`}
+                      style={{ width: `${passwordStrength.percent}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] pt-0.5">
+                    <span className={`flex items-center gap-1 font-medium transition-colors ${passwordCriteria.minLength ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {passwordCriteria.minLength ? <Check className="w-3 h-3 text-emerald-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />}
+                      Mínimo 6 caracteres
+                    </span>
+                    <span className={`flex items-center gap-1 font-medium transition-colors ${passwordCriteria.hasNumberOrSpecial ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {passwordCriteria.hasNumberOrSpecial ? <Check className="w-3 h-3 text-emerald-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />}
+                      Número o símbolo
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* CAMPO 4: REPETIR CONTRASEÑA */}
+            {/* CAMPO 4: REPETIR CONTRASEÑA EN TIEMPO REAL */}
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                Confirmar Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold uppercase text-slate-600">
+                  Confirmar Contraseña
+                </label>
+                {confirmPassword && (
+                  confirmPassword === password ? (
+                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Coinciden
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-red-600 font-bold flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      No coinciden
+                    </span>
+                  )
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -429,13 +605,21 @@ export const TelegramOnboardingApp: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repite tu contraseña"
-                  className={`w-full pl-9 pr-3 py-2.5 rounded-xl border bg-slate-50 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 transition-all ${
+                  className={`w-full pl-9 pr-9 py-2.5 rounded-xl border text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 transition-all ${
                     confirmPassword && confirmPassword !== password 
-                      ? 'border-red-400 focus:border-red-500 focus:ring-red-400/20' 
-                      : 'border-slate-300 focus:border-amber-500 focus:ring-amber-400/20'
+                      ? 'border-red-400 bg-red-50/40 focus:border-red-500 focus:ring-red-400/20' 
+                      : confirmPassword && confirmPassword === password
+                      ? 'border-emerald-400 bg-emerald-50/20 focus:border-emerald-500 focus:ring-emerald-400/20'
+                      : 'border-slate-300 bg-slate-50 focus:border-amber-500 focus:ring-amber-400/20'
                   }`}
                   required
                 />
+                {confirmPassword && confirmPassword === password && (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+                {confirmPassword && confirmPassword !== password && (
+                  <AlertCircle className="w-4 h-4 text-red-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
               </div>
             </div>
 
@@ -468,8 +652,17 @@ export const TelegramOnboardingApp: React.FC = () => {
             {/* BOTÓN SUBMIT */}
             <button
               type="submit"
-              disabled={loading || !acceptTerms}
-              className="w-full mt-2 py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-amber-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-98"
+              disabled={
+                loading || 
+                !acceptTerms || 
+                emailStatus === 'taken' || 
+                emailStatus === 'invalid' || 
+                emailStatus === 'checking' ||
+                password.length < 6 ||
+                password !== confirmPassword ||
+                !name.trim()
+              }
+              className="w-full mt-2 py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-amber-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-98"
             >
               {loading ? (
                 <>
