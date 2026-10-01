@@ -182,6 +182,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const hasSentMiniAppRef = useRef<Record<string, boolean>>({});
+
+  // Enviar mensaje interactivo con botón de Telegram Mini App para usuarios de primera vez
+  const sendTelegramOnboardingMiniApp = async (chatId: number, from: any, code: string) => {
+    if (!botToken) return;
+    const key = `${chatId}_${code}`;
+    if (hasSentMiniAppRef.current[key]) return;
+    hasSentMiniAppRef.current[key] = true;
+
+    const fullName = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Trader';
+    const isEs = from.language_code?.toLowerCase().startsWith('es') || currentLang === 'es';
+    const appUrl = (import.meta as any).env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://zytitrade-tradingplatform.vercel.app');
+    const onboardingUrl = `${appUrl}/tg-onboarding?code=${code}&tg_id=${from.id}&username=${from.username || ''}&name=${encodeURIComponent(fullName)}`;
+
+    const text = isEs
+      ? `👋 <b>¡Hola, ${fullName}! Bienvenido a ZYTI Trade.</b>\n\nPara activar tu cuenta de trading por primera vez, pulsa el botón de abajo para aceptar términos y configurar tu correo y contraseña:`
+      : `👋 <b>Hello, ${fullName}! Welcome to ZYTI Trade.</b>\n\nTo activate your trading account for the first time, tap the button below to accept terms and configure your email and password:`;
+
+    const btnText = isEs ? '📝 Completar Registro ZYTI (Mini App)' : '📝 Complete ZYTI Registration (Mini App)';
+
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: btnText,
+                  web_app: { url: onboardingUrl }
+                }
+              ]
+            ]
+          }
+        })
+      });
+    } catch (e) {
+      console.warn('[Telegram sendOnboardingMiniApp] failed:', e);
+    }
+  };
+
   // 1. Iniciar flujo Deep-Link con el Bot en Popup centrado
   const handleTelegramDeepLinkStart = () => {
     const code = Math.random().toString(36).substring(2, 9);
@@ -192,7 +237,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     telegramPopupRef.current = openCenteredPopup(deepLinkUrl, 'TelegramAuthPopup', 560, 680);
   };
 
-  // 2. Polling activo mientras espera confirmación del bot
+  // 2. Polling activo mientras espera confirmación del bot o de la Mini App
   useEffect(() => {
     if (!telegramWaiting || !telegramAuthCode) return;
 
@@ -201,35 +246,86 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const pollUpdates = async () => {
       try {
-        const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!active || !data.ok || !Array.isArray(data.result)) return;
+        // A. Comprobar si el registro se completó en la Mini App vía telegram_auth_sessions
+        const { data: sessionData } = await supabase
+          .from('telegram_auth_sessions')
+          .select('*')
+          .eq('code', telegramAuthCode)
+          .maybeSingle();
 
-        // Buscar mensaje que coincida con el código o cualquier /start del usuario
-        const match = data.result.find((u: any) => {
-          const text = u.message?.text || '';
-          return text.includes(`login_${telegramAuthCode}`) || text.includes(telegramAuthCode);
-        });
-
-        if (match && match.message?.from) {
+        if (sessionData && sessionData.user_id) {
           active = false;
           setTelegramWaiting(false);
           closeTelegramPopup();
-          const from = match.message.from;
 
-          // Enviar confirmación bilingüe con botón al chat de Telegram
-          sendTelegramWelcomeMessage(match.message.chat.id, from);
+          // Limpiar el token de sesión usado
+          supabase.from('telegram_auth_sessions').delete().eq('code', telegramAuthCode).then();
 
-          handleTelegramAuthSuccess({
-            id: from.id,
-            first_name: from.first_name,
-            last_name: from.last_name,
-            username: from.username,
-            auth_date: match.message.date,
-            hash: 'deep_link_' + telegramAuthCode
-          });
+          const propAccounts = await fetchTraderAccounts(sessionData.email || '');
+          const userSession: UserSession = {
+            id: sessionData.user_id,
+            email: sessionData.email || '',
+            name: sessionData.full_name || 'Trader',
+            provider: 'telegram',
+            telegramUsername: sessionData.telegram_username,
+            role: 'trader',
+            accounts: propAccounts,
+            isVerified: true,
+            activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
+          };
+
+          setStoredSession(userSession);
+          setSuccessMsg(currentLang === 'es' ? `¡Bienvenido a ZYTI Trade, ${userSession.name}!` : `Welcome to ZYTI Trade, ${userSession.name}!`);
+          if (onLoginSuccess) onLoginSuccess(userSession);
+          setTimeout(onClose, 600);
           return;
+        }
+
+        // B. Comprobar si el usuario envió /start al bot
+        if (botToken) {
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=-10&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            if (active && data.ok && Array.isArray(data.result)) {
+              // Buscar mensaje que coincida con el código o cualquier /start del usuario
+              const match = data.result.find((u: any) => {
+                const text = u.message?.text || '';
+                return text.includes(`login_${telegramAuthCode}`) || text.includes(telegramAuthCode);
+              });
+
+              if (match && match.message?.from) {
+                const from = match.message.from;
+                const chatId = match.message.chat.id;
+
+                // Comprobar si el usuario YA está registrado con email en profiles
+                const { data: existingProfile } = await supabase
+                  .from('profiles')
+                  .select('id, email, full_name')
+                  .eq('telegram_id', from.id)
+                  .maybeSingle();
+
+                if (existingProfile && existingProfile.email) {
+                  // USUARIO RECURRENTE: Entra instantáneamente en sub-segundo
+                  active = false;
+                  setTelegramWaiting(false);
+                  closeTelegramPopup();
+                  sendTelegramWelcomeMessage(chatId, from);
+                  handleTelegramAuthSuccess({
+                    id: from.id,
+                    first_name: from.first_name,
+                    last_name: from.last_name,
+                    username: from.username,
+                    auth_date: match.message.date,
+                    hash: 'deep_link_' + telegramAuthCode
+                  });
+                  return;
+                } else {
+                  // PRIMERA VEZ (NUEVO USUARIO): Enviar botón para abrir la Mini App de registro
+                  sendTelegramOnboardingMiniApp(chatId, from, telegramAuthCode);
+                }
+              }
+            }
+          }
         }
       } catch (e) {
         console.warn('[Telegram Poll] error:', e);

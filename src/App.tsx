@@ -12,6 +12,7 @@ import { FooterSection } from './components/FooterSection';
 import { AuthModal } from './components/AuthModal';
 import { TradingTerminal } from './components/TradingTerminal';
 import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
+import { TelegramOnboardingApp } from './components/TelegramOnboardingApp';
 import { getStoredSession, setStoredSession, UserSession, supabase } from './lib/supabase';
 import { Language } from './i18n/translations';
 
@@ -27,16 +28,17 @@ export const App: React.FC = () => {
     return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
   };
 
-  const getInitialView = (): 'landing' | 'terminal' => {
+  const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' => {
     if (typeof window !== 'undefined') {
-      if (isTerminalSubdomain()) return 'terminal';
       const pathname = window.location.pathname.toLowerCase();
+      if (pathname.includes('/tg-onboarding') || pathname.includes('/tgonboarding')) return 'tg-onboarding';
+      if (isTerminalSubdomain()) return 'terminal';
       if (pathname.includes('/zytiterminal')) return 'terminal';
     }
     return 'landing';
   };
 
-  const [currentView, setCurrentView] = useState<'landing' | 'terminal'>(getInitialView);
+  const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding'>(getInitialView);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -248,6 +250,11 @@ export const App: React.FC = () => {
       setAuthModalOpen(true);
     }
   };
+
+  // Vista de Telegram Mini App Onboarding (abierta desde el bot)
+  if (currentView === 'tg-onboarding') {
+    return <TelegramOnboardingApp />;
+  }
 
   // Guard: si el terminal se intenta cargar sin sesión (ej: localStorage corrupto),
   // redirigir a landing y abrir el modal de login automáticamente
