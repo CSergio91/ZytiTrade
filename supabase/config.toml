@@ -1,0 +1,107 @@
+﻿# ============================================================
+# ZYTI Trade — Supabase Local Configuration
+# ============================================================
+# Para iniciar Supabase local:
+#   1. instala el CLI: winget install Supabase.CLI
+#   2. supabase start
+#   3. URL local: http://127.0.0.1:54321
+#   4. Studio local: http://127.0.0.1:54323
+#   5. Emails de prueba (Inbucket): http://127.0.0.1:54324
+# ============================================================
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://zytitrade-tradingplatform.vercel.app",
+  "https://zytitrade-tradingplatform.vercel.app/**"
+]
+jwt_expiry = 604800
+enable_refresh_token_reuse_detection = true
+enable_signup = true
+minimum_password_length = 8
+
+[auth.rate_limits]
+token_refresh_limit = 150
+sign_in_limit = 30
+sign_up_limit = 10
+otp_limit = 30
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = true
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# ============================================================
+# PROVIDERS OAUTH — Rellena tus credenciales en .env y aqui
+# ============================================================
+
+[auth.external.google]
+enabled = true
+# https://console.cloud.google.com/ -> APIs -> Credentials -> OAuth 2.0
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+redirect_uri = ""
+
+[auth.external.github]
+enabled = true
+# https://github.com/settings/developers -> OAuth Apps
+# Callback URL: https://ujcnglkdwzqlwqgrkspz.supabase.co/auth/v1/callback
+client_id = "env(GITHUB_CLIENT_ID)"
+secret = "env(GITHUB_CLIENT_SECRET)"
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[analytics]
+enabled = false
+port = 54327
+backend = "postgres"
+
+# ============================================================
+# Para linkear con produccion:
+#   supabase link --project-ref ujcnglkdwzqlwqgrkspz
+#   supabase db push
+# ============================================================

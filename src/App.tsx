@@ -145,6 +145,56 @@ export const App: React.FC = () => {
     } catch (_) {}
   }, []);
 
+  // ── OAuth Popup: si esta ventana fue abierta como popup de OAuth,
+  //    cerrarse sola una vez que Supabase guarda la sesión en localStorage
+  useEffect(() => {
+    const isPopup = !!window.opener && window.opener !== window;
+    if (!isPopup) return;
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        // Notificar al padre antes de cerrar
+        try { window.opener.postMessage({ type: 'ZYTI_AUTH_SUCCESS' }, window.location.origin); } catch {}
+        setTimeout(() => window.close(), 300);
+      }
+    });
+    return () => listener?.subscription?.unsubscribe?.();
+  }, []);
+
+  // ── Sincronización cross-window: cuando el popup OAuth escribe la sesión,
+  //    el padre la detecta via el evento 'storage' de localStorage
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key !== 'zyti_user_session' && !e.key?.startsWith('sb-')) return;
+      // Leer la sesión directa de Supabase
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && !currentUser) {
+          supabase.auth.getUser().then(({ data: { user } }) => {
+            if (!user) return;
+            const userSession: UserSession = {
+              id: user.id,
+              email: user.email || '',
+              name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader',
+              avatarUrl: user.user_metadata?.avatar_url,
+              provider: (user.app_metadata?.provider as any) || 'email',
+              role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+              accounts: [],
+              activeAccountId: undefined
+            };
+            setStoredSession(userSession);
+            setCurrentUser(userSession);
+            setAuthModalOpen(false);
+            navigateToTerminal();
+          });
+        }
+      });
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [currentUser]);
+
+
   // Sincronización con el historial del navegador (atrás/adelante)
   useEffect(() => {
     const handlePopState = () => {
