@@ -346,6 +346,7 @@ export const App: React.FC = () => {
         activeSection={activeSection}
         onNavigateSection={navigateToSection}
         onOpenAuth={handleOpenTerminalOrAuth}
+        onExplore={navigateToTerminal}
         currentUser={currentUser}
       />
 
@@ -356,7 +357,11 @@ export const App: React.FC = () => {
         style={{ scrollBehavior: 'smooth' }}
       >
         {/* PANTALLA 0: HERO / INICIO */}
-        <HeroSection currentLang={currentLang} onOpenAuth={handleOpenTerminalOrAuth} />
+        <HeroSection 
+          currentLang={currentLang} 
+          onOpenAuth={handleOpenTerminalOrAuth} 
+          onExplore={navigateToTerminal} 
+        />
 
         {/* PANTALLA 1: EXCHANGES */}
         <ExchangesSection currentLang={currentLang} isActive={activeSection === 1} onOpenAuth={handleOpenTerminalOrAuth} />

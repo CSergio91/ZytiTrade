@@ -11,9 +11,10 @@ import { translations, Language } from '../i18n/translations';
 interface HeroSectionProps {
   currentLang: Language;
   onOpenAuth?: () => void;
+  onExplore?: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang, onOpenAuth }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang, onOpenAuth, onExplore }) => {
   const t = translations[currentLang].hero;
 
   return (
@@ -36,10 +37,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang, onOpenAut
             {t.subtitle}
           </p>
 
-          <div className="mt-4 sm:mt-6 flex items-center">
-            <button onClick={onOpenAuth} type="button" className="flex items-center justify-center gap-2.5 px-7 py-3 text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+          <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-3">
+            {/* BOTÓN AMARILLO: OPERAR AHORA / INICIAR SESIÓN */}
+            <button onClick={onOpenAuth} type="button" className="flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3 text-sm font-black text-slate-950 bg-[#eab308] hover:bg-[#ca8a04] rounded-2xl shadow-sm transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
               <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
               <span>{t.ctaPrimary}</span>
+            </button>
+
+            {/* BOTÓN BLANCO: EXPLORAR TERMINAL DIRECTO */}
+            <button onClick={onExplore} type="button" className="flex items-center justify-center gap-2 px-6 sm:px-7 py-3 text-sm font-black text-slate-900 bg-white hover:bg-slate-50 border border-[#ded5c5] hover:border-slate-400 rounded-2xl shadow-xs transition-all duration-150 cursor-pointer transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+              <Eye className="w-4 h-4 text-slate-700" />
+              <span>{currentLang === 'es' ? 'Explorar' : 'Explore'}</span>
             </button>
           </div>
 
@@ -206,3 +214,5 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ currentLang, onOpenAut
     </section>
   );
 };
+
+export default HeroSection;

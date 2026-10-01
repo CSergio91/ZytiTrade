@@ -22,6 +22,7 @@ interface NavbarProps {
   activeSection: number;
   onNavigateSection: (index: number) => void;
   onOpenAuth?: () => void;
+  onExplore?: () => void;
   currentUser?: any;
 }
 
@@ -31,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeSection,
   onNavigateSection,
   onOpenAuth,
+  onExplore,
   currentUser
 }) => {
   const [exchangeOpen, setExchangeOpen] = useState(false);
@@ -559,6 +561,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
+        {/* BOTÓN EXPLORAR: BLANCO INSTITUCIONAL */}
+        <button 
+          onClick={onExplore} 
+          type="button" 
+          className={`font-black rounded-xl border border-[#ded5c5] transition-all cursor-pointer whitespace-nowrap bg-white hover:bg-slate-50 text-slate-900 shadow-xs transform hover:scale-105 active:scale-95 ${isShifted ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+        >
+          {currentLang === 'es' ? 'Explorar' : 'Explore'}
+        </button>
+
         {/* BOTÓN OPERAR AHORA: MISMO COLOR (#eab308) Y TEXTO QUE EN HERO */}
         <button onClick={onOpenAuth} type="button" className={`font-black rounded-xl border-none transition-all cursor-pointer whitespace-nowrap bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 shadow-sm transform hover:scale-105 active:scale-95 ${isShifted ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'}`}>
           {t.nav.signIn}
@@ -647,10 +658,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ))}
 
-            <button type="button" onClick={() => { setMobileMenuOpen(false); if (onOpenAuth) onOpenAuth(); }} className="mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-sm cursor-pointer transform active:scale-95 transition-transform">
-              <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
-              <span>{t.nav.signIn}</span>
-            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button 
+                type="button" 
+                onClick={() => { setMobileMenuOpen(false); if (onExplore) onExplore(); }} 
+                className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-[#ded5c5] font-black text-xs shadow-xs cursor-pointer transform active:scale-95 transition-transform"
+              >
+                <span>{currentLang === 'es' ? 'Explorar' : 'Explore'}</span>
+              </button>
+              <button 
+                type="button" 
+                onClick={() => { setMobileMenuOpen(false); if (onOpenAuth) onOpenAuth(); }} 
+                className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs shadow-sm cursor-pointer transform active:scale-95 transition-transform"
+              >
+                <Zap className="w-3.5 h-3.5 stroke-[2.5] fill-slate-950" />
+                <span>{t.nav.signIn}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
