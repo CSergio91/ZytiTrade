@@ -94,15 +94,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
   const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
+  const telegramPopupRef = useRef<Window | null>(null);
 
-  // 1. Iniciar flujo Deep-Link con el Bot
+  const openCenteredPopup = (url: string, title: string, w = 550, h = 650) => {
+    const left = Math.max(0, (window.screen.width - w) / 2);
+    const top = Math.max(0, (window.screen.height - h) / 2);
+    const popup = window.open(url, title, `width=${w},height=${h},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+    if (popup) popup.focus();
+    return popup;
+  };
+
+  const closeTelegramPopup = () => {
+    if (telegramPopupRef.current && !telegramPopupRef.current.closed) {
+      try {
+        telegramPopupRef.current.close();
+      } catch (_) {}
+      telegramPopupRef.current = null;
+    }
+  };
+
+  // Enviar mensaje bilingüe al bot con botón inline para volver al terminal
+  const sendTelegramWelcomeMessage = async (chatId: number, from: any) => {
+    if (!botToken) return;
+    const fullName = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Trader';
+    const isEs = from.language_code?.toLowerCase().startsWith('es') || currentLang === 'es';
+    const appUrl = (import.meta as any).env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://zytitrade-tradingplatform.vercel.app');
+
+    const text = isEs
+      ? `🎉 <b>¡Bienvenido a ZYTI Trade, ${fullName}!</b>\n\nTu sesión ha sido verificada y activada con éxito. Ya puedes volver a la plataforma para operar en el terminal.`
+      : `🎉 <b>Welcome to ZYTI Trade, ${fullName}!</b>\n\nYour account has been verified and your session is active. You can now return to the platform to start trading.`;
+
+    const btnText = isEs ? '🚀 Abrir Terminal ZYTI Trade' : '🚀 Open ZYTI Trade Terminal';
+
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: btnText,
+                  url: appUrl
+                }
+              ]
+            ]
+          }
+        })
+      });
+    } catch (e) {
+      console.warn('[Telegram sendWelcome] failed:', e);
+    }
+  };
+
+  // 1. Iniciar flujo Deep-Link con el Bot en Popup centrado
   const handleTelegramDeepLinkStart = () => {
     const code = Math.random().toString(36).substring(2, 9);
     setTelegramAuthCode(code);
     setTelegramWaiting(true);
     setErrorMsg(null);
     const deepLinkUrl = `https://t.me/${botName}?start=login_${code}`;
-    window.open(deepLinkUrl, '_blank');
+    telegramPopupRef.current = openCenteredPopup(deepLinkUrl, 'TelegramAuthPopup', 560, 680);
   };
 
   // 2. Polling activo mientras espera confirmación del bot
@@ -128,13 +184,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (match && match.message?.from) {
           active = false;
           setTelegramWaiting(false);
+          closeTelegramPopup();
           const from = match.message.from;
-          const fullName = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || `Trader #${from.id}`;
 
-          // Mensaje de confirmación al chat del usuario en Telegram
-          try {
-            fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${match.message.chat.id}&text=${encodeURIComponent(`✅ ¡Hola ${fullName}! Sesión confirmada en ZYTI Trade. Bienvenido a la terminal.`)}`).catch(() => {});
-          } catch (_) {}
+          // Enviar confirmación bilingüe con botón al chat de Telegram
+          sendTelegramWelcomeMessage(match.message.chat.id, from);
 
           handleTelegramAuthSuccess({
             id: from.id,
@@ -175,6 +229,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (lastMsg && lastMsg.message?.from) {
           const from = lastMsg.message.from;
           setTelegramWaiting(false);
+          closeTelegramPopup();
+
+          // Enviar confirmación bilingüe con botón
+          sendTelegramWelcomeMessage(lastMsg.message.chat.id, from);
+
           await handleTelegramAuthSuccess({
             id: from.id,
             first_name: from.first_name,
@@ -197,14 +256,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   const t = translations[currentLang].authModal;
-
-  const openCenteredPopup = (url: string, title: string, w = 550, h = 650) => {
-    const left = Math.max(0, (window.screen.width - w) / 2);
-    const top = Math.max(0, (window.screen.height - h) / 2);
-    const popup = window.open(url, title, `width=${w},height=${h},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
-    if (popup) popup.focus();
-    return popup;
-  };
 
   const handleOAuth = async (provider: 'google' | 'github') => {
     setLoading(true); setErrorMsg(null);
