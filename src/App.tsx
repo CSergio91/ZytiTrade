@@ -29,10 +29,10 @@ export const App: React.FC = () => {
     return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
   };
 
-  const getInitialSymbolFromUrl = (): string | undefined => {
-    if (typeof window === 'undefined') return undefined;
-    const match = window.location.pathname.match(/(?:\/(?:es|en))?\/trade\/([a-zA-Z0-9_-]+)/i);
-    return match?.[1] ? match[1].toUpperCase() : undefined;
+  const getInitialSymbolFromUrl = (): string => {
+    if (typeof window === 'undefined') return 'BTCUSDT';
+    const match = window.location.pathname.match(/(?:(?:\/(?:es|en))?\/(?:zytiterminal|trade)\/([a-zA-Z0-9_-]+))/i);
+    return match?.[1] ? match[1].toUpperCase() : 'BTCUSDT';
   };
 
   const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' => {
@@ -41,8 +41,8 @@ export const App: React.FC = () => {
       const pathname = rawPath.replace(/\/$/, '') || '/';
       if (pathname.includes('/tg-onboarding') || pathname.includes('/tgonboarding')) return 'tg-onboarding';
       if (isTerminalSubdomain()) return 'terminal';
-      if (pathname.includes('/zytiterminal')) return 'terminal';
-      // Rutas dinámicas por par de trading (/trade/BTCUSDT, /es/trade/ETHUSDT, etc.)
+      // Rutas dinámicas de terminal: /zytiterminal, /es/zytiterminal, /es/zytiterminal/BTCUSDT
+      if (pathname.match(/^(\/(es|en))?\/zytiterminal(\/[a-zA-Z0-9_-]+)?$/i)) return 'terminal';
       if (pathname.match(/^(\/(es|en))?\/trade(\/[a-zA-Z0-9_-]+)?$/i)) return 'terminal';
       if (pathname === '/404' || pathname === '/es/404' || pathname === '/en/404') return 'not-found';
       
@@ -55,7 +55,7 @@ export const App: React.FC = () => {
   };
 
   const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding' | 'not-found'>(getInitialView);
-  const [urlSymbol, setUrlSymbol] = useState<string | undefined>(getInitialSymbolFromUrl);
+  const [urlSymbol, setUrlSymbol] = useState<string>(getInitialSymbolFromUrl);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
   const getInitialLanguage = (): Language => {
@@ -78,18 +78,20 @@ export const App: React.FC = () => {
       window.history.replaceState(null, '', '/' + newLang);
     } else {
       const isTerminal = currentView === 'terminal' || window.location.pathname.toLowerCase().includes('/zytiterminal');
-      const targetPath = isTerminal ? `/${newLang}/zytiterminal` : `/${newLang}`;
+      const targetPath = isTerminal ? `/${newLang}/zytiterminal/${urlSymbol || 'BTCUSDT'}` : `/${newLang}`;
       window.history.replaceState(null, '', targetPath);
     }
     document.documentElement.lang = newLang;
   };
 
-  const navigateToTerminal = () => {
+  const navigateToTerminal = (symbol: string = 'BTCUSDT') => {
     setCurrentView('terminal');
+    const cleanSym = symbol.replace('/', '').toUpperCase();
+    setUrlSymbol(cleanSym);
     if (!isTerminalSubdomain()) {
-      const targetPath = `/${currentLang}/zytiterminal`;
+      const targetPath = `/${currentLang}/zytiterminal/${cleanSym}`;
       if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
-        window.history.pushState({ view: 'terminal' }, '', targetPath);
+        window.history.pushState({ view: 'terminal', symbol: cleanSym }, '', targetPath);
       }
     }
   };
@@ -225,12 +227,10 @@ export const App: React.FC = () => {
       const path = rawPath.replace(/\/$/, '') || '/';
       if (path.includes('/tg-onboarding') || path.includes('/tgonboarding')) {
         setCurrentView('tg-onboarding');
-      } else if (path.includes('/zytiterminal') || path.match(/^(\/(es|en))?\/trade(\/[a-zA-Z0-9_-]+)?$/i)) {
+      } else if (path.includes('/zytiterminal') || path.includes('/trade')) {
         setCurrentView('terminal');
-        const match = window.location.pathname.match(/(?:\/(?:es|en))?\/trade\/([a-zA-Z0-9_-]+)/i);
-        if (match && match[1]) {
-          setUrlSymbol(match[1].toUpperCase());
-        }
+        const match = window.location.pathname.match(/(?:(?:\/(?:es|en))?\/(?:zytiterminal|trade)\/([a-zA-Z0-9_-]+))/i);
+        setUrlSymbol(match?.[1] ? match[1].toUpperCase() : 'BTCUSDT');
       } else if (path === '/404' || path === '/es/404' || path === '/en/404' || (!['', '/', '/es', '/en'].includes(path))) {
         setCurrentView('not-found');
       } else {
@@ -246,6 +246,17 @@ export const App: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Canonicalización automática de URL a /:lang/zytiterminal/:symbol en la terminal
+  useEffect(() => {
+    if (currentView === 'terminal' && typeof window !== 'undefined' && !isTerminalSubdomain()) {
+      const sym = (urlSymbol || 'BTCUSDT').replace('/', '').toUpperCase();
+      const targetPath = `/${currentLang}/zytiterminal/${sym}`;
+      if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+        window.history.replaceState({ view: 'terminal', symbol: sym }, '', targetPath);
+      }
+    }
+  }, [currentView, currentLang, urlSymbol]);
 
   const handleLogout = async () => {
     // 1. Cerrar sesión en Supabase
@@ -346,7 +357,7 @@ export const App: React.FC = () => {
         activeSection={activeSection}
         onNavigateSection={navigateToSection}
         onOpenAuth={handleOpenTerminalOrAuth}
-        onExplore={navigateToTerminal}
+        onExplore={() => navigateToTerminal('BTCUSDT')}
         currentUser={currentUser}
       />
 
@@ -360,7 +371,7 @@ export const App: React.FC = () => {
         <HeroSection 
           currentLang={currentLang} 
           onOpenAuth={handleOpenTerminalOrAuth} 
-          onExplore={navigateToTerminal} 
+          onExplore={() => navigateToTerminal('BTCUSDT')} 
         />
 
         {/* PANTALLA 1: EXCHANGES */}

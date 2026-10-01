@@ -1298,14 +1298,18 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (chartInstanceRef.current) {
       chartInstanceRef.current.clearData();
     }
-    // Sincronizar URL dinámica para compartir y SEO (/es/trade/BTCUSDT)
+    // Sincronizar URL dinámica para compartir y SEO (/es/zytiterminal/BTCUSDT)
     const cleanPair = pair.replace('/', '').toUpperCase();
-    const targetPath = `/${currentLang}/trade/${cleanPair}`;
+    const targetPath = `/${currentLang}/zytiterminal/${cleanPair}`;
     if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
-      window.history.replaceState(null, '', targetPath);
+      window.history.replaceState({ view: 'terminal', symbol: cleanPair }, '', targetPath);
     }
     if (typeof document !== 'undefined') {
       document.title = `${pair} • ${currentExchange.toUpperCase()} Gráfico en Vivo | ZYTI Trade`;
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute('content', `https://zytitrade.com${targetPath}`);
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', `${pair} • ZYTI Trade Terminal`);
     }
     // Pre-cargar precio base para eliminar desfases de escala en el eje derecho
     const pairPriceEstimates: Record<string, number> = {

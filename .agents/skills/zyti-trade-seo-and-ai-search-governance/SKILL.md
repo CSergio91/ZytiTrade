@@ -1,7 +1,7 @@
 ---
 name: zyti-trade-seo-and-ai-search-governance
-description: Gobernanza integral de SEO técnico dinámico por activo, indexación para motores de búsqueda tradicionales (Google, Bing) y optimización para bots de Inteligencia Artificial (ChatGPT, Perplexity, Claude, Gemini). Incluye arquitectura de rutas por par (/trade/:symbol), metadatos OpenGraph dinámicos, esquema JSON-LD FinancialProduct, modo Guest/Observer sin muro de login y sitemap multiactivo.
-version: 2.0.0
+description: Gobernanza integral de SEO técnico dinámico por activo, indexación para motores de búsqueda tradicionales (Google, Bing) y optimización para bots de Inteligencia Artificial (ChatGPT, Perplexity, Claude, Gemini). Incluye arquitectura de rutas canónicas por par (/zytiterminal/:symbol), metadatos OpenGraph dinámicos, esquema JSON-LD FinancialProduct, modo Guest/Observer sin muro de login y sitemap multiactivo.
+version: 2.1.0
 category: SEO & AI Search Discoverability
 status: Authoritative
 ---
@@ -13,21 +13,22 @@ Posicionar **ZYTI Trade** como la plataforma líder en terminales de trading mul
 
 ---
 
-## 2. ARQUITECTURA DE RUTAS DINÁMICAS POR SÍMBOLO (/trade/:symbol)
+## 2. ARQUITECTURA DE RUTAS CANÓNICAS POR SÍMBOLO (/:lang/zytiterminal/:symbol)
 Para maximizar la indexación de cada par y permitir compartir enlaces directos entre traders y comunidades:
 1. **Patrón de URL canónico:**
    ```text
-   https://zytitrade.com/es/trade/:symbol       (Ej: /es/trade/BTCUSDT)
-   https://zytitrade.com/en/trade/:symbol       (Ej: /en/trade/BTCUSDT)
+   https://zytitrade.com/es/zytiterminal/:symbol       (Ej: /es/zytiterminal/BTCUSDT)
+   https://zytitrade.com/en/zytiterminal/:symbol       (Ej: /en/zytiterminal/BTCUSDT)
    ```
 2. **Navegación fluida SPA (Sin recargas):**
    * Al alternar de par dentro de la terminal, el estado de React y la suscripción WebSocket cambian en memoria en sub-50ms.
    * La barra de direcciones se actualiza de forma síncrona sin refrescar la página mediante:
      ```typescript
-     window.history.replaceState(null, '', `/${lang}/trade/${selectedSymbol}`);
+     window.history.replaceState({ view: 'terminal', symbol: selectedSymbol }, '', `/${lang}/zytiterminal/${selectedSymbol}`);
      ```
-3. **Deep-Linking y Acceso Directo:**
-   * Si un visitante o crawler accede directamente a una URL con símbolo, la terminal se inicializa inmediatamente centrada en ese par.
+3. **Acceso Directo y Modo Explorar:**
+   * Al hacer clic en «Explorar» desde el Home, el cliente entra directamente cargando el par primario de alta liquidez: `/es/zytiterminal/BTCUSDT`.
+   * Si un visitante o crawler accede directamente a una URL con símbolo, la terminal se inicializa inmediatamente centrada en ese par sin pasar por pantallas de bienvenida vacías.
 
 ---
 
@@ -38,7 +39,7 @@ Para maximizar la indexación de cada par y permitir compartir enlaces directos 
    * El gráfico KLineChart v10, el libro de órdenes L2 y las cotizaciones en streaming vía WebSocket deben renderizarse públicamente.
    * Googlebot, Bingbot, GPTBot y PerplexityBot deben tener acceso total al DOM rendered para extraer contenido, precios y estructura.
 2. **Escritura Protegida (Order Execution):**
-   * Toda acción que implique ejecución (Comprar/Long, Vender/Short, programar alertas o abrir posiciones) abre de forma elegante el modal de autenticación (`AuthModal`) con acceso en 1 clic a la Cuenta Demo de $100,000 o login con Telegram.
+   * Toda acción que implique ejecución (Comprar/Long, Vender/Short, programar alertas o abrir posiciones) abre de forma elegante el modal de autenticación (`AuthModal`) con verificación instantánea mediante Telegram.
 
 ---
 
@@ -57,10 +58,10 @@ Al cargar o cambiar de par, el cliente debe hidratar los metadatos del documento
 
 ### 3. Canonical & Hreflang por Par
 ```html
-<link rel="canonical" href="https://zytitrade.com/es/trade/BTCUSDT" />
-<link rel="alternate" hreflang="es" href="https://zytitrade.com/es/trade/BTCUSDT" />
-<link rel="alternate" hreflang="en" href="https://zytitrade.com/en/trade/BTCUSDT" />
-<link rel="alternate" hreflang="x-default" href="https://zytitrade.com/en/trade/BTCUSDT" />
+<link rel="canonical" href="https://zytitrade.com/es/zytiterminal/BTCUSDT" />
+<link rel="alternate" hreflang="es" href="https://zytitrade.com/es/zytiterminal/BTCUSDT" />
+<link rel="alternate" hreflang="en" href="https://zytitrade.com/en/zytiterminal/BTCUSDT" />
+<link rel="alternate" hreflang="x-default" href="https://zytitrade.com/en/zytiterminal/BTCUSDT" />
 ```
 
 ---
@@ -70,7 +71,7 @@ Cuando un usuario comparta un análisis de un activo en redes o mensajería:
 * `og:site_name`: ZYTI Trade
 * `og:title`: `${symbol} • Gráfico Institucional & Profundidad L2 | ZYTI Trade`
 * `og:description`: `Cotizaciones en vivo, profundidad de libro de órdenes y arbitraje para ${symbol}. Conexión multi-exchange de ultra-baja latencia.`
-* `og:url`: `https://zytitrade.com/${lang}/trade/${symbol}`
+* `og:url`: `https://zytitrade.com/${lang}/zytiterminal/${symbol}`
 * `og:image`: `https://zytitrade.com/og-image.png` (o tarjeta dinámica de par, 1200x630 píxeles)
 * `twitter:card`: `summary_large_image`
 * `twitter:title`: `${symbol} • ZYTI Trade Terminal`
@@ -128,8 +129,8 @@ Permitir expresamente:
 Allow: /
 Allow: /es/
 Allow: /en/
-Allow: /es/trade/*
-Allow: /en/trade/*
+Allow: /es/zytiterminal/*
+Allow: /en/zytiterminal/*
 Disallow: /api/
 Disallow: /admin/
 ```
@@ -137,24 +138,24 @@ Disallow: /admin/
 ---
 
 ## 8. SITEMAP DINÁMICO DE PARES (sitemap.xml)
-El mapa del sitio debe incluir todos los pares soportados de forma exhaustiva:
+El mapa del sitio incluye todos los pares soportados bajo la ruta canónica del terminal:
 ```xml
 <url>
-  <loc>https://zytitrade.com/es/trade/BTCUSDT</loc>
-  <xhtml:link rel="alternate" hreflang="es" href="https://zytitrade.com/es/trade/BTCUSDT"/>
-  <xhtml:link rel="alternate" hreflang="en" href="https://zytitrade.com/en/trade/BTCUSDT"/>
-  <changefreq>daily</changefreq>
-  <priority>0.9</priority>
+  <loc>https://zytitrade.com/es/zytiterminal/BTCUSDT</loc>
+  <xhtml:link rel="alternate" hreflang="es" href="https://zytitrade.com/es/zytiterminal/BTCUSDT"/>
+  <xhtml:link rel="alternate" hreflang="en" href="https://zytitrade.com/en/zytiterminal/BTCUSDT"/>
+  <changefreq>always</changefreq>
+  <priority>0.95</priority>
 </url>
 ```
-Se deben incluir los pares de alta liquidez: `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `XRPUSDT`, `BNBUSDT`, `ADAUSDT`, `DOGEUSDT`, `AVAXUSDT`, `LINKUSDT`, etc.
+Se incluyen los pares de alta liquidez: `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `XRPUSDT`, `BNBUSDT`, etc.
 
 ---
 
 ## 9. CHECKLIST DE VERIFICACIÓN
-- [ ] La URL refleja el símbolo activo (`/es/trade/BTCUSDT`) sin recarga de página completa.
+- [ ] La URL refleja el símbolo activo tras el path del terminal (`/es/zytiterminal/BTCUSDT`) sin recarga de página.
+- [ ] Al hacer clic en «Explorar» desde el Home, se carga directamente `/es/zytiterminal/BTCUSDT`.
 - [ ] Usuarios no autenticados y bots pueden ver el gráfico en tiempo real sin ser expulsados a un login.
-- [ ] Intentar enviar una orden sin sesión abre fluidamente el modal de registro/cuenta demo.
-- [ ] `document.title` y etiquetas `meta` se actualizan al cambiar de par.
-- [ ] Al pegar la URL en Telegram o Discord se genera una tarjeta de previsualización rica con el ticker.
-- [ ] El archivo `sitemap.xml` incluye las URLs bilingües de cada símbolo con prioridad alta.
+- [ ] Intentar enviar una orden sin sesión abre fluidamente el modal de registro institucional con Telegram.
+- [ ] `document.title` y etiquetas `meta` (`og:url`, `og:title`) se actualizan al cambiar de par.
+- [ ] El archivo `sitemap.xml` incluye las URLs canónicas `/es/zytiterminal/:symbol` y `/en/zytiterminal/:symbol`.

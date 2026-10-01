@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Zap, CheckCircle2, AlertCircle, ArrowRight, Shield, Sparkles } from 'lucide-react';
+import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles } from 'lucide-react';
 import { Language } from '../i18n/translations';
 import { supabase, setStoredSession, UserSession, fetchTraderAccounts } from '../lib/supabase';
 import { LottieAnimation } from './LottieAnimation';
@@ -35,32 +35,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTelegramWaiting(false);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    try {
-      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-          const propAccounts = await fetchTraderAccounts(session.user.email || '');
-          const userSession: UserSession = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-            avatarUrl: session.user.user_metadata?.avatar_url,
-            provider: (session.user.app_metadata?.provider as any) || 'google',
-            role: session.user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
-            accounts: propAccounts,
-            activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
-          };
-          setStoredSession(userSession);
-          if (onLoginSuccess) onLoginSuccess(userSession);
-          setTimeout(onClose, 400);
-        }
-      });
-      return () => { authListener?.subscription?.unsubscribe?.(); };
-    } catch (err) {
-      console.warn('[AuthModal] Auth state listener error:', err);
-    }
-  }, [onLoginSuccess, onClose]);
 
   const handleTelegramAuthSuccess = useCallback(async (tgUser: {
     id: number; first_name: string; last_name?: string;
@@ -405,43 +379,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleOAuth = async (provider: 'google') => {
-    setLoading(true); setErrorMsg(null);
-    try {
-      const redirectTo = (import.meta as any).env.VITE_APP_URL || window.location.origin;
-      const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
-      if (error) throw error;
-      if (data?.url) openCenteredPopup(data.url, `${provider}_auth_popup`, 540, 640);
-    } catch (err: any) { setErrorMsg(err.message || 'Error al autenticar'); }
-    finally { setLoading(false); }
-  };
-
-  // 1-Click Acceso Directo Demo con $100,000 USDT para probar de inmediato la terminal
-  const handleQuickDemoAccess = () => {
-    setLoading(true);
-    try {
-      const demoUser: UserSession = {
-        id: `demo_${Date.now()}`,
-        email: 'demo@zytitrade.com',
-        name: 'Demo Trader',
-        avatarUrl: undefined,
-        isDemo: true,
-        provider: 'demo',
-        role: 'trader',
-        isVerified: true,
-        accounts: []
-      };
-      setStoredSession(demoUser);
-      setSuccessMsg(isEs ? '¡Sesión Demo Activada ($100,000 USDT)!' : 'Demo Session Activated ($100,000 USDT)!');
-      if (onLoginSuccess) onLoginSuccess(demoUser);
-      setTimeout(onClose, 350);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error activando cuenta demo');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -482,33 +419,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </p>
             </div>
 
-            <div className="flex-1 flex items-center justify-center w-full min-h-0 py-1">
-              <LottieAnimation animationData={loginAnimationData} className="h-full w-full max-h-32 sm:max-h-36 md:max-h-40 object-contain drop-shadow-xs" />
+            <div className="flex-1 flex items-center justify-center w-full min-h-0 py-2">
+              <LottieAnimation animationData={loginAnimationData} className="h-full w-full max-h-36 sm:max-h-40 md:max-h-44 object-contain drop-shadow-xs" />
             </div>
 
-            <div className="w-full shrink-0 p-2.5 rounded-2xl bg-amber-500/15 border border-amber-300/70 text-center backdrop-blur-sm">
-              <span className="text-[11px] font-black text-amber-950 flex items-center justify-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                {isEs ? 'Simulación en Vivo Incluida' : 'Real-Time Simulation Included'}
+            <div className="w-full shrink-0 p-2.5 rounded-2xl bg-sky-500/10 border border-sky-300/60 text-center backdrop-blur-sm">
+              <span className="text-[11px] font-black text-sky-950 flex items-center justify-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 fill-sky-500 text-sky-500" />
+                {isEs ? 'Verificación Segura vía Telegram' : 'Secure Telegram Verification'}
               </span>
-              <span className="text-[9.5px] text-amber-900/90 font-medium block mt-0.5 leading-snug">
-                {isEs ? 'Accede para operar con cuentas de fondeo o saldo virtual a 60 FPS.' : 'Log in to trade prop firm accounts or virtual balance at 60 FPS.'}
+              <span className="text-[9.5px] text-sky-900/90 font-medium block mt-0.5 leading-snug">
+                {isEs ? 'Sin contraseñas ni correos que recordar. Conexión directa en < 1s con el bot oficial.' : 'No passwords or emails to remember. Instant < 1s connection with official bot.'}
               </span>
             </div>
           </div>
 
           {/* PANEL DERECHO TRASLÚCIDO */}
-          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-3">
+          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-3.5">
             <div className="text-center md:text-left mb-1">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/5 border border-slate-900/10 text-slate-800 text-[10px] font-mono font-bold mb-1.5">
                 <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>{isEs ? 'ACCESO INSTANTÁNEO' : 'INSTANT ACCESS'}</span>
+                <span>{isEs ? 'ACCESO INSTITUCIONAL' : 'INSTITUTIONAL ACCESS'}</span>
               </div>
               <h4 className="text-base sm:text-lg font-black text-slate-950 tracking-tight leading-snug">
                 {isEs ? 'Conecta tu cuenta para operar' : 'Connect your account to trade'}
               </h4>
               <p className="text-[11px] text-slate-600 font-medium">
-                {isEs ? 'Selecciona tu método preferido para desbloquear la ejecución de órdenes.' : 'Select your preferred method to unlock order execution.'}
+                {isEs ? 'Inicia sesión con Telegram para ejecutar órdenes y gestionar tus cuentas.' : 'Sign in with Telegram to execute orders and manage accounts.'}
               </p>
             </div>
 
@@ -527,8 +464,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* TELEGRAM WAITING STATE */}
             {telegramWaiting ? (
-              <div className="w-full p-3.5 rounded-2xl bg-sky-50/80 border border-sky-200/80 text-center flex flex-col items-center gap-2 backdrop-blur-md">
-                <div className="w-10 h-10 rounded-full bg-[#54a9eb] flex items-center justify-center text-white shadow-sm animate-pulse">
+              <div className="w-full p-4 rounded-2xl bg-sky-50/80 border border-sky-200/80 text-center flex flex-col items-center gap-2.5 backdrop-blur-md">
+                <div className="w-11 h-11 rounded-full bg-[#54a9eb] flex items-center justify-center text-white shadow-sm animate-pulse">
                   <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
                 </div>
                 <div>
@@ -537,12 +474,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {isEs ? 'Pulsa «INICIAR» o «START» en el chat con el bot.' : 'Press «START» in the bot chat.'}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5 w-full mt-1">
+                <div className="flex flex-col gap-2 w-full mt-1">
                   <button
                     type="button"
                     onClick={handleCheckLatestTelegram}
                     disabled={loading}
-                    className="w-full py-2 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                   >
                     <span>{isEs ? '⚡ Ya envié /start (Verificar ahora)' : '⚡ I sent /start (Verify now)'}</span>
                   </button>
@@ -559,72 +496,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onClick={() => setTelegramWaiting(false)}
                     className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
                   >
-                    {isEs ? '← Volver a otros métodos' : '← Back to other methods'}
+                    {isEs ? '← Volver' : '← Back'}
                   </button>
                 </div>
               </div>
             ) : (
               /* BOTÓN HERO: TELEGRAM */
-              <button
-                type="button"
-                onClick={handleTelegramDeepLinkStart}
-                disabled={loading}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1c8ec4] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 hover:shadow-md"
-                title={isEs ? 'Iniciar sesión con Telegram' : 'Log in with Telegram'}
-              >
-                <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
-                </svg>
-                <span>{isEs ? 'Continuar con Telegram' : 'Continue with Telegram'}</span>
-              </button>
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleTelegramDeepLinkStart}
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1c8ec4] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 hover:shadow-lg"
+                  title={isEs ? 'Iniciar sesión con Telegram' : 'Log in with Telegram'}
+                >
+                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                  </svg>
+                  <span>{isEs ? 'Continuar con Telegram' : 'Continue with Telegram'}</span>
+                </button>
+              </div>
             )}
 
-            {/* SEPARADOR ELEGANTE */}
-            <div className="relative flex items-center justify-center my-0.5">
-              <div className="border-t border-slate-300/80 w-full" />
-              <span className="bg-transparent px-2.5 text-[9.5px] font-mono text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                {isEs ? 'o acceso inmediato' : 'or instant access'}
-              </span>
-              <div className="border-t border-slate-300/80 w-full" />
-            </div>
-
-            {/* BOTÓN AMARILLO INSTITUCIONAL IDÉNTICO AL HOME: CUENTA DEMO */}
-            <button
-              type="button"
-              onClick={handleQuickDemoAccess}
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 transform hover:scale-[1.01]"
-              title={isEs ? 'Acceso rápido con saldo de simulación' : 'Quick access with demo balance'}
-            >
-              <Zap className="w-4 h-4 stroke-[2.5] fill-slate-950" />
-              <span>{isEs ? '⚡ Probar Cuenta Demo ($100,000 USDT)' : '⚡ Try Demo Account ($100,000 USDT)'}</span>
-              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-
-            {/* GOOGLE OAUTH */}
-            <button 
-              type="button" 
-              onClick={() => handleOAuth('google')} 
-              disabled={loading} 
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-300/80 bg-white/80 hover:bg-white text-slate-900 font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-98 backdrop-blur-sm"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>{isEs ? 'Continuar con Google' : 'Continue with Google'}</span>
-            </button>
-
             {/* BADGES DE CONFIANZA INSTITUCIONAL */}
-            <div className="pt-1 flex items-center justify-center gap-3 text-[10px] text-slate-500 font-mono">
+            <div className="pt-2 flex items-center justify-center gap-3 text-[10px] text-slate-500 font-mono">
               <span className="flex items-center gap-1">
                 <Shield className="w-3 h-3 text-emerald-600" />
                 {isEs ? 'Cero Custodia' : 'Zero Custody'}
               </span>
               <span>•</span>
               <span>TLS Directo Binance/Bybit</span>
+              <span>•</span>
+              <span>60 FPS</span>
             </div>
           </div>
         </div>
