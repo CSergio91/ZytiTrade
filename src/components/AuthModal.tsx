@@ -194,23 +194,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally { setLoading(false); }
   };
 
-  // Bot ID se extrae del token: 8903330894:AAEd...
-  const TELEGRAM_BOT_ID = '8903330894';
-  const handleTelegramOAuthPopup = () => {
-    // URL oficial del OAuth de Telegram — requiere que el dominio esté configurado
-    // en @BotFather con /setdomain
-    const origin = encodeURIComponent(window.location.origin);
-    const oauthUrl = `https://oauth.telegram.org/auth?bot_id=${TELEGRAM_BOT_ID}&origin=${origin}&embed=1&request_access=write`;
-    const popup = openCenteredPopup(oauthUrl, 'TelegramAuth', 550, 650);
-    if (!popup) {
-      setErrorMsg(
-        currentLang === 'es'
-          ? 'El popup fue bloqueado. Permite popups para este sitio en tu navegador.'
-          : 'Popup was blocked. Please allow popups for this site in your browser.'
-      );
-    }
-  };
-
   return (
     <div className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/65 backdrop-blur-md transition-opacity duration-300 ease-out ${mounted ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose}>
       <div className={`warm-card auth-modal-window rounded-t-[28px] md:rounded-3xl shadow-2xl relative border border-[#ded5c5] bg-[#fbf9f4] overflow-hidden no-scrollbar transform transition-transform duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-full md:translate-y-12 opacity-0'}`} onClick={(e) => e.stopPropagation()}>
@@ -242,12 +225,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <h3 className="text-base sm:text-lg font-black text-slate-950 tracking-tight">{isSignUp ? t.signUpTitle : t.signInTitle}</h3>
               <p className="text-[11px] text-slate-500 font-medium">{isSignUp ? t.subtitleSignUp : t.subtitleSignIn}</p>
             </div>
-            <div className="mb-2 sm:mb-2.5 flex flex-col gap-1.5 items-center justify-center">
+            <div className="mb-2 sm:mb-2.5 flex items-center justify-center">
               <div ref={telegramWidgetRef} className="w-full flex items-center justify-center min-h-[44px]" />
-              <button type="button" onClick={handleTelegramOAuthPopup} disabled={loading} className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#229ED9] via-[#24A1DE] to-[#1E88E5] hover:from-[#1b8bc2] hover:to-[#1976D2] text-white font-bold text-xs shadow-xs border border-[#1b8bc2] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98">
-                <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-                <span>{currentLang === 'es' ? 'Autorizar en Telegram (@ZytiTarde_bot)' : 'Authorize in Telegram (@ZytiTarde_bot)'}</span>
-              </button>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2 sm:mb-3">
               <button type="button" onClick={() => handleOAuth('google')} disabled={loading} className="flex items-center justify-center gap-2 py-1.5 sm:py-2.5 px-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-98">
