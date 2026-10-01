@@ -74,11 +74,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   }) => {
     setLoading(true); setErrorMsg(null);
     try {
-      const userEmail = tgUser.username ? `${tgUser.username}@telegram.zyti.trade` : `tg_${tgUser.id}@telegram.zyti.trade`;
-      const propAccounts = await fetchTraderAccounts(userEmail);
+      const userEmail = tgUser.username ? `${tgUser.username.toLowerCase()}@telegram.org` : `tg_${tgUser.id}@telegram.org`;
       const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
+      let supaUserId = String(tgUser.id);
+
+      // Registrar al usuario en Supabase Auth para que aparezca en el panel de Supabase
+      try {
+        const syntheticPassword = `TG_${tgUser.id}_zyti_trade_secure!`;
+        const { data: supaAuthData } = await supabase.auth.signUp({
+          email: userEmail,
+          password: syntheticPassword,
+          options: {
+            data: {
+              full_name: fullName,
+              telegram_username: tgUser.username,
+              telegram_id: tgUser.id,
+              avatar_url: tgUser.photo_url,
+              provider: 'telegram'
+            }
+          }
+        });
+        if (supaAuthData?.user?.id) {
+          supaUserId = supaAuthData.user.id;
+        }
+      } catch (authErr) {
+        console.warn('[Supabase Auth] Notice syncing Telegram user:', authErr);
+      }
+
+      const propAccounts = await fetchTraderAccounts(userEmail);
       const userSession: UserSession = {
-        id: String(tgUser.id), email: userEmail, name: fullName,
+        id: supaUserId, email: userEmail, name: fullName,
         avatarUrl: tgUser.photo_url, provider: 'telegram', telegramUsername: tgUser.username,
         role: 'trader', accounts: propAccounts,
         activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
