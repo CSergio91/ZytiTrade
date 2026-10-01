@@ -93,7 +93,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   }, [currentLang, onLoginSuccess, onClose]);
 
   const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
-  const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '8903330894:AAEd0orP53vrgfvsl2mNa3CxO5TWmC7_GA8';
+  const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
 
   // 1. Iniciar flujo Deep-Link con el Bot
   const handleTelegramDeepLinkStart = () => {
