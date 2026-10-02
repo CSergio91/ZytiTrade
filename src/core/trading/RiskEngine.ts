@@ -19,9 +19,9 @@ import {
 export const DEFAULT_PROP_FIRM_RULES: PropFirmRuleConfig = {
   id: 'standard-eval',
   firmName: 'ZYTI Prop Evaluator',
-  initialBalance: 10000,
-  maxDailyLossPercent: 5.0, // 5% pérdida diaria máxima
-  maxTotalDrawdownPercent: 10.0, // 10% pérdida total acumulada
+  initialBalance: 100000, // 100K Cuenta Estandarizada
+  maxDailyLossPercent: 5.0, // 5% pérdida diaria máxima ($5,000)
+  maxTotalDrawdownPercent: 10.0, // 10% pérdida total acumulada ($10,000)
   maxTrailingDrawdownPercent: 6.0,
   maxLeverage: 100
 };

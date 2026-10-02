@@ -17,6 +17,7 @@ interface TradersClientsTableProps {
   lang?: CrmLang;
   onUpdateAccountSize: (traderId: string, newSize: number) => void;
   onUpdateTraderRole: (traderId: string, newRole: UserCrmRole) => void;
+  onUpdateTraderStatus?: (traderId: string, newStatus: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN') => void;
   onResetBalance: (traderId: string) => void;
   onOpenRiskEngineForTrader?: (trader: TraderClientEntity) => void;
 }
@@ -26,6 +27,7 @@ export const TradersClientsTable: React.FC<TradersClientsTableProps> = ({
   lang = 'es',
   onUpdateAccountSize,
   onUpdateTraderRole,
+  onUpdateTraderStatus,
   onResetBalance,
   onOpenRiskEngineForTrader
 }) => {
@@ -269,26 +271,26 @@ export const TradersClientsTable: React.FC<TradersClientsTableProps> = ({
                       </div>
                     </td>
 
-                    {/* Estado Sentinela */}
+                    {/* Estado Sentinela Interactivo */}
                     <td className="py-3.5 px-3">
-                      {trader.status === 'ACTIVE' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          {isEs ? 'Activa' : 'Active'}
-                        </span>
-                      )}
-                      {trader.status === 'WARNING' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-black">
-                          <AlertTriangle className="w-3 h-3 text-amber-600" />
-                          {isEs ? 'Alerta' : 'Warning'}
-                        </span>
-                      )}
-                      {trader.status === 'BREACHED' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-300 text-[10px] font-black animate-pulse">
-                          <Skull className="w-3 h-3 text-rose-600" />
-                          {isEs ? 'Infracción' : 'Breached'}
-                        </span>
-                      )}
+                      <select
+                        value={trader.status}
+                        onChange={(e) => onUpdateTraderStatus && onUpdateTraderStatus(trader.id, e.target.value as any)}
+                        className={`px-2 py-1 rounded-lg border text-[11px] font-black cursor-pointer focus:outline-none transition-all ${
+                          trader.status === 'ACTIVE'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : trader.status === 'WARNING'
+                            ? 'bg-amber-50 text-amber-900 border-amber-300'
+                            : trader.status === 'BREACHED'
+                            ? 'bg-rose-50 text-rose-900 border-rose-300 animate-pulse'
+                            : 'bg-slate-100 text-slate-800 border-slate-300'
+                        }`}
+                      >
+                        <option value="ACTIVE">{isEs ? '● En Regla' : '● In Compliance'}</option>
+                        <option value="WARNING">{isEs ? '▲ Alerta (80%)' : '▲ Warning'}</option>
+                        <option value="BREACHED">{isEs ? '✕ Infracción' : '✕ Breached'}</option>
+                        <option value="FROZEN">{isEs ? '❄ Congelada' : '❄ Frozen'}</option>
+                      </select>
                     </td>
 
                     {/* Acciones */}

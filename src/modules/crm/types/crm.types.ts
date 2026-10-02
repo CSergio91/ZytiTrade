@@ -72,6 +72,33 @@ export interface CrmKpiStats {
 }
 
 export type UserCrmRole = 'trader' | 'soporte' | 'admin' | 'marketing';
+export type CrmStaffRole = 'admin' | 'soporte' | 'marketing';
+
+export const CRM_ALLOWED_ROLES: CrmStaffRole[] = ['admin', 'soporte', 'marketing'];
+
+export const ROLE_CARD_PERMISSIONS: Record<CrmStaffRole, CrmModuleId[]> = {
+  admin: [
+    'risk_engine',
+    'apis',
+    'challenges',
+    'plans',
+    'exchanges',
+    'prop_firms',
+    'support',
+    'marketing'
+  ],
+  soporte: [
+    'support',
+    'risk_engine',
+    'challenges'
+  ],
+  marketing: [
+    'marketing',
+    'exchanges',
+    'prop_firms',
+    'plans'
+  ]
+};
 
 export interface TraderClientEntity {
   id: string;

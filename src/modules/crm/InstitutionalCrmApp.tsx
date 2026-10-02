@@ -9,7 +9,7 @@ import { AffiliatesManagerCard } from './components/AffiliatesManagerCard';
 import { DynamicRulesModal } from './components/DynamicRulesModal';
 import { CreateApiKeyModal } from './components/CreateApiKeyModal';
 import { CrmLang, crmTranslations } from './types/i18n';
-import { CrmModuleId } from './types/crm.types';
+import { CrmModuleId, CrmStaffRole, CRM_ALLOWED_ROLES } from './types/crm.types';
 import { UserSession } from '../../lib/supabase';
 import { 
   Globe, 
@@ -24,7 +24,8 @@ import {
   Trophy, 
   Headphones, 
   Megaphone,
-  Check
+  Check,
+  ShieldAlert
 } from 'lucide-react';
 
 interface InstitutionalCrmAppProps {
@@ -90,6 +91,7 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
     setNewlyCreatedKey,
     handleUpdateTraderAccountSize,
     handleUpdateTraderRole,
+    handleUpdateTraderStatus,
     handleResetTraderBalance,
     handleSaveRule,
     handleCreateApiKey,
@@ -191,10 +193,62 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
     }
   };
 
-  // Datos del admin logueado
-  const adminName = user?.name || 'Carlos';
-  const adminEmail = user?.email || 'servtecempmant@gmail.com';
-  const adminAvatar = user?.avatarUrl;
+  // Rol del staff activo en el CRM (solo admin, soporte y marketing tienen acceso; trader bloqueado)
+  const [currentStaffRole, setCurrentStaffRole] = useState<CrmStaffRole>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('zyti_staff_role') as CrmStaffRole;
+      if (cached && CRM_ALLOWED_ROLES.includes(cached)) return cached;
+    }
+    const roleCandidate = user?.role as CrmStaffRole;
+    if (roleCandidate && CRM_ALLOWED_ROLES.includes(roleCandidate)) {
+      return roleCandidate;
+    }
+    return 'admin';
+  });
+
+  const onTraderRoleChange = async (traderId: string, newRole: any) => {
+    await handleUpdateTraderRole(traderId, newRole);
+    if (traderId === user?.id || traderId === user?.email) {
+      if (CRM_ALLOWED_ROLES.includes(newRole)) {
+        setCurrentStaffRole(newRole);
+        localStorage.setItem('zyti_staff_role', newRole);
+      }
+    }
+  };
+
+  // Bloqueo estricto para cuentas de rol 'trader'
+  if (user?.role === 'trader' && !localStorage.getItem('zyti_staff_role')) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#FBF9F4] p-6 text-center font-sans">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 mb-4 shadow-sm">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <h1 className="text-xl font-black text-slate-900 tracking-tight">
+          {isEs ? 'Acceso Restringido al CRM ERP' : 'Restricted ERP CRM Access'}
+        </h1>
+        <p className="text-xs text-slate-500 font-medium max-w-md mt-2 leading-relaxed">
+          {isEs 
+            ? 'Esta sección está reservada exclusivamente para los roles de Administración, Soporte y Marketing. Las cuentas con rol de Trader no tienen acceso al CRM institucional.'
+            : 'This section is strictly reserved for Administration, Support, and Marketing roles. Trader accounts do not have access to the institutional ERP CRM.'
+          }
+        </p>
+        <button
+          onClick={() => {
+            if (onBackToTerminal) onBackToTerminal();
+            else window.location.href = `/${lang}/zytiterminal/BTCUSDT`;
+          }}
+          className="mt-6 px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+        >
+          {isEs ? '← Volver a la Terminal de Trading' : '← Back to Trading Terminal'}
+        </button>
+      </div>
+    );
+  }
+
+  // Datos del admin/staff logueado dinámicos sin emails hardcodeados
+  const staffName = user?.name || (user?.email ? user.email.split('@')[0] : 'Carlos');
+  const staffEmail = user?.email || `${currentStaffRole}@zytitrade.com`;
+  const staffAvatar = user?.avatarUrl;
 
   return (
     <div 
@@ -237,23 +291,45 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
           </button>
         </div>
 
-        {/* Telemetría, Datos del Admin y Controles */}
+        {/* Telemetría, Datos del Staff y Controles */}
         <div className="flex items-center gap-2.5">
-          {/* Identidad del Administrador Logueado */}
+          {/* Selector de Perspectiva de Rol (Admin, Soporte, Marketing) */}
+          <div className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-[#f4efe4] border border-[#ded7c8] text-xs font-black">
+            <span className="text-[10px] text-slate-500 uppercase px-1.5">{isEs ? 'Rol:' : 'Role:'}</span>
+            {CRM_ALLOWED_ROLES.map(role => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  setCurrentStaffRole(role);
+                  localStorage.setItem('zyti_staff_role', role);
+                }}
+                className={`px-2 py-0.5 rounded-lg transition-all capitalize cursor-pointer text-[11px] ${
+                  currentStaffRole === role
+                    ? 'bg-[#0F172A] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+
+          {/* Identidad del Usuario Logueado (Staff) */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-[#e5dfd3] shadow-xs">
             <div className="w-7 h-7 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center text-[10px] font-black text-purple-900 overflow-hidden shrink-0">
-              {adminAvatar ? (
-                <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+              {staffAvatar ? (
+                <img src={staffAvatar} alt={staffName} className="w-full h-full object-cover" />
               ) : (
-                adminName.slice(0, 2).toUpperCase()
+                staffName.slice(0, 2).toUpperCase()
               )}
             </div>
             <div className="text-left min-w-0 max-w-[150px]">
               <div className="text-xs font-black text-slate-900 leading-tight truncate">
-                {adminName}
+                {staffName}
               </div>
               <div className="text-[9px] font-bold text-purple-700 leading-tight truncate">
-                {adminEmail}
+                {staffEmail}
               </div>
             </div>
           </div>
@@ -378,13 +454,12 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
             {/* Barra Compacta de KPIs */}
             <KpiHeader kpis={kpis} lang={lang} onRefresh={refreshData} />
 
-            {/* Grid de Cards Limpias de cada Sección del ERP */}
+            {/* Grid de Cards Limpias de cada Sección del ERP Filtradas por Rol */}
             <ErpModulesGrid
               lang={lang}
               activeModule={activeModule}
               onSelectModule={handleSelectModuleWithUrl}
-              activeRiskCount={monitoredPositions.length}
-              activeApiKeysCount={apiCredentials.length}
+              userRole={currentStaffRole}
             />
 
             {/* Listado de Traders & Clientes con Buscador y Cuenta Demo */}
@@ -392,7 +467,8 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
               traders={traders}
               lang={lang}
               onUpdateAccountSize={handleUpdateTraderAccountSize}
-              onUpdateTraderRole={handleUpdateTraderRole}
+              onUpdateTraderRole={onTraderRoleChange}
+              onUpdateTraderStatus={handleUpdateTraderStatus}
               onResetBalance={handleResetTraderBalance}
               onOpenRiskEngineForTrader={() => handleSelectModuleWithUrl('risk_engine')}
             />

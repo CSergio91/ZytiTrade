@@ -244,7 +244,6 @@ const generateId = (): string => {
   return 'pos_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
 };
 
-// Obtención y control de la equidad de arranque del día UTC (00:00 UTC) para el motor de Prop Firm
 const getStoredDailyStartEquity = (currentBalance: number): number => {
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -252,6 +251,10 @@ const getStoredDailyStartEquity = (currentBalance: number): number => {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.date === today && typeof parsed.equity === 'number' && parsed.equity > 0) {
+        if (parsed.equity < 50000 && currentBalance >= 100000) {
+          localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: currentBalance }));
+          return currentBalance;
+        }
         return parsed.equity;
       }
     }
@@ -481,13 +484,18 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const recordClosedTradeRef = useRef(recordClosedTrade);
   recordClosedTradeRef.current = recordClosedTrade;
 
-  // Saldo de cuenta Demo y gestión de riesgo en %
+  // Saldo de cuenta Demo y gestión de riesgo en % (Estandarizado a 100K para usuarios logueados y no logueados)
   const [demoBalance, setDemoBalance] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('zyti_demo_balance');
-      return saved !== null ? Number(saved) : 10000;
+      // Si es un usuario invitado que tenía un balance previo inferior o antiguo, migrarlo a 100K
+      if (!saved || saved === '10000' || saved === '1000' || saved === '5000' || saved === '15000' || saved === '25000' || saved === '50000' || saved === '200000') {
+        localStorage.setItem('zyti_demo_balance', '100000');
+        return 100000;
+      }
+      return Number(saved) || 100000;
     } catch {
-      return 10000;
+      return 100000;
     }
   });
   const demoBalanceRef = useRef(demoBalance);
@@ -1655,21 +1663,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setLimitOrders([]);
     limitOrdersRef.current = [];
     try { localStorage.removeItem('zyti_limit_orders'); } catch {}
-    setDemoBalance(10000);
-    try { localStorage.setItem('zyti_demo_balance', '10000'); } catch {}
+    setDemoBalance(100000);
+    try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
 
-    // Resetear centinela de Drawdown y nuevo baseline diario
+    // Resetear centinela de Drawdown y nuevo baseline diario a 100K
     const today = new Date().toISOString().split('T')[0];
-    dailyStartEquityRef.current = 10000;
-    try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: 10000 })); } catch {}
+    dailyStartEquityRef.current = 100000;
+    try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: 100000 })); } catch {}
     isBreachedRef.current = false;
     setIsAccountBreached(false);
     setBreachReason('');
 
     addToast({
       type: 'info',
-      title: isEs ? 'Cuenta Demo Restablecida' : 'Demo Account Reset',
-      message: isEs ? 'Saldo restablecido a $10,000.00 USDT iniciales y riesgo reiniciado.' : 'Balance reset to initial $10,000.00 USDT and risk cleared.'
+      title: isEs ? 'Cuenta Demo 100K Restablecida' : '100K Demo Account Reset',
+      message: isEs ? 'Saldo restablecido a $100,000.00 USDT iniciales y riesgo reiniciado.' : 'Balance reset to initial $100,000.00 USDT and risk cleared.'
     });
   };
 

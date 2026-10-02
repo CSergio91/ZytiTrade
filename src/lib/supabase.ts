@@ -10,7 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface PropFirmAccount {
   id: string;
-  firmId: string;
+  firmId?: string;
   firmName: string;
   accountNumber: string;
   initialBalance: number;
@@ -37,7 +37,7 @@ export interface UserSession {
   provider?: 'email' | 'demo' | 'google' | 'github' | 'telegram';
   telegramId?: number;
   telegramUsername?: string;
-  role?: 'admin' | 'trader';
+  role?: 'admin' | 'trader' | 'soporte' | 'marketing';
   isVerified?: boolean;
   accounts?: PropFirmAccount[];
   activeAccountId?: string;
@@ -151,6 +151,91 @@ export async function fetchTraderAccounts(email: string): Promise<PropFirmAccoun
   }
 }
 
+/**
+ * Consulta y auto-aprovisiona la cuenta oficial estandarizada de 100K si el trader no tiene una en Supabase.
+ */
+export async function ensureDefaultDemoAccount(email: string, userId?: string): Promise<PropFirmAccount[]> {
+  try {
+    const clean = email.trim().toLowerCase();
+    if (!clean) return [];
+
+    const existing = await fetchTraderAccounts(clean);
+    if (existing.length > 0) {
+      return existing;
+    }
+
+    // Auto-aprovisionar cuenta demo estándar de 100K
+    const suffix = (userId || clean).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || Math.floor(1000 + Math.random() * 9000);
+    const accountNumber = `ZYTI-100K-${suffix}`;
+    const accessToken = `sso_${(userId || clean).replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+
+    const defaultRules: PropFirmAccount['rulesConfig'] = {
+      maxDailyDrawdownPct: 5.0,
+      maxTotalDrawdownPct: 10.0,
+      maxLeverage: 100,
+      profitTargetPct: 8.0,
+      minTradingDays: 5,
+      drawdownType: 'EOD'
+    };
+
+    const { data, error } = await supabase
+      .from('trading_accounts')
+      .insert({
+        account_number: accountNumber,
+        trader_email: clean,
+        initial_balance: 100000.00,
+        current_balance: 100000.00,
+        equity: 100000.00,
+        peak_equity: 100000.00,
+        daily_start_equity: 100000.00,
+        status: 'ACTIVE',
+        rules_config: defaultRules,
+        access_token: accessToken
+      })
+      .select(`
+        id,
+        firm_id,
+        account_number,
+        initial_balance,
+        current_balance,
+        equity,
+        status,
+        rules_config
+      `)
+      .single();
+
+    if (error || !data) {
+      console.warn('[ZYTI DB] Fallback local para cuenta demo 100K:', error?.message);
+      return [{
+        id: `demo_${Date.now()}`,
+        firmId: 'zyti_funding',
+        firmName: 'ZYTI Funding 100K',
+        accountNumber,
+        initialBalance: 100000.00,
+        currentBalance: 100000.00,
+        equity: 100000.00,
+        status: 'ACTIVE',
+        rulesConfig: defaultRules
+      }];
+    }
+
+    return [{
+      id: data.id,
+      firmId: data.firm_id,
+      firmName: 'ZYTI Funding 100K',
+      accountNumber: data.account_number,
+      initialBalance: Number(data.initial_balance),
+      currentBalance: Number(data.current_balance),
+      equity: Number(data.equity),
+      status: data.status,
+      rulesConfig: data.rules_config || defaultRules
+    }];
+  } catch (err) {
+    console.error('[ZYTI DB] Error inesperado en ensureDefaultDemoAccount:', err);
+    return [];
+  }
+}
+
 const IS_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -256,7 +341,7 @@ export async function bootstrapUserSession(identifiers: {
     }
 
     const effectiveEmail = profile?.email || email || '';
-    const accounts = effectiveEmail ? await fetchTraderAccounts(effectiveEmail) : [];
+    const accounts = effectiveEmail ? await ensureDefaultDemoAccount(effectiveEmail, profile?.id || userId) : [];
 
     const session: UserSession = {
       id: profile?.id || userId,

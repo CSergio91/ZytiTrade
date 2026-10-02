@@ -158,6 +158,22 @@ export function useCrmDashboard() {
     setTraders(prev => prev.map(t => t.id === traderId ? { ...t, role: newRole } : t));
   };
 
+  // Modificar estado de una cuenta (ACTIVE, WARNING, BREACHED, FROZEN)
+  const handleUpdateTraderStatus = async (traderId: string, newStatus: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN') => {
+    await crmService.updateTraderStatus(traderId, newStatus);
+    setTraders(prev => prev.map(t => t.id === traderId ? { ...t, status: newStatus } : t));
+    // Reflejar de inmediato en el Sentinel
+    setMonitoredPositions(prev => prev.map(p => {
+      if (p.id.includes(traderId) || p.accountNumber.includes(traderId)) {
+        return {
+          ...p,
+          ruleHealth: newStatus === 'BREACHED' ? 'BREACHED' : newStatus === 'WARNING' ? 'WARNING' : 'HEALTHY'
+        };
+      }
+      return p;
+    }));
+  };
+
   // Acciones de Reglas de Riesgo
   const handleSaveRule = async (ruleData: Partial<RiskRuleConfigEntity>) => {
     const saved = await crmService.saveRiskRule(ruleData);
@@ -224,6 +240,7 @@ export function useCrmDashboard() {
     setNewlyCreatedKey,
     handleUpdateTraderAccountSize,
     handleUpdateTraderRole,
+    handleUpdateTraderStatus,
     handleResetTraderBalance,
     handleSaveRule,
     handleCreateApiKey,

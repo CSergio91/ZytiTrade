@@ -1,5 +1,5 @@
 import React from 'react';
-import { CrmModuleId } from '../types/crm.types';
+import { CrmModuleId, CrmStaffRole, ROLE_CARD_PERMISSIONS } from '../types/crm.types';
 import { CrmLang } from '../types/i18n';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 
@@ -7,15 +7,17 @@ interface ErpModulesGridProps {
   lang?: CrmLang;
   activeModule: CrmModuleId;
   onSelectModule: (module: CrmModuleId) => void;
-  activeRiskCount?: number;
-  activeApiKeysCount?: number;
+  userRole?: CrmStaffRole;
 }
 
 export const ErpModulesGrid: React.FC<ErpModulesGridProps> = ({
   lang = 'es',
-  onSelectModule
+  onSelectModule,
+  userRole = 'admin'
 }) => {
   const isEs = lang === 'es';
+  const effectiveRole: CrmStaffRole = userRole || 'admin';
+  const allowedIds = ROLE_CARD_PERMISSIONS[effectiveRole] || ROLE_CARD_PERMISSIONS.admin;
 
   const modules: {
     id: CrmModuleId;
@@ -140,7 +142,7 @@ export const ErpModulesGrid: React.FC<ErpModulesGridProps> = ({
 
       {/* Grid de Cards compactas y estilizadas idénticas a la referencia */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {modules.map(mod => {
+        {modules.filter(m => allowedIds.includes(m.id)).map(mod => {
           return (
             <div
               key={mod.id}

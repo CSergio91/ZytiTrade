@@ -351,6 +351,53 @@ Trader Desktop         Trader Mobile          CRM Admin (Nexus)
 - Latencia sub-milisegundo interna gracias a Redis Pub/Sub en memoria.
 - Circuito de riesgo cerrado en RAM: Liquidación y corte forzoso transmitido simultáneamente a Terminales y CRM en microsegundos.
 
+### 5.1 Diagrama Canónico de Ejecución en Ráfaga (HFT Hot-Path)
+
+```text
+      Binance / Bybit / OKX
+                │
+                ▼
+        CENTRAL INGESTION
+                │
+                ▼
+              REDIS
+                │
+         ┌──────┴──────┐
+         ▼             ▼
+   MARKET EVENTS  RISK ENGINE
+                       │
+               ┌───────┴───────┐
+               ▼               ▼
+           Account A       Account B
+           positions       positions
+           equity          equity
+           drawdown        drawdown
+               │               │
+               └───────┬───────┘
+                       ▼
+                 ORDER ENGINE
+                       │
+               ┌───────┴───────┐
+               ▼               ▼
+            Broker 1        Broker 2
+```
+
+### 5.2 Estándares Institucionales de Ejecución y Riesgo
+1. **Cuenta Demo Estandarizada a 100K ($100,000 USD):**
+   - Se erradica cualquier selector arbitrario de saldo en el frontend.
+   - Todo nuevo trader recibe una cuenta demo oficial:
+     - `initial_balance`: `$100,000.00 USD`
+     - `max_daily_loss`: `5.00%` (`$5,000.00 USD`)
+     - `max_total_drawdown`: `10.00%` (`$10,000.00 USD`)
+     - `max_leverage`: `100x`
+2. **Persistencia por Filas Individuales (Write-Behind Queue):**
+   - Prohibido acumular trades dentro de un JSON monolítico. Cada trade es una fila atómica en `public.account_trades` para soportar índices B-Tree, cierres parciales y SL/TP independientes.
+   - Las ráfagas (ej. 20 trades a la vez) se ejecutan en 0ms en RAM y se persisten en bloque (*Bulk Insert*) hacia Supabase sin saturar el pool de conexiones.
+3. **Modelo de Apalancamiento Cripto (Cero Lotes de Forex):**
+   - Tamaño = $\text{Margen USDT} \times \text{Apalancamiento} = \text{Nocional USD}$.
+   - Unidades = $\text{Nocional USD} / \text{Precio de Entrada}$.
+
+
 ---
 
 ## 6. Despliegue Local con Docker Compose (Portable 1-Click a Producción)

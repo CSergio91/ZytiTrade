@@ -15,7 +15,7 @@ import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
 import { TelegramOnboardingApp } from './components/TelegramOnboardingApp';
 import { NotFoundPage } from './components/NotFoundPage';
 import { InstitutionalCrmApp } from './modules/crm';
-import { getStoredSession, setStoredSession, UserSession, supabase, fetchTraderAccounts, bootstrapUserSession, saveUserProfile } from './lib/supabase';
+import { getStoredSession, setStoredSession, UserSession, supabase, ensureDefaultDemoAccount, bootstrapUserSession, saveUserProfile } from './lib/supabase';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -214,7 +214,7 @@ export const App: React.FC = () => {
                 });
               }
             } else {
-              const accounts = await fetchTraderAccounts(user.email || '');
+              const accounts = await ensureDefaultDemoAccount(user.email || '', user.id);
               finalSession = {
                 id: user.id,
                 email: user.email || '',
@@ -257,7 +257,7 @@ export const App: React.FC = () => {
             });
           }
         } else {
-          const accounts = await fetchTraderAccounts(user.email || '');
+          const accounts = await ensureDefaultDemoAccount(user.email || '', user.id);
           finalSession = {
             id: user.id,
             email: user.email || '',

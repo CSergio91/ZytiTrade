@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles, Smartphone, ArrowLeft, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Language } from '../i18n/translations';
-import { supabase, setStoredSession, UserSession, fetchTraderAccounts, bootstrapUserSession, saveUserProfile } from '../lib/supabase';
+import { supabase, setStoredSession, UserSession, ensureDefaultDemoAccount, bootstrapUserSession, saveUserProfile } from '../lib/supabase';
 import { convertImageUrlToWebP } from '../utils/imageOptimizer';
 import { LottieAnimation } from './LottieAnimation';
 import loginAnimationData from '../assets/animations/login.json';
@@ -125,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       const fullName = existingName;
-      const propAccounts = await fetchTraderAccounts(registeredEmail || `${tgUser.id}@telegram.org`);
+      const propAccounts = await ensureDefaultDemoAccount(registeredEmail || `${tgUser.id}@telegram.org`, supaUserId);
       const userSession: UserSession = {
         id: supaUserId, 
         email: registeredEmail,
@@ -341,7 +341,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             const rawAvatar = await fetchTelegramAvatarUrl(botToken, sessionData.telegram_id);
             if (rawAvatar) avatarUrl = await convertImageUrlToWebP(rawAvatar);
           }
-          const propAccounts = await fetchTraderAccounts(sessionData.email || '');
+          const propAccounts = await ensureDefaultDemoAccount(sessionData.email || '', sessionData.user_id);
           const userSession: UserSession = {
             id: sessionData.user_id,
             email: sessionData.email || '',
@@ -490,7 +490,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             const rawAvatar = await fetchTelegramAvatarUrl(botToken, sessionData.telegram_id);
             if (rawAvatar) avatarUrl = await convertImageUrlToWebP(rawAvatar);
           }
-          const propAccounts = await fetchTraderAccounts(sessionData.email);
+          const propAccounts = await ensureDefaultDemoAccount(sessionData.email, sessionData.user_id);
           const userSession: UserSession = {
             id: sessionData.user_id,
             email: sessionData.email,
@@ -679,7 +679,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
         if (error) throw error;
         if (data.user) {
-          const propAccounts = await fetchTraderAccounts(data.user.email || cleanEmail);
+          const propAccounts = await ensureDefaultDemoAccount(data.user.email || cleanEmail, data.user.id);
           const userSession: UserSession = {
             id: data.user.id,
             email: data.user.email || cleanEmail,
@@ -702,7 +702,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error;
         if (data.user) {
           const bootstrapped = await bootstrapUserSession({ userId: data.user.id, email: data.user.email });
-          const propAccounts = bootstrapped?.accounts || await fetchTraderAccounts(data.user.email || cleanEmail);
+          const propAccounts = bootstrapped?.accounts || await ensureDefaultDemoAccount(data.user.email || cleanEmail, data.user.id);
           const userSession: UserSession = bootstrapped || {
             id: data.user.id,
             email: data.user.email || cleanEmail,

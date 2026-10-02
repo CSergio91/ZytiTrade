@@ -16,7 +16,8 @@ import {
   RiskRuleConfigEntity, 
   TraderClientEntity,
   ExchangeAffiliateItem,
-  PropFirmAffiliateItem
+  PropFirmAffiliateItem,
+  UserCrmRole
 } from '../types/crm.types';
 
 // Preset inicial por defecto en caso de que la tabla aún no esté migrada en la BD remota
@@ -120,30 +121,54 @@ export const crmService = {
         .order('created_at', { ascending: false });
 
       if (error || !profiles || profiles.length === 0) {
-        return this.getFallbackTraders();
+        return [];
       }
 
-      // Obtener configuraciones de cuenta demo guardadas en localStorage
-      const savedAccountsMap: Record<string, { size: number; balance: number }> = {};
+      // Consultar cuentas de trading reales vinculadas a los perfiles
+      const { data: accountsData } = await supabase
+        .from('trading_accounts')
+        .select('*');
+
+      const accountsByEmail = new Map<string, any>();
+      if (accountsData) {
+        for (const acc of accountsData) {
+          if (acc.trader_email) {
+            accountsByEmail.set(acc.trader_email.trim().toLowerCase(), acc);
+          }
+        }
+      }
+
+      // Obtener roles guardados en caché local (para actualización inmediata sin esperas de red)
+      const savedRolesMap: Record<string, UserCrmRole> = {};
       try {
-        const local = localStorage.getItem('zyti_trader_demo_accounts');
-        if (local) Object.assign(savedAccountsMap, JSON.parse(local));
+        const local = localStorage.getItem('zyti_trader_roles_cache');
+        if (local) Object.assign(savedRolesMap, JSON.parse(local));
+      } catch {}
+
+      // Obtener estados guardados en caché local
+      const savedStatusMap: Record<string, 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN'> = {};
+      try {
+        const local = localStorage.getItem('zyti_trader_status_cache');
+        if (local) Object.assign(savedStatusMap, JSON.parse(local));
       } catch {}
 
       return profiles.map((p, index) => {
-        const defaultSize = index === 0 ? 50000 : index === 1 ? 100000 : 10000;
-        const accountInfo = savedAccountsMap[p.id] || { size: defaultSize, balance: defaultSize };
+        const emailKey = (p.email || '').trim().toLowerCase();
+        const realAccount = accountsByEmail.get(emailKey);
 
-        // Variación ligera de PnL en vivo para demostración visual
-        const pnl = index === 0 ? 1240.50 : index === 1 ? -1450.00 : 320.00;
-        const currentBalance = accountInfo.size + pnl;
-        const dailyDd = pnl < 0 ? Number((Math.abs(pnl) / accountInfo.size * 100).toFixed(2)) : 0;
-        
-        let status: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN' = 'ACTIVE';
-        if (dailyDd >= 5.0) status = 'BREACHED';
-        else if (dailyDd >= 3.8) status = 'WARNING';
+        const initialSize = realAccount ? Number(realAccount.initial_balance) : 100000;
+        const currentBalance = realAccount ? Number(realAccount.current_balance) : initialSize;
+        const equity = realAccount ? Number(realAccount.equity) : currentBalance;
+        const pnl = equity - initialSize;
 
-        const accNum = `ZYTI-DEMO-${(p.id || 'ACC').slice(0, 5).toUpperCase()}`;
+        const dailyDd = realAccount?.daily_start_equity && Number(realAccount.daily_start_equity) > 0
+          ? Math.max(0, Number(((Number(realAccount.daily_start_equity) - equity) / Number(realAccount.daily_start_equity) * 100).toFixed(2)))
+          : (pnl < 0 ? Number((Math.abs(pnl) / initialSize * 100).toFixed(2)) : 0);
+
+        const autoStatus: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN' = (realAccount?.status as any) || (dailyDd >= 5.0 ? 'BREACHED' : dailyDd >= 3.8 ? 'WARNING' : 'ACTIVE');
+        const status = savedStatusMap[p.id] || autoStatus;
+        const assignedRole = savedRolesMap[p.id] || (p.role as UserCrmRole) || 'trader';
+        const accNum = realAccount?.account_number || `ZYTI-100K-${(p.id || 'ACC').slice(0, 5).toUpperCase()}`;
 
         return {
           id: p.id,
@@ -153,84 +178,24 @@ export const crmService = {
           provider: (p.provider as any) || (p.telegram_id ? 'telegram' : 'email'),
           telegramId: p.telegram_id,
           telegramUsername: p.telegram_username,
-          role: p.role || 'trader',
+          role: assignedRole,
           isVerified: p.is_verified ?? true,
           createdAt: p.created_at || new Date().toISOString(),
           accountNumber: accNum,
-          accountSize: accountInfo.size,
+          accountSize: initialSize,
           currentBalance: currentBalance,
-          equity: currentBalance,
+          equity: equity,
           floatingPnl: pnl,
           dailyDrawdownPct: dailyDd,
-          totalDrawdownPct: dailyDd,
+          totalDrawdownPct: Number((Math.max(0, (initialSize - equity) / initialSize * 100)).toFixed(2)),
           status,
           lastActivity: new Date(Date.now() - 1000 * 60 * (index * 15 + 5)).toLocaleTimeString()
         };
       });
     } catch (e) {
-      console.warn('[CRM Service] Error fetching profiles from Supabase, using fallback:', e);
-      return this.getFallbackTraders();
+      console.warn('[CRM Service] Error fetching profiles from Supabase:', e);
+      return [];
     }
-  },
-
-  getFallbackTraders(): TraderClientEntity[] {
-    return [
-      {
-        id: 'user-01',
-        fullName: 'Carlos Trader',
-        email: 'carlos@zytitrade.com',
-        provider: 'telegram',
-        telegramUsername: 'carlos_zyti',
-        role: 'admin',
-        isVerified: true,
-        createdAt: '2026-10-01T12:00:00Z',
-        accountNumber: 'ZYTI-DEMO-50K-01',
-        accountSize: 50000,
-        currentBalance: 51240.50,
-        equity: 51240.50,
-        floatingPnl: 1240.50,
-        dailyDrawdownPct: 0.0,
-        totalDrawdownPct: 0.0,
-        status: 'ACTIVE',
-        lastActivity: 'Ahora'
-      },
-      {
-        id: 'user-02',
-        fullName: 'Alex Scalper',
-        email: 'alex.scalp@gmail.com',
-        provider: 'google',
-        role: 'trader',
-        isVerified: true,
-        createdAt: '2026-10-01T14:30:00Z',
-        accountNumber: 'ZYTI-DEMO-100K-02',
-        accountSize: 100000,
-        currentBalance: 96150.00,
-        equity: 96150.00,
-        floatingPnl: -3850.00,
-        dailyDrawdownPct: 3.85,
-        totalDrawdownPct: 3.85,
-        status: 'WARNING',
-        lastActivity: 'Hace 12 min'
-      },
-      {
-        id: 'user-03',
-        fullName: 'Elena Pro',
-        email: 'elena@hedgefund.io',
-        provider: 'email',
-        role: 'trader',
-        isVerified: true,
-        createdAt: '2026-10-02T09:15:00Z',
-        accountNumber: 'ZYTI-DEMO-10K-03',
-        accountSize: 10000,
-        currentBalance: 10420.00,
-        equity: 10420.00,
-        floatingPnl: 420.00,
-        dailyDrawdownPct: 0.0,
-        totalDrawdownPct: 0.0,
-        status: 'ACTIVE',
-        lastActivity: 'Hace 45 min'
-      }
-    ];
   },
 
   /**
@@ -246,15 +211,49 @@ export const crmService = {
   },
 
   /**
-   * Actualiza el rol de un usuario (trader, soporte, admin, marketing) en Supabase y localmente
+   * Actualiza el rol de un usuario (trader, soporte, admin, marketing) en caché y Supabase
    */
-  async updateTraderRole(traderId: string, newRole: any): Promise<void> {
+  async updateTraderRole(traderId: string, newRole: UserCrmRole): Promise<void> {
     try {
+      // 1. Guardar en caché local para persistencia instantánea y evitar parpadeos
+      const local = localStorage.getItem('zyti_trader_roles_cache') || '{}';
+      const parsed = JSON.parse(local);
+      parsed[traderId] = newRole;
+      localStorage.setItem('zyti_trader_roles_cache', JSON.stringify(parsed));
+
+      // 2. Si el trader actualizado es el usuario logueado en la sesión actual, actualizarlo
+      try {
+        const sessionStr = localStorage.getItem('zyti_user_session');
+        if (sessionStr) {
+          const session = JSON.parse(sessionStr);
+          if (session.id === traderId || session.email === traderId) {
+            session.role = newRole;
+            localStorage.setItem('zyti_user_session', JSON.stringify(session));
+            localStorage.setItem('zyti_user_role', newRole);
+          }
+        }
+      } catch {}
+
+      // 3. Persistir en Supabase profiles si es un UUID válido
       if (traderId && traderId.length > 10) {
         await supabase.from('profiles').update({ role: newRole }).eq('id', traderId);
       }
     } catch (e) {
-      console.warn('[CRM Service] Error actualizando rol en Supabase:', e);
+      console.warn('[CRM Service] Error actualizando rol:', e);
+    }
+  },
+
+  /**
+   * Actualiza el estado sentinela de una cuenta (ACTIVE, WARNING, BREACHED, FROZEN)
+   */
+  async updateTraderStatus(traderId: string, newStatus: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN'): Promise<void> {
+    try {
+      const local = localStorage.getItem('zyti_trader_status_cache') || '{}';
+      const parsed = JSON.parse(local);
+      parsed[traderId] = newStatus;
+      localStorage.setItem('zyti_trader_status_cache', JSON.stringify(parsed));
+    } catch (e) {
+      console.warn('[CRM Service] Error actualizando estado:', e);
     }
   },
 
