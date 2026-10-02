@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal, BookOpen, ListFilter, Check, ChevronDown, ChevronRight, User } from 'lucide-react';
-import { UserSession } from '../../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { 
+  ArrowLeftRight, LogOut, Repeat, X, SlidersHorizontal, BookOpen, ListFilter, Check, 
+  ChevronDown, ChevronRight, User, Globe, CheckCircle2, Settings, Edit3, ShieldCheck, Sparkles 
+} from 'lucide-react';
+import { UserSession, supabase, setStoredSession } from '../../lib/supabase';
+import { Language } from '../../i18n/translations';
 
 interface TerminalSideNavProps {
   isEs: boolean;
+  currentLang?: Language;
+  onLanguageChange?: (lang: Language) => void;
+  onUpdateUser?: (updated: UserSession) => void;
+  quickTradeEnabled?: boolean;
+  onToggleQuickTrade?: () => void;
   navPosition: 'left' | 'right';
   isMobileNavOpen: boolean;
   activeSection: string;
@@ -47,6 +56,11 @@ export const JapaneseCandlesticksIcon: React.FC<{ className?: string }> = ({ cla
 
 export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   isEs,
+  currentLang = 'es',
+  onLanguageChange,
+  onUpdateUser,
+  quickTradeEnabled = false,
+  onToggleQuickTrade,
   navPosition,
   isMobileNavOpen,
   activeSection,
@@ -65,7 +79,70 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
   onCloseMobileNav,
   onExit
 }) => {
+  const getInitialEmail = (u?: UserSession | null): string => {
+    if (!u?.email) return '';
+    if (u.email.endsWith('@telegram.org')) return '';
+    return u.email;
+  };
+
   const [isClickedExpanded, setIsClickedExpanded] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editEmail, setEditEmail] = useState(getInitialEmail(user));
+  const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user?.name) setEditName(user.name);
+    if (user?.avatarUrl) setEditAvatarUrl(user.avatarUrl);
+    setEditEmail(getInitialEmail(user));
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setIsSavingProfile(true);
+    try {
+      const cleanEmail = editEmail.trim() || undefined;
+      const updatedUser: UserSession = {
+        ...user,
+        email: cleanEmail || '',
+        name: editName.trim(),
+        avatarUrl: editAvatarUrl.trim() || undefined
+      };
+
+      if (user?.id) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              full_name: editName.trim(),
+              email: cleanEmail || null,
+              avatar_url: editAvatarUrl.trim() || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+        } catch (dbErr) {
+          console.warn('Could not sync profile to db:', dbErr);
+        }
+      }
+
+      setStoredSession(updatedUser);
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      setIsEditingProfile(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const [isTradingSubmenuOpen, setIsTradingSubmenuOpen] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('zyti_trading_submenu_open');
@@ -86,23 +163,350 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
     });
   };
 
+  const renderProfilePanel = () => (
+    <div className="absolute inset-0 bg-[#fbf9f4] z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-out">
+      {/* HEADER DEL PANEL DE PERFIL */}
+      <div className="px-3.5 py-3 border-b border-[#ded5c5] flex items-center justify-between bg-[#f6f2e9] shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-400/60 flex items-center justify-center text-amber-900">
+            <User className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-slate-900 leading-tight">
+              {isEs ? 'Perfil de Usuario' : 'User Profile'}
+            </h3>
+            <p className="text-[10px] text-slate-500 font-medium leading-tight">
+              {isEs ? 'Ajustes y preferencias' : 'Settings & preferences'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsProfileOpen(false)}
+          className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 flex items-center justify-center transition-colors cursor-pointer"
+          title={isEs ? 'Cerrar' : 'Close'}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* CONTENIDO SCROLLEABLE IDÉNTICO AL MÓVIL */}
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 custom-scrollbar">
+        {/* 1. TARJETA DE IDENTIDAD */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs flex flex-col items-center text-center relative overflow-hidden">
+          <div className="relative mb-2">
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name || 'User'}
+                className="w-16 h-16 rounded-full object-cover border-2 border-amber-500 shadow-sm"
+              />
+            ) : user?.provider === 'telegram' ? (
+              <div className="w-16 h-16 rounded-full bg-[#229ED9] flex items-center justify-center shadow-sm">
+                <svg className="w-9 h-9 fill-white" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                </svg>
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-amber-500 text-amber-950 font-black text-xl flex items-center justify-center shadow-sm">
+                {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'T'}
+              </div>
+            )}
+            <span className="absolute bottom-0 right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs" title={isEs ? 'En línea' : 'Online'} />
+          </div>
+
+          {/* Nombre y referencia centrados */}
+          <h3 className="text-sm font-black text-slate-900 leading-tight">
+            {user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (isEs ? 'Trader ZYTI' : 'ZYTI Trader'))}
+          </h3>
+          <p className="text-[11px] text-slate-500 mt-0.5 font-medium truncate max-w-full">
+            {user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email : '')}
+          </p>
+
+          {/* Badges centrados */}
+          <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              {isEs ? 'Trader Verificado' : 'Verified Trader'}
+            </span>
+            {user?.provider === 'telegram' ? (
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#229ED9]/15 text-[#1b8bc2] border border-[#229ED9]/30 flex items-center gap-1">
+                <svg className="w-2.5 h-2.5 fill-[#229ED9]" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                </svg>
+                Telegram Auth
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-900 border border-amber-300 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-amber-600" />
+                Email Auth
+              </span>
+            )}
+          </div>
+
+          {/* Notificación de guardado */}
+          {saveSuccess && (
+            <div className="mt-2.5 px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 animate-in fade-in zoom-in-95">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{isEs ? 'Perfil actualizado con éxito' : 'Profile updated successfully'}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 2. TARJETA EDITAR PERFIL */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+              <span>{isEs ? 'Editar Perfil' : 'Edit Profile'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditingProfile(!isEditingProfile)}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-900 cursor-pointer"
+            >
+              {isEditingProfile ? (isEs ? 'Cancelar' : 'Cancel') : (isEs ? 'Modificar' : 'Modify')}
+            </button>
+          </div>
+
+          {isEditingProfile ? (
+            <form onSubmit={handleSaveProfile} className="space-y-3 pt-1">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  {isEs ? 'Nombre para mostrar / Alias' : 'Display Name / Alias'}
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder={isEs ? 'Ej: Alex Trader' : 'e.g. Alex Trader'}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  {isEs ? 'Correo Electrónico (Opcional)' : 'Email Address (Optional)'}
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder={isEs ? 'ej: usuario@gmail.com' : 'e.g. user@gmail.com'}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                  {isEs ? 'URL de Foto de Perfil (Opcional)' : 'Avatar Photo URL (Optional)'}
+                </label>
+                <input
+                  type="url"
+                  value={editAvatarUrl}
+                  onChange={(e) => setEditAvatarUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSavingProfile || !editName.trim()}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors active:scale-98"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{isSavingProfile ? (isEs ? 'Guardando...' : 'Saving...') : (isEs ? 'Guardar Cambios' : 'Save Changes')}</span>
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-400">{isEs ? 'Nombre' : 'Name'}:</span>
+                <span className="font-bold text-slate-900 truncate max-w-[150px]">{user?.name || (isEs ? 'Sin definir' : 'Not set')}</span>
+              </div>
+              {user?.telegramUsername && (
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-400">Telegram:</span>
+                  <span className="font-mono text-[#1b8bc2] font-bold truncate max-w-[150px]">@{user.telegramUsername}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-400">{isEs ? 'Correo' : 'Email'}:</span>
+                <span className="font-mono text-slate-700 truncate max-w-[150px]">
+                  {user?.email && !user.email.endsWith('@telegram.org') 
+                    ? user.email 
+                    : (isEs ? 'No configurado (Opcional)' : 'Not configured (Optional)')}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. SELECCIÓN DE IDIOMA (ESPAÑOL / ENGLISH) */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs">
+          <div className="flex items-center gap-1.5 pb-2.5 mb-2.5 border-b border-slate-100 text-xs font-bold text-slate-800">
+            <Globe className="w-3.5 h-3.5 text-amber-600" />
+            <span>{isEs ? 'Selección de Idioma' : 'Language Selection'}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* BOTÓN ESPAÑOL */}
+            <button
+              type="button"
+              onClick={() => onLanguageChange?.('es')}
+              className={`py-2 px-2 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                currentLang === 'es'
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-950 font-black shadow-xs ring-2 ring-amber-400/20'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-base leading-none">🇪🇸</span>
+                <span className="text-xs font-bold truncate">Español</span>
+              </div>
+              {currentLang === 'es' && (
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              )}
+            </button>
+
+            {/* BOTÓN ENGLISH */}
+            <button
+              type="button"
+              onClick={() => onLanguageChange?.('en')}
+              className={`py-2 px-2 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                currentLang === 'en'
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-950 font-black shadow-xs ring-2 ring-amber-400/20'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-base leading-none">🇬🇧</span>
+                <span className="text-xs font-bold truncate">English</span>
+              </div>
+              {currentLang === 'en' && (
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 4. PREFERENCIAS DE INTERFAZ & OPERATIVA */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#ded5c5] shadow-xs space-y-3">
+          <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 text-xs font-bold text-slate-800">
+            <Settings className="w-3.5 h-3.5 text-amber-600" />
+            <span>{isEs ? 'Preferencias de Interfaz' : 'Interface Preferences'}</span>
+          </div>
+
+          {/* TOGGLE 1-TOQUE */}
+          {onToggleQuickTrade && (
+            <div className="flex items-center justify-between text-xs">
+              <div>
+                <span className="font-bold text-slate-800 block">
+                  {isEs ? 'Operaciones Rápidas (1-Toque)' : 'Quick 1-Tap Trading'}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  {isEs ? 'Botones de COMPRA y VENTA flotantes' : 'Floating BUY and SELL quick buttons'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleQuickTrade}
+                className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                  quickTradeEnabled ? 'bg-amber-500' : 'bg-slate-300'
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    quickTradeEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+
+          {/* TOGGLE POSICIÓN BARRA LATERAL */}
+          {onToggleNavPosition && (
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+              <div>
+                <span className="font-bold text-slate-800 block">
+                  {isEs ? 'Lado de Navegación Lateral' : 'Lateral Navigation Position'}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  {navPosition === 'left' ? (isEs ? 'Izquierda' : 'Left') : (isEs ? 'Derecha' : 'Right')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleNavPosition}
+                className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer border border-slate-200 transition-colors"
+              >
+                <ArrowLeftRight className="w-3 h-3 text-amber-600" />
+                <span>{isEs ? 'Alternar' : 'Toggle'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 5. DATOS DE SESIÓN Y CUENTA */}
+        <div className="p-3 rounded-2xl bg-white/70 border border-[#ded5c5] space-y-1.5 text-xs text-slate-600">
+          <div className="flex justify-between items-center text-[10.5px]">
+            <span className="text-slate-400">{isEs ? 'ID de Usuario' : 'User ID'}:</span>
+            <span className="font-mono font-bold text-slate-800">#{user?.id ? user.id.slice(0, 10).toUpperCase() : 'ZYTI-USER-01'}</span>
+          </div>
+          <div className="flex justify-between items-center text-[10.5px]">
+            <span className="text-slate-400">{isEs ? 'Método de Acceso' : 'Login Method'}:</span>
+            <span className="font-bold text-slate-800 capitalize">{user?.provider || 'Telegram'}</span>
+          </div>
+          <div className="flex justify-between items-center text-[10.5px]">
+            <span className="text-slate-400">{isEs ? 'Estado de Cuenta' : 'Account Status'}:</span>
+            <span className="font-bold text-emerald-600">{isEs ? 'Activa y Segura' : 'Active and Secure'}</span>
+          </div>
+        </div>
+
+        {/* 6. BOTÓN CERRAR SESIÓN */}
+        {onExit && (
+          <button
+            type="button"
+            onClick={onExit}
+            className="w-full py-2.5 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>{isEs ? 'Cerrar Sesión Segura' : 'Secure Log Out'}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* 1. BARRA LATERAL EN ESCRITORIO (>= 1024px) */}
       <aside 
         className="terminal-side-nav"
-        onMouseLeave={() => setIsClickedExpanded(false)}
+        onMouseLeave={() => {
+          if (!isProfileOpen) setIsClickedExpanded(false);
+        }}
       >
         {/* Contenedor base de 48px para reservar el espacio permanente en el layout */}
         <div className={`w-12 h-full ${navPosition === 'left' ? 'border-r' : 'border-l'} border-[#ded5c5] bg-[#fbf9f4]`} />
         
         {/* Menú flotante al hover o al click que vuela por encima del gráfico sin redimensionarlo ni empujarlo */}
         <div 
-          onMouseLeave={() => setIsClickedExpanded(false)}
+          onMouseLeave={() => {
+            if (!isProfileOpen) setIsClickedExpanded(false);
+          }}
           className={`absolute top-0 bottom-0 ${navPosition === 'left' ? 'left-0 border-r' : 'right-0 border-l'} ${
-            isClickedExpanded ? 'w-64 shadow-2xl' : 'w-12 hover:w-64 shadow-xs hover:shadow-2xl'
-          } bg-[#fbf9f4] border-[#ded5c5] transition-all duration-300 ease-out flex flex-col justify-between py-3 px-1.5 group z-40 overflow-hidden`}
+            isProfileOpen
+              ? 'w-80 shadow-2xl z-50'
+              : isClickedExpanded
+                ? 'w-64 shadow-2xl z-40'
+                : 'w-12 hover:w-64 shadow-xs hover:shadow-2xl z-40'
+          } bg-[#fbf9f4] border-[#ded5c5] transition-all duration-300 ease-out flex flex-col justify-between py-3 px-1.5 group overflow-hidden`}
         >
+          {/* PANEL DESPLEGABLE HACIA ARRIBA DE PERFIL EN LA MISMA NAVEGACIÓN LATERAL */}
+          {isProfileOpen && renderProfilePanel()}
           {/* SECCIONES ARRIBA */}
           <div className="space-y-2">
             {/* SECCIÓN 1: TRADING CON SUBMENÚS */}
@@ -255,12 +659,17 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
 
           {/* PIE DE NAVEGACIÓN ABAJO: PERFIL DE USUARIO + CAMBIAR SENTIDO + CERRAR SESIÓN */}
           <div className="pt-2 border-t border-slate-200 space-y-1.5">
-            {/* BADGE DE PERFIL DE USUARIO EN ESCRITORIO */}
-            <div 
-              className={`w-full flex items-center gap-2 p-1.5 rounded-xl bg-amber-500/10 border border-amber-300/70 overflow-hidden select-none transition-all ${
+            {/* BADGE DE PERFIL DE USUARIO EN ESCRITORIO (CLICK PARA ABRIR PERFIL HACIA ARRIBA) */}
+            <button 
+              type="button"
+              onClick={() => {
+                setIsProfileOpen(true);
+                setIsClickedExpanded(true);
+              }}
+              className={`w-full flex items-center gap-2 p-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-300/70 hover:border-amber-400 overflow-hidden select-none transition-all cursor-pointer text-left ${
                 isClickedExpanded ? 'justify-start' : 'justify-center group-hover:justify-start'
               }`}
-              title={user?.name || user?.email || (isEs ? 'Perfil de Usuario' : 'User Profile')}
+              title={isEs ? 'Ver y editar perfil' : 'View and edit profile'}
             >
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name || 'User'} className="w-6 h-6 rounded-full object-cover shrink-0 border border-amber-400" />
@@ -280,10 +689,10 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                   {user ? (user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email.split('@')[0] : 'Trader'))) : 'ZYTI Trade'}
                 </span>
                 <span className="text-[9px] font-bold text-amber-800 truncate">
-                  {user ? (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Admin' : (isEs ? 'Trader Activo' : 'Active Trader'))) : 'Live Terminal'}
+                  {user ? (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Admin' : (isEs ? 'Editar Perfil' : 'Edit Profile'))) : 'Live Terminal'}
                 </span>
               </div>
-            </div>
+            </button>
 
             {/* BOTÓN CAMBIO DE POSICIÓN IZQUIERDA / DERECHA */}
             <button
@@ -321,7 +730,8 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
       {/* 2. DRAWER DE NAVEGACIÓN EN MÓVIL (< 1024px) */}
       {isMobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end">
-          <div className="w-72 h-full bg-[#fbf9f4] border-l border-[#ded5c5] shadow-2xl p-4 flex flex-col justify-between animate-slide-in-right">
+          <div className="w-72 h-full bg-[#fbf9f4] border-l border-[#ded5c5] shadow-2xl p-4 flex flex-col justify-between animate-slide-in-right relative overflow-hidden">
+            {isProfileOpen && renderProfilePanel()}
             <div>
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
                 <span className="text-xs font-black text-slate-900">Menú ZYTI Trade</span>
@@ -335,7 +745,12 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
               </div>
 
               {/* PERFIL DE USUARIO EN EL DRAWER MÓVIL */}
-              <div className="mb-3 p-2.5 rounded-2xl bg-amber-500/10 border border-amber-300/80 flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(true)}
+                className="w-full mb-3 p-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-300/80 flex items-center gap-2.5 text-left cursor-pointer transition-colors"
+                title={isEs ? 'Ver y editar perfil' : 'View and edit profile'}
+              >
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.name || 'User'} className="w-8 h-8 rounded-full object-cover shrink-0 border border-amber-400" />
                 ) : user?.provider === 'telegram' ? (
@@ -354,10 +769,10 @@ export const TerminalSideNav: React.FC<TerminalSideNavProps> = ({
                     {user ? (user?.name || (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.email && !user.email.endsWith('@telegram.org') ? user.email.split('@')[0] : 'Trader'))) : 'ZYTI Trade'}
                   </span>
                   <span className="text-[10px] font-bold text-amber-800 truncate">
-                    {user ? (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Administrador' : (isEs ? 'Cuenta Activa' : 'Active Account'))) : 'Live Terminal'}
+                    {user ? (user?.telegramUsername ? `@${user.telegramUsername}` : (user?.role === 'admin' ? 'Administrador' : (isEs ? 'Editar Perfil' : 'Edit Profile'))) : 'Live Terminal'}
                   </span>
                 </div>
-              </div>
+              </button>
 
               {/* SECCIONES TRADING Y EXCHANGE */}
               <div className="space-y-1">

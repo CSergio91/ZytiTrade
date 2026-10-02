@@ -2161,6 +2161,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         {navPosition === 'left' && (
           <TerminalSideNav
             isEs={isEs}
+            currentLang={currentLang}
+            onLanguageChange={onLanguageChange}
+            onUpdateUser={onUpdateUser}
+            quickTradeEnabled={quickTradeEnabled}
+            onToggleQuickTrade={toggleQuickTrade}
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
@@ -2427,6 +2432,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         {navPosition === 'right' && (
           <TerminalSideNav
             isEs={isEs}
+            currentLang={currentLang}
+            onLanguageChange={onLanguageChange}
+            onUpdateUser={onUpdateUser}
+            quickTradeEnabled={quickTradeEnabled}
+            onToggleQuickTrade={toggleQuickTrade}
             navPosition={navPosition}
             isMobileNavOpen={isMobileNavOpen}
             activeSection={activeSection}
@@ -2499,6 +2509,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       {isMobileNavOpen && (
         <TerminalSideNav
           isEs={isEs}
+          currentLang={currentLang}
+          onLanguageChange={onLanguageChange}
+          onUpdateUser={onUpdateUser}
+          quickTradeEnabled={quickTradeEnabled}
+          onToggleQuickTrade={toggleQuickTrade}
           navPosition={navPosition}
           isMobileNavOpen={isMobileNavOpen}
           activeSection={activeSection}
