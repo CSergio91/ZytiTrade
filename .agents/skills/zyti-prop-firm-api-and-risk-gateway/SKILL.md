@@ -147,6 +147,49 @@ CREATE TABLE IF NOT EXISTS account_trades (
 );
 
 CREATE INDEX idx_account_trades_account ON account_trades(account_id);
+
+-- ============================================================================
+-- 4. CONFIGURACIÓN DINÁMICA DE REGLAS DE RIESGO (Cero valores hardcodeados)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS risk_rule_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id UUID REFERENCES prop_firms(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL, -- ej: 'Challenge Estándar 10K', 'Aggressive 50K'
+  max_daily_loss_percent NUMERIC(5, 2) NOT NULL DEFAULT 5.00,
+  max_total_drawdown_percent NUMERIC(5, 2) NOT NULL DEFAULT 10.00,
+  max_trailing_drawdown_percent NUMERIC(5, 2) DEFAULT NULL,
+  drawdown_type VARCHAR(30) NOT NULL DEFAULT 'EOD', -- 'EOD' | 'TRAILING_EQUITY'
+  max_leverage INT NOT NULL DEFAULT 100,
+  mandatory_stop_loss BOOLEAN NOT NULL DEFAULT false,
+  weekend_holding_allowed BOOLEAN NOT NULL DEFAULT true,
+  consistency_rule_percent NUMERIC(5, 2) DEFAULT 40.00,
+  min_trading_days INT DEFAULT 5,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_risk_rule_configs_firm ON risk_rule_configs(firm_id);
+
+-- ============================================================================
+-- 5. CREDENCIALES API (EMPRESAS DE FONDEO Y AGENTES DE INTELIGENCIA ARTIFICIAL)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS api_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  key_type VARCHAR(30) NOT NULL CHECK (key_type IN ('prop_firm', 'ai_agent', 'webhook')),
+  api_key_public VARCHAR(64) UNIQUE NOT NULL, -- 'zyti_live_...' / 'zyti_agent_...'
+  key_hash VARCHAR(128) NOT NULL,             -- SHA-256 del secret
+  scopes TEXT[] NOT NULL DEFAULT '{}',        -- ['trade:execute', 'firm:provision']
+  ip_whitelist TEXT[] DEFAULT '{}',           -- Restricción por IP para agentes de IA
+  rate_limit_rpm INT DEFAULT 120,             -- Rate limit por minuto
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  last_used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_api_credentials_public ON api_credentials(api_key_public);
 ```
 
 ---
@@ -270,26 +313,43 @@ Disparado instantáneamente en el sub-milisegundo en que el trader toca el lími
 Para erradicar la saturación de IP y que **no exista 1 WebSocket abierto a Binance por cada usuario**, se implementa el patrón **Fan-Out In-Memory**:
 
 ```text
-  [ BINANCE / BYBIT / OKX ]
-             │ (1 Única Conexión WSS por Par, ej: btcusdt@kline_15m)
-             ▼
-   [ ZYTI INGESTION WORKER ] 
+      Binance / Bybit / OKX
+                │
+                │ 1 conexión WSS por par
+                ▼
+┌──────────────────────────┐
+│ CENTRAL INGESTION WORKER │
+│         Node / Bun       │
+└────────────┬─────────────┘
              │
-             ├──► Escribe en Redis ZSET (K-lines calientes)
-             └──► Publica en Canal Redis Pub/Sub: 'kline:BTC/USDT:15m'
-                       │
-                       ▼
-            [ ZYTI WEBSOCKET GATEWAY ]
-                       │
-                       ├──► Cliente 1 (Navegador Chrome)
-                       ├──► Cliente 2 (Navegador Firefox)
-                       ├──► Cliente N (Miles de usuarios simultáneos)
+             ▼
+        ┌─────────┐
+        │  REDIS  │
+        │         │
+        │  ZSET   │ ← Velas recientes
+        │ Pub/Sub │ ← Ticks en vivo
+        └────┬────┘
+             │
+     ┌───────┴───────────────┐
+     ▼                       ▼
+[ WS GATEWAY ]         [ RISK ENGINE ]
+(Native WebSocket)     (Equity / Drawdown
+     │                  en RAM)
+     │                       │
+     │                 Infracción / Liquidación
+     │                       │
+     │                     REDIS
+     │                       │
+     ├───────────────────────┴──────────────────────┐
+     ▼                                              ▼
+Trader Desktop         Trader Mobile          CRM Admin (Nexus)
 ```
 
 **Ventajas Operativas:**
 - Consumo constante de 1 sola conexión hacia el CEX sin importar cuántos miles de traders operen simultáneamente.
 - Cero riesgo de *API ban* o baneo por exceso de sockets abiertos en Binance.
 - Latencia sub-milisegundo interna gracias a Redis Pub/Sub en memoria.
+- Circuito de riesgo cerrado en RAM: Liquidación y corte forzoso transmitido simultáneamente a Terminales y CRM en microsegundos.
 
 ---
 
@@ -346,3 +406,19 @@ volumes:
 docker compose -f docker-compose.infra.yml up -d
 ```
 Para producción en cualquier VPS (Ubuntu, Debian, AWS, Hetzner), se utiliza el mismo archivo cambiando únicamente las contraseñas en un archivo `.env`.
+
+---
+
+## 7. Gobernanza de Modularización y Empaquetado NPM / PNPM Package
+
+Para evitar duplicar código entre **ZYTI Trade** y las plataformas de las Empresas de Fondeo (como **Global City Funding**):
+
+1. **Aislamiento Funcional en Carpetas Independientes:**
+   - `src/modules/crm/`: Módulo completo de CRM Institucional (KPIs, API Gateway, Monitor de Riesgo). Totalmente desacoplado del frontend comercial.
+   - `src/modules/terminal/` (o `@zyti/terminal`): Núcleo de trading (KLineChart v10 Canvas, OMS, EMS, OrderForm, PositionTable).
+2. **Estrategia Monorepo / Paquete Distribuible:**
+   - La arquitectura permite empaquetar `@zyti/crm-admin` y `@zyti/terminal` vía `pnpm` o como paquete privado.
+   - **En la Empresa de Fondeo (Global City Funding):** Se instala directamente (`pnpm add @zyti/terminal`) importando el componente `<TradingTerminal />` y pasando por props las credenciales del broker y la URL del WS Gateway. Cero necesidad de iframes frágiles ni código copiado a mano.
+3. **Reutilización del Motor de Riesgo:**
+   - El `TradingEngine` y `RiskEngine` son 100% agnósticos del DOM y pueden ejecutarse idénticamente en React, Web Workers o microservicios Node.js en backend.
+

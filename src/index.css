@@ -184,6 +184,27 @@ html.dark .satellite-card {
   scrollbar-width: none;
 }
 
+/* Scrollbar Institucional ZYTI */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(220, 214, 202, 0.25);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(160, 150, 135, 0.45);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 110, 95, 0.7);
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 150, 135, 0.45) rgba(220, 214, 202, 0.25);
+}
+
 /* ----------------------------------------------------
    CRISTAL / GLASSMORPHISM INSTITUCIONAL CON DESENFOQUE
    ---------------------------------------------------- */

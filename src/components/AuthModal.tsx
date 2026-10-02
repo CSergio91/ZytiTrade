@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles, Smartphone, ArrowLeft, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Language } from '../i18n/translations';
-import { supabase, setStoredSession, UserSession, fetchTraderAccounts } from '../lib/supabase';
+import { supabase, setStoredSession, UserSession, fetchTraderAccounts, bootstrapUserSession, saveUserProfile } from '../lib/supabase';
+import { convertImageUrlToWebP } from '../utils/imageOptimizer';
 import { LottieAnimation } from './LottieAnimation';
 import loginAnimationData from '../assets/animations/login.json';
 
@@ -11,6 +12,30 @@ interface AuthModalProps {
   currentLang: Language;
   onLoginSuccess?: (user: UserSession) => void;
 }
+
+const fetchTelegramAvatarUrl = async (token: string, userId: number): Promise<string | undefined> => {
+  if (!token || !userId) return undefined;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getUserProfilePhotos?user_id=${userId}&limit=1`);
+    if (!res.ok) return undefined;
+    const data = await res.json();
+    if (data.ok && data.result?.total_count > 0) {
+      const photos = data.result.photos?.[0];
+      if (photos && photos.length > 0) {
+        const bestPhoto = photos[photos.length - 1];
+        const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${bestPhoto.file_id}`);
+        if (!fileRes.ok) return undefined;
+        const fileData = await fileRes.json();
+        if (fileData.ok && fileData.result?.file_path) {
+          return `https://api.telegram.org/file/bot${token}/${fileData.result.file_path}`;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Telegram photo fetch] failed:', e);
+  }
+  return undefined;
+};
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -59,17 +84,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       let registeredEmail = tgUser.email || '';
       let supaUserId = tgUser.userId || String(tgUser.id);
+      let existingAvatar = tgUser.photo_url;
+      let existingName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
 
-      if (!registeredEmail) {
-        const { data: profList } = await supabase
-          .from('profiles')
-          .select('id, email, full_name')
-          .eq('telegram_id', tgUser.id)
-          .order('updated_at', { ascending: false });
-        const prof = profList?.find((p) => p.email && p.email.includes('@')) || profList?.[0];
-        if (prof?.email) {
-          registeredEmail = prof.email;
-          if (prof.id) supaUserId = prof.id;
+      // 1. Consultar perfil existente para preservar nombre personalizado o avatar ya guardado
+      const { data: profList } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url')
+        .or(`telegram_id.eq.${tgUser.id}${registeredEmail ? `,email.eq.${registeredEmail}` : ''}`)
+        .order('updated_at', { ascending: false });
+
+      const prof = profList?.find((p) => p.email && p.email.includes('@')) || profList?.[0];
+      if (prof) {
+        if (prof.email) registeredEmail = prof.email;
+        if (prof.id) supaUserId = prof.id;
+        if (prof.full_name) existingName = prof.full_name;
+        if (prof.avatar_url) existingAvatar = prof.avatar_url;
+      }
+
+      // Si no hay foto registrada ni en tgUser ni en el perfil, intentar descargar del bot
+      if (!existingAvatar && botToken) {
+        const rawTgAvatar = await fetchTelegramAvatarUrl(botToken, tgUser.id);
+        if (rawTgAvatar) {
+          existingAvatar = await convertImageUrlToWebP(rawTgAvatar);
         }
       }
 
@@ -87,21 +124,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
-
+      const fullName = existingName;
       const propAccounts = await fetchTraderAccounts(registeredEmail || `${tgUser.id}@telegram.org`);
       const userSession: UserSession = {
         id: supaUserId, 
         email: registeredEmail,
         name: fullName,
-        avatarUrl: tgUser.photo_url, 
+        avatarUrl: existingAvatar, 
         provider: 'telegram', 
+        telegramId: tgUser.id,
         telegramUsername: tgUser.username,
         role: 'trader', 
         accounts: propAccounts,
         isVerified: true,
         activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
       };
+
+      // Si obtuvimos un avatar nuevo de Telegram que no estaba en profiles, guardarlo de inmediato
+      if (existingAvatar && !prof?.avatar_url) {
+        saveUserProfile(userSession, { avatarUrl: existingAvatar, name: fullName }).catch(() => {});
+      }
+
       setStoredSession(userSession);
       setSuccessMsg(isEs ? `¡Bienvenido, ${fullName}!` : `Welcome, ${fullName}!`);
       if (onLoginSuccess) onLoginSuccess(userSession);
@@ -109,7 +152,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al autenticar con Telegram');
     } finally { setLoading(false); }
-  }, [isEs, onLoginSuccess, onClose]);
+  }, [isEs, onLoginSuccess, onClose, botToken]);
 
   const openCenteredPopup = (url: string, title: string, w = 550, h = 650) => {
     const left = Math.max(0, (window.screen.width - w) / 2);
@@ -293,18 +336,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             supabase.from('telegram_auth_sessions').delete().eq('code', telegramAuthCode).then();
           }, 3500);
 
+          let avatarUrl = sessionData.avatar_url;
+          if (!avatarUrl && sessionData.telegram_id && botToken) {
+            const rawAvatar = await fetchTelegramAvatarUrl(botToken, sessionData.telegram_id);
+            if (rawAvatar) avatarUrl = await convertImageUrlToWebP(rawAvatar);
+          }
           const propAccounts = await fetchTraderAccounts(sessionData.email || '');
           const userSession: UserSession = {
             id: sessionData.user_id,
             email: sessionData.email || '',
             name: sessionData.full_name || 'Trader',
+            avatarUrl,
             provider: 'telegram',
+            telegramId: sessionData.telegram_id,
             telegramUsername: sessionData.telegram_username,
             role: 'trader',
             accounts: propAccounts,
             isVerified: true,
             activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
           };
+
+          if (avatarUrl) {
+            saveUserProfile(userSession, { avatarUrl }).catch(() => {});
+          }
 
           setStoredSession(userSession);
           setSuccessMsg(isEs ? `¡Bienvenido a ZYTI Trade, ${userSession.name}!` : `Welcome to ZYTI Trade, ${userSession.name}!`);
@@ -317,7 +371,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (detectedTelegramIdRef.current) {
           const { data: profileList } = await supabase
             .from('profiles')
-            .select('id, email, full_name, telegram_username')
+            .select('id, email, full_name, avatar_url, telegram_username')
             .eq('telegram_id', detectedTelegramIdRef.current)
             .order('updated_at', { ascending: false });
 
@@ -331,6 +385,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               id: detectedTelegramIdRef.current,
               first_name: syncedProfile.full_name || 'Trader',
               username: syncedProfile.telegram_username,
+              photo_url: syncedProfile.avatar_url,
               auth_date: Date.now(),
               hash: 'profile_sync_' + telegramAuthCode,
               email: syncedProfile.email,
@@ -358,7 +413,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 const { data: profileList } = await supabase
                   .from('profiles')
-                  .select('id, email, full_name, telegram_username')
+                  .select('id, email, full_name, avatar_url, telegram_username')
                   .eq('telegram_id', from.id)
                   .order('updated_at', { ascending: false });
 
@@ -370,11 +425,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setAwaitingOnboarding(false);
                   closeTelegramPopup();
                   sendTelegramWelcomeMessage(chatId, from);
+                  let photoUrl = existingProfile.avatar_url;
+                  if (!photoUrl && botToken) {
+                    const rawTg = await fetchTelegramAvatarUrl(botToken, from.id);
+                    if (rawTg) photoUrl = await convertImageUrlToWebP(rawTg);
+                  }
                   handleTelegramAuthSuccess({
                     id: from.id,
                     first_name: from.first_name,
                     last_name: from.last_name,
                     username: from.username,
+                    photo_url: photoUrl,
                     auth_date: match.message.date,
                     hash: 'deep_link_' + telegramAuthCode,
                     email: existingProfile.email,
@@ -424,18 +485,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTelegramWaiting(false);
           setAwaitingOnboarding(false);
           closeTelegramPopup();
+          let avatarUrl = sessionData.avatar_url;
+          if (!avatarUrl && sessionData.telegram_id && botToken) {
+            const rawAvatar = await fetchTelegramAvatarUrl(botToken, sessionData.telegram_id);
+            if (rawAvatar) avatarUrl = await convertImageUrlToWebP(rawAvatar);
+          }
           const propAccounts = await fetchTraderAccounts(sessionData.email);
           const userSession: UserSession = {
             id: sessionData.user_id,
             email: sessionData.email,
             name: sessionData.full_name || 'Trader',
+            avatarUrl,
             provider: 'telegram',
+            telegramId: sessionData.telegram_id,
             telegramUsername: sessionData.telegram_username,
             role: 'trader',
             accounts: propAccounts,
             isVerified: true,
             activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
           };
+          if (avatarUrl) {
+            saveUserProfile(userSession, { avatarUrl }).catch(() => {});
+          }
           setStoredSession(userSession);
           setSuccessMsg(isEs ? `¡Bienvenido, ${userSession.name}!` : `Welcome, ${userSession.name}!`);
           if (onLoginSuccess) onLoginSuccess(userSession);
@@ -448,7 +519,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (detectedTelegramIdRef.current) {
         const { data: profileList } = await supabase
           .from('profiles')
-          .select('id, email, full_name, telegram_username')
+          .select('id, email, full_name, avatar_url, telegram_username')
           .eq('telegram_id', detectedTelegramIdRef.current)
           .order('updated_at', { ascending: false });
 
@@ -457,10 +528,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTelegramWaiting(false);
           setAwaitingOnboarding(false);
           closeTelegramPopup();
+          let photoUrl = existingProfile.avatar_url;
+          if (!photoUrl && botToken) {
+            const rawTg = await fetchTelegramAvatarUrl(botToken, detectedTelegramIdRef.current);
+            if (rawTg) photoUrl = await convertImageUrlToWebP(rawTg);
+          }
           await handleTelegramAuthSuccess({
             id: detectedTelegramIdRef.current,
             first_name: existingProfile.full_name || 'Trader',
             username: existingProfile.telegram_username,
+            photo_url: photoUrl,
             auth_date: Date.now(),
             hash: 'manual_verify_' + Date.now(),
             email: existingProfile.email,
@@ -482,7 +559,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           const { data: profileList } = await supabase
             .from('profiles')
-            .select('id, email, full_name, telegram_username')
+            .select('id, email, full_name, avatar_url, telegram_username')
             .eq('telegram_id', from.id)
             .order('updated_at', { ascending: false });
 
@@ -493,11 +570,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             setAwaitingOnboarding(false);
             closeTelegramPopup();
             sendTelegramWelcomeMessage(chatId, from);
+            let photoUrl = existingProfile.avatar_url;
+            if (!photoUrl && botToken) {
+              const rawTg = await fetchTelegramAvatarUrl(botToken, from.id);
+              if (rawTg) photoUrl = await convertImageUrlToWebP(rawTg);
+            }
             await handleTelegramAuthSuccess({
               id: from.id,
               first_name: from.first_name,
               last_name: from.last_name,
               username: from.username,
+              photo_url: photoUrl,
               auth_date: lastMsg.message.date,
               hash: 'manual_verify_' + Date.now(),
               email: existingProfile.email,
@@ -618,11 +701,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
         if (error) throw error;
         if (data.user) {
-          const propAccounts = await fetchTraderAccounts(data.user.email || cleanEmail);
-          const userSession: UserSession = {
+          const bootstrapped = await bootstrapUserSession({ userId: data.user.id, email: data.user.email });
+          const propAccounts = bootstrapped?.accounts || await fetchTraderAccounts(data.user.email || cleanEmail);
+          const userSession: UserSession = bootstrapped || {
             id: data.user.id,
             email: data.user.email || cleanEmail,
             name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+            avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture,
             provider: 'email',
             role: cleanEmail.toLowerCase().includes('admin@') ? 'admin' : 'trader',
             accounts: propAccounts,

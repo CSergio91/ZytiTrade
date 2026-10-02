@@ -94,3 +94,46 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_equity_snapshots_account ON equity_snapshots(account_id, recorded_at);
+
+-- ============================================================================
+-- 5. REGLAS DE RIESGO DINÁMICAS (Cero valores hardcodeados para Risk Engine)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.risk_rule_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id UUID REFERENCES prop_firms(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL, -- ej: 'Challenge Estándar 10K', 'Evaluación Swing 50K'
+  max_daily_loss_percent NUMERIC(5, 2) NOT NULL DEFAULT 5.00,
+  max_total_drawdown_percent NUMERIC(5, 2) NOT NULL DEFAULT 10.00,
+  max_trailing_drawdown_percent NUMERIC(5, 2) DEFAULT NULL,
+  drawdown_type VARCHAR(30) NOT NULL DEFAULT 'EOD', -- 'EOD' | 'TRAILING_EQUITY'
+  max_leverage INT NOT NULL DEFAULT 100,
+  mandatory_stop_loss BOOLEAN NOT NULL DEFAULT false,
+  weekend_holding_allowed BOOLEAN NOT NULL DEFAULT true,
+  consistency_rule_percent NUMERIC(5, 2) DEFAULT 40.00,
+  min_trading_days INT DEFAULT 5,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_risk_rule_configs_firm ON public.risk_rule_configs(firm_id);
+
+-- ============================================================================
+-- 6. CREDENCIALES DE API (EMPRESAS DE FONDEO Y AGENTES DE INTELIGENCIA ARTIFICIAL)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.api_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL, -- ej: 'Global City Funding Gateway', 'AI Agent Arbitrage Alpha'
+  key_type VARCHAR(30) NOT NULL CHECK (key_type IN ('prop_firm', 'ai_agent', 'webhook')),
+  api_key_public VARCHAR(64) UNIQUE NOT NULL, -- ej: 'zyti_live_...', 'zyti_agent_...'
+  key_hash VARCHAR(128) NOT NULL,             -- Hash SHA-256 del secret
+  scopes TEXT[] NOT NULL DEFAULT '{}',        -- ['trade:execute', 'firm:provision', 'metrics:read']
+  ip_whitelist TEXT[] DEFAULT '{}',           -- Restricción por IP para agentes de IA
+  rate_limit_rpm INT DEFAULT 120,             -- Límite de peticiones por minuto
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  last_used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_credentials_public ON public.api_credentials(api_key_public);

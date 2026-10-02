@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut, 
   Award, TrendingUp, CheckCircle2, ShieldCheck, Sparkles, Globe, 
-  Edit3, Check, ArrowLeftRight, Settings
+  Edit3, Check, ArrowLeftRight, Settings, Upload, Loader2, Trash2
 } from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
-import { UserSession, supabase, setStoredSession } from '../../lib/supabase';
+import { UserSession, saveUserProfile } from '../../lib/supabase';
 import { Language } from '../../i18n/translations';
+import { optimizeImageToWebP } from '../../utils/imageOptimizer';
 
 interface TerminalMobileSheetProps {
   isEs: boolean;
@@ -77,6 +78,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onSelectPosition,
   onSelectLimitOrder
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const getInitialEmail = (u?: UserSession | null): string => {
     if (!u?.email) return '';
     if (u.email.endsWith('@telegram.org')) return '';
@@ -88,6 +90,7 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   const [editName, setEditName] = useState(user?.name || '');
   const [editEmail, setEditEmail] = useState(getInitialEmail(user));
   const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || '');
+  const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -97,36 +100,34 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
     setEditEmail(getInitialEmail(user));
   }, [user]);
 
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsOptimizingImage(true);
+    try {
+      // Optimización automática en cliente a WebP (256x256 max, calidad 0.85)
+      const webpDataUrl = await optimizeImageToWebP(file, { maxWidth: 256, maxHeight: 256, quality: 0.85 });
+      setEditAvatarUrl(webpDataUrl);
+    } catch (err: any) {
+      console.error('Error optimizing image:', err);
+      alert(err?.message || (isEs ? 'Error al procesar la imagen' : 'Error processing image'));
+    } finally {
+      setIsOptimizingImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editName.trim()) return;
     setIsSavingProfile(true);
     try {
-      const cleanEmail = editEmail.trim() || undefined;
-      const updatedUser: UserSession = {
-        ...user,
-        email: cleanEmail || '',
+      const updatedUser = await saveUserProfile(user, {
         name: editName.trim(),
+        email: editEmail.trim() || undefined,
         avatarUrl: editAvatarUrl.trim() || undefined
-      };
+      });
 
-      if (user?.id) {
-        try {
-          await supabase
-            .from('profiles')
-            .update({
-              full_name: editName.trim(),
-              email: cleanEmail || null,
-              avatar_url: editAvatarUrl.trim() || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', user.id);
-        } catch (dbErr) {
-          console.warn('Could not sync profile to db:', dbErr);
-        }
-      }
-
-      setStoredSession(updatedUser);
       if (onUpdateUser) {
         onUpdateUser(updatedUser);
       }
@@ -808,14 +809,72 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
                           <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                              {isEs ? 'URL de Foto de Perfil (Opcional)' : 'Avatar Photo URL (Optional)'}
+                              {isEs ? 'Foto de Perfil (Dispositivo o URL)' : 'Profile Photo (Device or URL)'}
                             </label>
+
+                            {/* Input oculto de subida de archivo */}
+                            <input
+                              type="file"
+                              ref={fileInputRef}
+                              accept="image/*"
+                              onChange={handleImageFileChange}
+                              className="hidden"
+                            />
+
+                            {/* Botón para subir directamente desde el dispositivo */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isOptimizingImage}
+                                className="flex-1 py-2 px-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-950 font-bold text-[11px] flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
+                              >
+                                {isOptimizingImage ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+                                    <span>{isEs ? 'Optimizando a WebP...' : 'Optimizing to WebP...'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>{isEs ? 'Subir desde dispositivo (WebP)' : 'Upload from device (WebP)'}</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {editAvatarUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditAvatarUrl('')}
+                                  className="p-2 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                                  title={isEs ? 'Quitar foto' : 'Remove photo'}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Preview en vivo si hay avatarUrl */}
+                            {editAvatarUrl && (
+                              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 mb-2">
+                                <img
+                                  src={editAvatarUrl}
+                                  alt="Preview"
+                                  className="w-8 h-8 rounded-full object-cover border border-amber-400"
+                                />
+                                <div className="text-[10px] text-slate-500 truncate flex-1 font-mono">
+                                  {editAvatarUrl.startsWith('data:image/webp') ? '✅ WebP Optimizado' : editAvatarUrl}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Opcional: escribir URL manualmente */}
                             <input
                               type="url"
-                              value={editAvatarUrl}
+                              value={editAvatarUrl.startsWith('data:') ? '' : editAvatarUrl}
                               onChange={(e) => setEditAvatarUrl(e.target.value)}
-                              placeholder="https://..."
-                              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
+                              placeholder={editAvatarUrl.startsWith('data:') ? (isEs ? 'Foto cargada desde dispositivo (WebP)' : 'Photo loaded from device (WebP)') : 'https://...'}
+                              className="w-full px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 transition-colors"
                             />
                           </div>
 

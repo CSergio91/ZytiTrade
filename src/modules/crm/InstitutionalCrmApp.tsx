@@ -1,0 +1,592 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useCrmDashboard } from './hooks/useCrmDashboard';
+import { KpiHeader } from './components/KpiHeader';
+import { ErpModulesGrid } from './components/ErpModulesGrid';
+import { TradersClientsTable } from './components/TradersClientsTable';
+import { ApiGatewayCard } from './components/ApiGatewayCard';
+import { RiskEngineCard } from './components/RiskEngineCard';
+import { AffiliatesManagerCard } from './components/AffiliatesManagerCard';
+import { DynamicRulesModal } from './components/DynamicRulesModal';
+import { CreateApiKeyModal } from './components/CreateApiKeyModal';
+import { CrmLang, crmTranslations } from './types/i18n';
+import { CrmModuleId } from './types/crm.types';
+import { UserSession } from '../../lib/supabase';
+import { 
+  Globe, 
+  ChevronDown, 
+  LogOut, 
+  ArrowLeft, 
+  RefreshCw, 
+  Clock, 
+  Server, 
+  LayoutGrid, 
+  CreditCard, 
+  Trophy, 
+  Headphones, 
+  Megaphone,
+  Check
+} from 'lucide-react';
+
+interface InstitutionalCrmAppProps {
+  user?: UserSession | null;
+  initialLang?: CrmLang;
+  onBackToTerminal?: () => void;
+  onLogout?: () => void;
+}
+
+export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
+  user,
+  initialLang = 'es',
+  onBackToTerminal,
+  onLogout
+}) => {
+  const [lang, setLang] = useState<CrmLang>(() => {
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname.toLowerCase();
+      if (pathname.startsWith('/en')) return 'en';
+      if (pathname.startsWith('/es')) return 'es';
+      const stored = localStorage.getItem('zyti_lang') as CrmLang;
+      if (stored === 'es' || stored === 'en') return stored;
+    }
+    return initialLang;
+  });
+
+  const [langOpen, setLangOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Cerrar dropdown de idioma al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const t = crmTranslations[lang] || crmTranslations.es;
+  const isEs = lang === 'es';
+
+  const {
+    activeModule,
+    setActiveModule,
+    kpis,
+    traders,
+    riskRules,
+    selectedRuleId,
+    setSelectedRuleId,
+    activeRule,
+    apiCredentials,
+    monitoredPositions,
+    isLoading,
+    isRuleModalOpen,
+    setIsRuleModalOpen,
+    editingRule,
+    setEditingRule,
+    isApiKeyModalOpen,
+    setIsApiKeyModalOpen,
+    newlyCreatedKey,
+    setNewlyCreatedKey,
+    handleUpdateTraderAccountSize,
+    handleUpdateTraderRole,
+    handleResetTraderBalance,
+    handleSaveRule,
+    handleCreateApiKey,
+    handleToggleApiKey,
+    handleDeleteApiKey,
+    handleEmergencyLiquidation,
+    refreshData
+  } = useCrmDashboard();
+
+  // Sincronización Bidireccional de URL por Sección
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+
+    if (path.includes('/risk-engine')) setActiveModule('risk_engine');
+    else if (path.includes('/apis')) setActiveModule('apis');
+    else if (path.includes('/challenges')) setActiveModule('challenges');
+    else if (path.includes('/plans')) setActiveModule('plans');
+    else if (path.includes('/exchanges')) setActiveModule('exchanges');
+    else if (path.includes('/prop-firms')) setActiveModule('prop_firms');
+    else if (path.includes('/support')) setActiveModule('support');
+    else if (path.includes('/marketing')) setActiveModule('marketing');
+    else setActiveModule('hub');
+  }, []);
+
+  // Desbloqueo nativo del scroll de html y body al montar el CRM
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyHeight = document.body.style.height;
+
+    document.documentElement.style.overflow = 'auto';
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.height = prevBodyHeight;
+    };
+  }, []);
+
+  const handleSelectModuleWithUrl = (mod: CrmModuleId) => {
+    setActiveModule(mod);
+    if (typeof window === 'undefined') return;
+
+    const moduleSlugMap: Record<CrmModuleId, string> = {
+      hub: '',
+      risk_engine: '/risk-engine',
+      apis: '/apis',
+      challenges: '/challenges',
+      plans: '/plans',
+      exchanges: '/exchanges',
+      prop_firms: '/prop-firms',
+      support: '/support',
+      marketing: '/marketing'
+    };
+
+    const targetUrl = `/${lang}/nexus${moduleSlugMap[mod]}`;
+    if (window.location.pathname.toLowerCase() !== targetUrl.toLowerCase()) {
+      window.history.pushState({ module: mod }, '', targetUrl);
+    }
+  };
+
+  const moduleTitles: Record<CrmModuleId, { es: string; en: string }> = {
+    hub: { es: 'Panel Principal', en: 'ERP Hub' },
+    risk_engine: { es: 'Motor de Riesgo', en: 'Risk Engine' },
+    apis: { es: 'APIs & Agentes IA', en: 'Developer APIs' },
+    challenges: { es: 'Retos de Fondeo', en: 'Challenges' },
+    plans: { es: 'Planes SaaS', en: 'SaaS Plans' },
+    exchanges: { es: '16 Exchanges', en: '16 Exchanges' },
+    prop_firms: { es: 'Empresas de Fondeo', en: 'Prop Firms' },
+    support: { es: 'Soporte Técnico', en: 'Support Desk' },
+    marketing: { es: 'Marketing & SEO', en: 'Marketing & SEO' }
+  };
+
+  const [utcTime, setUtcTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setUtcTime(now.toUTCString().slice(17, 25) + ' UTC');
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleLanguage = (newLang: CrmLang) => {
+    setLang(newLang);
+    localStorage.setItem('zyti_lang', newLang);
+    setLangOpen(false);
+
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      const stripped = currentPath.replace(/^\/(es|en)/, '');
+      const newPath = `/${newLang}${stripped || '/nexus'}`;
+      window.history.replaceState(null, '', newPath);
+    }
+  };
+
+  // Datos del admin logueado
+  const adminName = user?.name || 'Carlos';
+  const adminEmail = user?.email || 'servtecempmant@gmail.com';
+  const adminAvatar = user?.avatarUrl;
+
+  return (
+    <div 
+      className="min-h-screen w-full overflow-y-auto overflow-x-hidden custom-scrollbar text-[#0F172A] flex flex-col font-sans selection:bg-[#EAB308]/30 selection:text-[#020617] relative z-30"
+      style={{
+        backgroundColor: '#FBF9F4',
+        backgroundImage: `
+          linear-gradient(to right, rgba(220, 214, 202, 0.45) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(220, 214, 202, 0.45) 1px, transparent 1px)
+        `,
+        backgroundSize: '36px 36px'
+      }}
+    >
+      {/* Barra de Navegación Superior ERP Ultra-Limpia */}
+      <header className="sticky top-0 z-40 w-full px-4 sm:px-6 py-2.5 bg-white/95 backdrop-blur-xl border-b border-[#e5dfd3] shadow-xs flex items-center justify-between gap-4">
+        {/* Logo Oficial de ZYTI & Título Nexus */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => handleSelectModuleWithUrl('hub')} 
+            className="flex items-center gap-2.5 bg-transparent border-none p-0 cursor-pointer text-left"
+          >
+            <img 
+              src="/logo-zyti.png" 
+              alt="ZYTI Trade Logo" 
+              className="w-8 h-8 object-contain transition-transform duration-200 hover:scale-105" 
+            />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 leading-none">
+                <span className="text-lg font-black tracking-tight text-slate-950 font-sans">
+                  ZYTI <span className="font-light text-slate-500">Nexus</span>
+                </span>
+                <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-[#f4efe4] border border-[#ded7c8] text-slate-800">
+                  {isEs ? 'ERP Central' : 'ERP Core'}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-semibold tracking-wide mt-0.5">
+                {isEs ? 'Pasarela de Fondeo & Riesgo' : 'Prop Firm & Risk Gateway'}
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* Telemetría, Datos del Admin y Controles */}
+        <div className="flex items-center gap-2.5">
+          {/* Identidad del Administrador Logueado */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-[#e5dfd3] shadow-xs">
+            <div className="w-7 h-7 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center text-[10px] font-black text-purple-900 overflow-hidden shrink-0">
+              {adminAvatar ? (
+                <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+              ) : (
+                adminName.slice(0, 2).toUpperCase()
+              )}
+            </div>
+            <div className="text-left min-w-0 max-w-[150px]">
+              <div className="text-xs font-black text-slate-900 leading-tight truncate">
+                {adminName}
+              </div>
+              <div className="text-[9px] font-bold text-purple-700 leading-tight truncate">
+                {adminEmail}
+              </div>
+            </div>
+          </div>
+
+          {/* Reloj UTC */}
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f8f6f0] border border-[#e5dfd3] text-xs font-mono text-slate-600">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span className="font-semibold">{utcTime || '00:00:00 UTC'}</span>
+          </div>
+
+          {/* Estado de Conexión Redis Ingestion */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f8f6f0] border border-[#e5dfd3] text-xs">
+            <Server className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-bold text-slate-700">{t.redisBus}</span>
+          </div>
+
+          {/* Botón Refrescar */}
+          <button
+            onClick={() => refreshData()}
+            className="p-2 rounded-xl bg-[#f8f6f0] hover:bg-slate-100 border border-[#e5dfd3] text-slate-600 hover:text-slate-950 transition-colors cursor-pointer"
+            title={t.refresh}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-purple-700' : ''}`} />
+          </button>
+
+          {/* Selector de Idioma (Luminoso, sin fondos negros) */}
+          <div className="relative" ref={langDropdownRef}>
+            <button 
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#ded5c5] bg-[#f8f6f0] hover:bg-slate-100 transition-colors text-xs font-bold text-slate-900 shadow-2xs cursor-pointer"
+            >
+              <Globe className="w-3.5 h-3.5 text-slate-600" />
+              <span>{lang.toUpperCase()}</span>
+              <ChevronDown className="w-3 h-3 text-slate-500" />
+            </button>
+
+            {langOpen && (
+              <div className="absolute top-full mt-2 w-36 rounded-2xl p-1.5 z-50 right-0 bg-white/98 backdrop-blur-md shadow-2xl border border-slate-200 animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={() => toggleLanguage('es')}
+                  className={`w-full text-left px-3 py-2 text-xs font-black rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                    lang === 'es' 
+                      ? 'bg-[#EAB308]/20 text-[#854D0E] border border-[#EAB308]/30 shadow-xs' 
+                      : 'hover:bg-[#ede5d6] text-slate-900'
+                  }`}
+                >
+                  <span>Español</span>
+                  {lang === 'es' && <Check className="w-3.5 h-3.5 text-[#854D0E]" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleLanguage('en')}
+                  className={`w-full text-left px-3 py-2 text-xs font-black rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                    lang === 'en' 
+                      ? 'bg-[#EAB308]/20 text-[#854D0E] border border-[#EAB308]/30 shadow-xs' 
+                      : 'hover:bg-[#ede5d6] text-slate-900'
+                  }`}
+                >
+                  <span>English</span>
+                  {lang === 'en' && <Check className="w-3.5 h-3.5 text-[#854D0E]" />}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Botón Ir a Terminal */}
+          {onBackToTerminal && (
+            <button
+              onClick={onBackToTerminal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#ded5c5] bg-white hover:bg-slate-50 text-slate-900 text-xs font-bold transition-all hover:scale-102 active:scale-95 shadow-xs cursor-pointer"
+              title={t.backToTerminal}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t.backToTerminal}</span>
+            </button>
+          )}
+
+          {/* Botón de Logout Claro y Visible */}
+          <button
+            onClick={() => {
+              if (onLogout) onLogout();
+              else {
+                localStorage.removeItem('zyti_user_session');
+                window.location.href = `/${lang}`;
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50/80 hover:bg-rose-100 text-rose-700 hover:text-rose-900 text-xs font-bold transition-all hover:scale-102 active:scale-95 shadow-xs cursor-pointer"
+            title={isEs ? 'Cerrar Sesión' : 'Sign Out'}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isEs ? 'Salir' : 'Sign Out'}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Contenido Principal Aprovechando Todo el Ancho y con Scroll Fluido */}
+      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-10 py-6 space-y-6 pb-36">
+        
+        {/* Barra de navegación de retorno si estamos en un submódulo */}
+        {activeModule !== 'hub' && (
+          <div className="flex items-center justify-between pb-3 border-b border-[#ece7dc]">
+            <button
+              onClick={() => handleSelectModuleWithUrl('hub')}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#dcd6ca] text-xs font-black text-[#0F172A] hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>{isEs ? '← Volver al Hub ERP' : '← Back to ERP Hub'}</span>
+            </button>
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
+              <span>NEXUS</span>
+              <span>/</span>
+              <span className="text-[#0F172A]">{moduleTitles[activeModule]?.[lang] || activeModule}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 1. Vista Principal (HUB ERP): Barra de KPIs + Grid de Cards + Tabla de Traders/Clientes */}
+        {activeModule === 'hub' && (
+          <>
+            {/* Barra Compacta de KPIs */}
+            <KpiHeader kpis={kpis} lang={lang} onRefresh={refreshData} />
+
+            {/* Grid de Cards Limpias de cada Sección del ERP */}
+            <ErpModulesGrid
+              lang={lang}
+              activeModule={activeModule}
+              onSelectModule={handleSelectModuleWithUrl}
+              activeRiskCount={monitoredPositions.length}
+              activeApiKeysCount={apiCredentials.length}
+            />
+
+            {/* Listado de Traders & Clientes con Buscador y Cuenta Demo */}
+            <TradersClientsTable
+              traders={traders}
+              lang={lang}
+              onUpdateAccountSize={handleUpdateTraderAccountSize}
+              onUpdateTraderRole={handleUpdateTraderRole}
+              onResetBalance={handleResetTraderBalance}
+              onOpenRiskEngineForTrader={() => handleSelectModuleWithUrl('risk_engine')}
+            />
+          </>
+        )}
+
+        {/* 2. Vista Dedicada: Risk Engine */}
+        {activeModule === 'risk_engine' && (
+          <RiskEngineCard
+            rules={riskRules}
+            activeRule={activeRule}
+            selectedRuleId={selectedRuleId}
+            lang={lang}
+            onSelectRuleId={setSelectedRuleId}
+            onOpenRulesModal={() => {
+              setEditingRule(activeRule);
+              setIsRuleModalOpen(true);
+            }}
+            monitoredPositions={monitoredPositions}
+            onEmergencyLiquidate={handleEmergencyLiquidation}
+          />
+        )}
+
+        {/* 3. Vista Dedicada: API Gateway & Developers */}
+        {activeModule === 'apis' && (
+          <ApiGatewayCard
+            apiKeys={apiCredentials}
+            lang={lang}
+            onOpenCreateModal={() => setIsApiKeyModalOpen(true)}
+            onToggleStatus={handleToggleApiKey}
+            onDeleteKey={handleDeleteApiKey}
+          />
+        )}
+
+        {/* 4. Vista Dedicada: Exchanges & Enlaces de Afiliado */}
+        {activeModule === 'exchanges' && (
+          <AffiliatesManagerCard type="exchanges" lang={lang} />
+        )}
+
+        {/* 5. Vista Dedicada: Prop Firms & B2B Partners */}
+        {activeModule === 'prop_firms' && (
+          <AffiliatesManagerCard type="prop_firms" lang={lang} />
+        )}
+
+        {/* 6. Vista: Challenges */}
+        {activeModule === 'challenges' && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-3 mb-4">
+              <Trophy className="w-6 h-6 text-amber-600" />
+              <div>
+                <h2 className="text-base font-extrabold text-[#0F172A]">
+                  {isEs ? 'Evaluaciones & Retos de Fondeo (Challenges)' : 'Evaluation & Funding Challenges'}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isEs ? 'Configura los tiers de 10K, 25K, 50K y 100K y fases 1 y 2.' : 'Configure 10K, 25K, 50K and 100K evaluation tiers and phases.'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[10000, 50000, 100000].map(tier => (
+                <div key={tier} className="p-4 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+                  <div className="font-extrabold text-sm text-[#0F172A]">${(tier / 1000)}k Challenge</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {isEs ? 'Fase 1: 8% target | Fase 2: 5% target' : 'Phase 1: 8% target | Phase 2: 5% target'}
+                  </div>
+                  <div className="text-xs text-rose-700 font-bold mt-2">
+                    {isEs ? 'Max Pérdida Diaria: 5% | Max Total: 10%' : 'Max Daily Loss: 5% | Max Total: 10%'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 7. Vista: Planes SaaS */}
+        {activeModule === 'plans' && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-3 mb-4">
+              <CreditCard className="w-6 h-6 text-emerald-600" />
+              <div>
+                <h2 className="text-base font-extrabold text-[#0F172A]">
+                  {isEs ? 'Planes y Suscripciones SaaS' : 'SaaS Plans and Subscriptions'}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isEs ? 'Control de precios de la plataforma ZYTI Trade.' : 'Manage pricing tiers for ZYTI Trade.'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+                <div className="font-extrabold text-sm text-[#0F172A]">{isEs ? 'Plan Gratuito' : 'Free Plan'}</div>
+                <div className="text-lg font-black text-slate-800 mt-1">{isEs ? '0 € / mes' : '$0 / mo'}</div>
+                <div className="text-xs text-slate-500 mt-2">
+                  {isEs ? '1 cuenta conectada, datos L2 básicos.' : '1 connected account, core L2 data.'}
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-purple-50/90 border border-purple-200">
+                <div className="font-extrabold text-sm text-purple-900">{isEs ? 'Plan Pro' : 'Pro Plan'}</div>
+                <div className="text-lg font-black text-purple-900 mt-1">{isEs ? '29 € / mes' : '$29 / mo'}</div>
+                <div className="text-xs text-purple-700 mt-2">
+                  {isEs ? 'Cuentas ilimitadas, Risk Guardian y split de órdenes.' : 'Unlimited accounts, Risk Guardian and order splitting.'}
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200">
+                <div className="font-extrabold text-sm text-amber-900">{isEs ? 'Plan Institucional' : 'Institutional Plan'}</div>
+                <div className="text-lg font-black text-amber-900 mt-1">{isEs ? '79 € / mes' : '$79 / mo'}</div>
+                <div className="text-xs text-amber-700 mt-2">
+                  {isEs ? 'APIs dedicadas, acceso a motor de arbitraje sub-100ms.' : 'Dedicated APIs, sub-100ms arbitrage access.'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 8. Vista: Soporte */}
+        {activeModule === 'support' && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-3 mb-4">
+              <Headphones className="w-6 h-6 text-rose-600" />
+              <div>
+                <h2 className="text-base font-extrabold text-[#0F172A]">
+                  {isEs ? 'Mesa de Ayuda & Agentes de Soporte' : 'Help Desk & Support Agents'}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isEs ? 'Asigna usuarios de soporte y supervisa tickets de traders.' : 'Assign support staff and monitor trader tickets.'}
+                </p>
+              </div>
+            </div>
+            <div className="p-8 text-center text-slate-400 font-medium text-xs bg-white/60 rounded-xl border border-dashed border-[#dcd6ca]">
+              {isEs ? '0 tickets pendientes. Todos los canales de Telegram y correo están al día.' : '0 pending tickets. All Telegram and email channels clear.'}
+            </div>
+          </div>
+        )}
+
+        {/* 9. Vista: Marketing */}
+        {activeModule === 'marketing' && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-3 mb-4">
+              <Megaphone className="w-6 h-6 text-orange-600" />
+              <div>
+                <h2 className="text-base font-extrabold text-[#0F172A]">
+                  {isEs ? 'Marketing & Captación de Traders' : 'Marketing & Growth'}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isEs ? 'Tráfico por activo, conversiones y analítica SEO.' : 'Traffic by instrument, conversions and SEO analytics.'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-4 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+                <div className="text-xs text-slate-500">
+                  {isEs ? 'Páginas Canónicas Activas' : 'Active Canonical Pages'}
+                </div>
+                <div className="text-xl font-black text-[#0F172A] mt-1">
+                  {isEs ? '16 Pares Cripto' : '16 Crypto Pairs'}
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+                <div className="text-xs text-slate-500">
+                  {isEs ? 'Indexación para Motores IA' : 'AI Engine Indexation'}
+                </div>
+                <div className="text-xl font-black text-emerald-700 mt-1">
+                  ChatGPT / Perplexity 100%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* Modales */}
+      <DynamicRulesModal
+        isOpen={isRuleModalOpen}
+        lang={lang}
+        onClose={() => {
+          setIsRuleModalOpen(false);
+          setEditingRule(null);
+        }}
+        ruleToEdit={editingRule}
+        onSaveRule={handleSaveRule}
+      />
+
+      <CreateApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        lang={lang}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onCreateKey={handleCreateApiKey}
+        newlyCreatedKey={newlyCreatedKey}
+        onDismissCreatedKey={() => {
+          setNewlyCreatedKey(null);
+          setIsApiKeyModalOpen(false);
+        }}
+      />
+    </div>
+  );
+};

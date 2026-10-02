@@ -14,7 +14,8 @@ import { TradingTerminal } from './components/TradingTerminal';
 import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
 import { TelegramOnboardingApp } from './components/TelegramOnboardingApp';
 import { NotFoundPage } from './components/NotFoundPage';
-import { getStoredSession, setStoredSession, UserSession, supabase, fetchTraderAccounts } from './lib/supabase';
+import { InstitutionalCrmApp } from './modules/crm';
+import { getStoredSession, setStoredSession, UserSession, supabase, fetchTraderAccounts, bootstrapUserSession, saveUserProfile } from './lib/supabase';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -29,16 +30,25 @@ export const App: React.FC = () => {
     return host.startsWith('zytiterminal.') || host === 'zytiterminal.zytitrade.com';
   };
 
+  // Detección de subdominio CRM (ej: nexus.zytitrade.com, hub.zytitrade.com, crm.*)
+  const isNexusCrmSubdomain = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname.toLowerCase();
+    return host.startsWith('nexus.') || host.startsWith('hub.') || host.startsWith('crm.') || host.startsWith('core.');
+  };
+
   const getInitialSymbolFromUrl = (): string => {
     if (typeof window === 'undefined') return 'BTCUSDT';
     const match = window.location.pathname.match(/(?:(?:\/(?:es|en))?\/(?:zytiterminal|trade)\/([a-zA-Z0-9_-]+))/i);
     return match?.[1] ? match[1].toUpperCase() : 'BTCUSDT';
   };
 
-  const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' => {
+  const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' | 'crm' => {
     if (typeof window !== 'undefined') {
       const rawPath = window.location.pathname.toLowerCase();
       const pathname = rawPath.replace(/\/$/, '') || '/';
+      if (isNexusCrmSubdomain()) return 'crm';
+      if (pathname.includes('/nexus') || pathname.includes('/_nexus') || pathname.includes('/crm')) return 'crm';
       if (pathname.includes('/tg-onboarding') || pathname.includes('/tgonboarding')) return 'tg-onboarding';
       if (isTerminalSubdomain()) return 'terminal';
       // Rutas dinámicas de terminal: /zytiterminal, /es/zytiterminal, /es/zytiterminal/BTCUSDT
@@ -54,7 +64,7 @@ export const App: React.FC = () => {
     return 'landing';
   };
 
-  const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding' | 'not-found'>(getInitialView);
+  const [currentView, setCurrentView] = useState<'landing' | 'terminal' | 'tg-onboarding' | 'not-found' | 'crm'>(getInitialView);
   const [urlSymbol, setUrlSymbol] = useState<string>(getInitialSymbolFromUrl);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredSession);
 
@@ -190,20 +200,35 @@ export const App: React.FC = () => {
       // Leer la sesión directa de Supabase
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user && !currentUser) {
-          supabase.auth.getUser().then(({ data: { user } }) => {
-            if (!user) return;
-            const userSession: UserSession = {
-              id: user.id,
-              email: user.email || '',
-              name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader',
-              avatarUrl: user.user_metadata?.avatar_url,
-              provider: (user.app_metadata?.provider as any) || 'email',
-              role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
-              accounts: [],
-              activeAccountId: undefined
-            };
-            setStoredSession(userSession);
-            setCurrentUser(userSession);
+          const user = session.user;
+          const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+          const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader';
+
+          bootstrapUserSession({ userId: user.id, email: user.email || '' }).then(async (bootstrapped: UserSession | null) => {
+            let finalSession = bootstrapped;
+            if (finalSession) {
+              if (!finalSession.avatarUrl && googleAvatar) {
+                finalSession = await saveUserProfile(finalSession, {
+                  name: finalSession.name || googleName,
+                  avatarUrl: googleAvatar
+                });
+              }
+            } else {
+              const accounts = await fetchTraderAccounts(user.email || '');
+              finalSession = {
+                id: user.id,
+                email: user.email || '',
+                name: googleName,
+                avatarUrl: googleAvatar,
+                provider: (user.app_metadata?.provider as any) || 'google',
+                role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+                accounts,
+                activeAccountId: accounts[0]?.id
+              };
+              await saveUserProfile(finalSession, { name: googleName, avatarUrl: googleAvatar });
+            }
+            setStoredSession(finalSession);
+            setCurrentUser(finalSession);
             setAuthModalOpen(false);
             navigateToTerminal();
           });
@@ -220,19 +245,34 @@ export const App: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user && !currentUser) {
         const user = session.user;
-        const accounts = await fetchTraderAccounts(user.email || '');
-        const userSession: UserSession = {
-          id: user.id,
-          email: user.email || '',
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader',
-          avatarUrl: user.user_metadata?.avatar_url,
-          provider: (user.app_metadata?.provider as any) || 'google',
-          role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
-          accounts,
-          activeAccountId: accounts[0]?.id
-        };
-        setStoredSession(userSession);
-        setCurrentUser(userSession);
+        const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+        const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader';
+
+        let finalSession = await bootstrapUserSession({ userId: user.id, email: user.email || '' });
+        if (finalSession) {
+          if (!finalSession.avatarUrl && googleAvatar) {
+            finalSession = await saveUserProfile(finalSession, {
+              name: finalSession.name || googleName,
+              avatarUrl: googleAvatar
+            });
+          }
+        } else {
+          const accounts = await fetchTraderAccounts(user.email || '');
+          finalSession = {
+            id: user.id,
+            email: user.email || '',
+            name: googleName,
+            avatarUrl: googleAvatar,
+            provider: (user.app_metadata?.provider as any) || 'google',
+            role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+            accounts,
+            activeAccountId: accounts[0]?.id
+          };
+          await saveUserProfile(finalSession, { name: googleName, avatarUrl: googleAvatar });
+        }
+
+        setStoredSession(finalSession);
+        setCurrentUser(finalSession);
         setAuthModalOpen(false);
       }
     });
@@ -249,7 +289,9 @@ export const App: React.FC = () => {
       }
       const rawPath = window.location.pathname.toLowerCase();
       const path = rawPath.replace(/\/$/, '') || '/';
-      if (path.includes('/tg-onboarding') || path.includes('/tgonboarding')) {
+      if (isNexusCrmSubdomain() || path.includes('/nexus') || path.includes('/_nexus') || path.includes('/crm')) {
+        setCurrentView('crm');
+      } else if (path.includes('/tg-onboarding') || path.includes('/tgonboarding')) {
         setCurrentView('tg-onboarding');
       } else if (path.includes('/zytiterminal') || path.includes('/trade')) {
         setCurrentView('terminal');
@@ -311,6 +353,18 @@ export const App: React.FC = () => {
       setAuthModalOpen(true);
     }
   };
+
+  // Vista del CRM Institucional (Nexus Prop Firm & Risk Engine Hub)
+  if (currentView === 'crm') {
+    return (
+      <InstitutionalCrmApp 
+        user={currentUser} 
+        initialLang={currentLang as any} 
+        onBackToTerminal={() => navigateToTerminal()} 
+        onLogout={handleLogout} 
+      />
+    );
+  }
 
   // Vista de Telegram Mini App Onboarding (abierta desde el bot)
   if (currentView === 'tg-onboarding') {
