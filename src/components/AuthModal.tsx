@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles, Smartphone, ArrowLeft } from 'lucide-react';
+import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles, Smartphone, ArrowLeft, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Language } from '../i18n/translations';
 import { supabase, setStoredSession, UserSession, fetchTraderAccounts } from '../lib/supabase';
 import { LottieAnimation } from './LottieAnimation';
@@ -20,6 +20,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const isEs = currentLang === 'es';
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [telegramWaiting, setTelegramWaiting] = useState(false);
   const [awaitingOnboarding, setAwaitingOnboarding] = useState(false);
   const [telegramAuthCode, setTelegramAuthCode] = useState<string | null>(null);
@@ -560,6 +564,87 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     container.appendChild(script);
   }, [showPhoneWidget, botName, handleTelegramAuthSuccess]);
 
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setErrorMsg(isEs ? 'Por favor completa todos los campos' : 'Please fill all fields');
+      return;
+    }
+
+    if (isSignUp && cleanPassword !== confirmPassword.trim()) {
+      setErrorMsg(isEs ? 'Las contraseñas no coinciden' : 'Passwords do not match');
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setErrorMsg(isEs ? 'La contraseña debe tener al menos 6 caracteres' : 'Password must have at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: cleanPassword
+        });
+        if (error) throw error;
+        if (data.user) {
+          const propAccounts = await fetchTraderAccounts(data.user.email || cleanEmail);
+          const userSession: UserSession = {
+            id: data.user.id,
+            email: data.user.email || cleanEmail,
+            name: cleanEmail.split('@')[0],
+            provider: 'email',
+            role: cleanEmail.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+            accounts: propAccounts,
+            activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
+          };
+          setStoredSession(userSession);
+          setSuccessMsg(isEs ? '¡Cuenta creada con éxito!' : 'Account created successfully!');
+          if (onLoginSuccess) onLoginSuccess(userSession);
+          setTimeout(onClose, 500);
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword
+        });
+        if (error) throw error;
+        if (data.user) {
+          const propAccounts = await fetchTraderAccounts(data.user.email || cleanEmail);
+          const userSession: UserSession = {
+            id: data.user.id,
+            email: data.user.email || cleanEmail,
+            name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+            provider: 'email',
+            role: cleanEmail.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+            accounts: propAccounts,
+            activeAccountId: propAccounts.length > 0 ? propAccounts[0].id : undefined
+          };
+          setStoredSession(userSession);
+          setSuccessMsg(isEs ? '¡Inicio de sesión exitoso!' : 'Signed in successfully!');
+          if (onLoginSuccess) onLoginSuccess(userSession);
+          setTimeout(onClose, 500);
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(
+        err.message?.includes('Failed to fetch')
+          ? (isEs ? 'Error de red. Verifica tu conexión.' : 'Network error. Check your connection.')
+          : (err.message || 'Error al autenticar')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -607,37 +692,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="w-full shrink-0 p-2.5 rounded-2xl bg-sky-500/10 border border-sky-300/60 text-center backdrop-blur-sm">
               <span className="text-[11px] font-black text-sky-950 flex items-center justify-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 fill-sky-500 text-sky-500" />
-                {isEs ? 'Autenticación Segura Multi-Método' : 'Multi-Method Secure Authentication'}
+                {isEs ? 'Acceso Seguro y Cero Custodia' : 'Secure Zero-Custody Access'}
               </span>
               <span className="text-[9.5px] text-sky-900/90 font-medium block mt-0.5 leading-snug">
-                {isEs ? 'Conexión verificada con Telegram y Google. Cero contraseñas vulnerables.' : 'Verified Telegram and Google connection. Zero vulnerable passwords.'}
+                {isEs ? 'Conéctate mediante Telegram, Google o credenciales institucionales.' : 'Connect via Telegram, Google, or institutional credentials.'}
               </span>
             </div>
           </div>
 
           {/* PANEL DERECHO TRASLÚCIDO */}
-          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-3">
-            <div className="text-center md:text-left mb-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/5 border border-slate-900/10 text-slate-800 text-[10px] font-mono font-bold mb-1.5">
+          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-2.5">
+            <div className="text-center md:text-left mb-0.5">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/5 border border-slate-900/10 text-slate-800 text-[10px] font-mono font-bold mb-1">
                 <Sparkles className="w-3 h-3 text-amber-500" />
                 <span>{isEs ? 'ACCESO INSTITUCIONAL' : 'INSTITUTIONAL ACCESS'}</span>
               </div>
               <h4 className="text-base sm:text-lg font-black text-slate-950 tracking-tight leading-snug">
-                {isEs ? 'Conecta tu cuenta para operar' : 'Connect your account to trade'}
+                {isSignUp 
+                  ? (isEs ? 'Crea tu cuenta institucional' : 'Create institutional account') 
+                  : (isEs ? 'Conecta tu cuenta para operar' : 'Connect your account to trade')}
               </h4>
               <p className="text-[11px] text-slate-600 font-medium">
-                {isEs ? 'Elige tu método de acceso preferido para operar y gestionar cuentas.' : 'Choose your preferred access method to trade and manage accounts.'}
+                {isSignUp 
+                  ? (isEs ? 'Completa tus datos o usa accesos rápidos para ingresar.' : 'Complete your details or use fast social access.') 
+                  : (isEs ? 'Inicia sesión con Telegram, Google o tu correo institucional.' : 'Sign in with Telegram, Google, or institutional email.')}
               </p>
             </div>
 
             {errorMsg && (
-              <div className="p-2.5 rounded-xl bg-red-50/90 border border-red-200 text-red-700 text-xs font-medium flex items-start gap-2 leading-snug">
+              <div className="p-2 rounded-xl bg-red-50/90 border border-red-200 text-red-700 text-xs font-medium flex items-start gap-2 leading-snug">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{errorMsg}</span>
               </div>
             )}
             {successMsg && (
-              <div className="p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{successMsg}</span>
               </div>
@@ -666,7 +755,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="button"
                       onClick={handleCheckLatestTelegram}
                       disabled={loading}
-                      className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                      className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                     >
                       <span>{isEs ? '🔄 Ya completé el registro en Telegram' : '🔄 I completed registration in Telegram'}</span>
                     </button>
@@ -707,7 +796,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="button"
                       onClick={handleCheckLatestTelegram}
                       disabled={loading}
-                      className="w-full py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                      className="w-full py-2 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                     >
                       <span>{isEs ? '⚡ Ya envié /start (Verificar)' : '⚡ I sent /start (Verify)'}</span>
                     </button>
@@ -758,94 +847,156 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             ) : (
-              /* OPCIONES DE ACCESO DIFERENCIADAS POR COLOR */
-              <div className="flex flex-col gap-2.5 pt-1">
-                {/* 1. TELEGRAM BOT (AZUL TELEGRAM #229ED9) */}
-                <button
-                  type="button"
-                  onClick={handleTelegramDeepLinkStart}
-                  disabled={loading}
-                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-between cursor-pointer active:scale-98 group"
-                  title={isEs ? 'Iniciar con Bot de Telegram' : 'Log in with Telegram Bot'}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                      <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-tight font-black">{isEs ? 'Iniciar con Bot de Telegram' : 'Sign in with Telegram Bot'}</span>
-                      <span className="text-[10px] text-white/80 font-normal">{isEs ? 'Sin contraseñas • Deep Link' : 'No passwords • Deep Link'}</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold uppercase bg-white/20 px-2 py-0.5 rounded-full text-white shrink-0">
-                    Bot
-                  </span>
-                </button>
+              /* PANEL PRINCIPAL: ICONOS COMPACTOS + FORMULARIO */
+              <div className="flex flex-col gap-2 pt-0.5">
+                {/* 3 ICONOS PEQUEÑOS JUNTOS LADO A LADO */}
+                <div className="grid grid-cols-3 gap-2">
+                  {/* 1. TELEGRAM BOT (AZUL TELEGRAM #229ED9) */}
+                  <button
+                    type="button"
+                    onClick={handleTelegramDeepLinkStart}
+                    disabled={loading}
+                    className="py-2 px-1.5 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    title={isEs ? 'Iniciar con Bot de Telegram' : 'Sign in with Telegram Bot'}
+                  >
+                    <svg className="w-3.5 h-3.5 fill-white shrink-0" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                    </svg>
+                    <span className="truncate">{isEs ? 'Bot' : 'Bot'}</span>
+                  </button>
 
-                {/* 2. TELEGRAM CON TELÉFONO (DARK OBSIDIAN CON ACENTO TEAL) */}
-                <button
-                  type="button"
-                  onClick={() => { setShowPhoneWidget(true); setErrorMsg(null); }}
-                  disabled={loading}
-                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-between cursor-pointer active:scale-98 border border-slate-700/60 group"
-                  title={isEs ? 'Iniciar con Teléfono (Telegram Widget)' : 'Sign in with Phone (Telegram Widget)'}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
-                      <Smartphone className="w-4 h-4 text-teal-400" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-tight font-black">{isEs ? 'Iniciar con Teléfono (Telegram)' : 'Sign in with Phone (Telegram)'}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">{isEs ? 'Widget oficial con push a tu app' : 'Official widget with app push'}</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full shrink-0">
-                    Widget
-                  </span>
-                </button>
+                  {/* 2. TELEGRAM TELÉFONO WIDGET (DARK OBSIDIAN / TEAL) */}
+                  <button
+                    type="button"
+                    onClick={() => { setShowPhoneWidget(true); setErrorMsg(null); }}
+                    disabled={loading}
+                    className="py-2 px-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 border border-slate-700/60"
+                    title={isEs ? 'Iniciar con Teléfono (Telegram Widget)' : 'Sign in with Phone (Telegram Widget)'}
+                  >
+                    <Smartphone className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                    <span className="truncate">{isEs ? 'Teléfono' : 'Phone'}</span>
+                  </button>
+
+                  {/* 3. GOOGLE (BLANCO INSTITUCIONAL) */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    className="py-2 px-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    title={isEs ? 'Continuar con Google' : 'Continue with Google'}
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span className="truncate">Google</span>
+                  </button>
+                </div>
 
                 {/* SEPARADOR DIVISOR */}
                 <div className="relative flex items-center justify-center my-0.5">
                   <div className="border-t border-slate-200/80 w-full" />
-                  <span className="bg-[#fbf9f4] px-2.5 text-[10px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                    {isEs ? 'o accede con' : 'or continue with'}
+                  <span className="bg-[#fbf9f4] px-2 text-[9.5px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    {isEs ? 'o con correo y contraseña' : 'or with email & password'}
                   </span>
                   <div className="border-t border-slate-200/80 w-full" />
                 </div>
 
-                {/* 3. GOOGLE / GMAIL (BLANCO INSTITUCIONAL CON LOGO GOOGLE) */}
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition-all flex items-center justify-between cursor-pointer active:scale-98"
-                  title={isEs ? 'Continuar con Google (Gmail)' : 'Continue with Google (Gmail)'}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200/60 flex items-center justify-center shrink-0">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <span className="block leading-tight font-black">{isEs ? 'Continuar con Google' : 'Continue with Google'}</span>
-                      <span className="text-[10px] text-slate-500 font-normal">{isEs ? 'Acceso rápido con tu Gmail' : 'Quick access with your Gmail'}</span>
+                {/* FORMULARIO DE ACCESO Y CREACIÓN DE CUENTA */}
+                <form onSubmit={handleEmailAuth} className="flex flex-col gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-800 mb-0.5">
+                      {isEs ? 'Correo Electrónico' : 'Email Address'}
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="trader@zytitrade.com"
+                        className="w-full pl-9 pr-3 py-1.5 sm:py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-xs"
+                      />
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 shrink-0">
-                    Gmail
-                  </span>
-                </button>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-800 mb-0.5">
+                      {isEs ? 'Contraseña' : 'Password'}
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-9 pr-3 py-1.5 sm:py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {isSignUp && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-800 mb-0.5">
+                        {isEs ? 'Confirmar Contraseña' : 'Confirm Password'}
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-9 pr-3 py-1.5 sm:py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-0.5 py-2 sm:py-2.5 px-4 rounded-xl bg-[#eab308] hover:bg-[#ca8a04] text-slate-950 font-black text-xs sm:text-sm shadow-xs transition-all transform hover:scale-[1.01] active:scale-99 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Zap className="w-3.5 h-3.5 stroke-[2.5] fill-slate-950" />
+                    <span>
+                      {loading 
+                        ? (isEs ? 'Procesando...' : 'Processing...') 
+                        : (isSignUp 
+                            ? (isEs ? 'Crear Cuenta Institucional' : 'Create Account') 
+                            : (isEs ? 'Entrar a la Terminal' : 'Sign In to Terminal')
+                          )}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </form>
+
+                {/* TOGGLE ENTRE LOGIN Y SIGNUP */}
+                <div className="text-center pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setErrorMsg(null);
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none"
+                  >
+                    {isSignUp 
+                      ? (isEs ? '¿Ya tienes una cuenta? Inicia sesión' : 'Already have an account? Sign in') 
+                      : (isEs ? '¿No tienes cuenta? Crea una aquí' : "Don't have an account? Sign up")}
+                  </button>
+                </div>
               </div>
             )}
 
             {/* BADGES DE CONFIANZA INSTITUCIONAL */}
-            <div className="pt-2 flex items-center justify-center gap-3 text-[10px] text-slate-500 font-mono">
+            <div className="pt-1.5 flex items-center justify-center gap-3 text-[10px] text-slate-500 font-mono">
               <span className="flex items-center gap-1">
                 <Shield className="w-3 h-3 text-emerald-600" />
                 {isEs ? 'Cero Custodia' : 'Zero Custody'}
