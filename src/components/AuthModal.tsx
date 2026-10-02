@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles } from 'lucide-react';
+import { X, Zap, CheckCircle2, AlertCircle, Shield, Sparkles, Smartphone, ArrowLeft } from 'lucide-react';
 import { Language } from '../i18n/translations';
 import { supabase, setStoredSession, UserSession, fetchTraderAccounts } from '../lib/supabase';
 import { LottieAnimation } from './LottieAnimation';
@@ -23,9 +23,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [telegramWaiting, setTelegramWaiting] = useState(false);
   const [awaitingOnboarding, setAwaitingOnboarding] = useState(false);
   const [telegramAuthCode, setTelegramAuthCode] = useState<string | null>(null);
+  const [showPhoneWidget, setShowPhoneWidget] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const phoneWidgetRef = useRef<HTMLDivElement>(null);
+  const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
+  const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
+  const telegramPopupRef = useRef<Window | null>(null);
+  const detectedTelegramIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,6 +42,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setMounted(false);
       setTelegramWaiting(false);
       setAwaitingOnboarding(false);
+      setShowPhoneWidget(false);
     }
   }, [isOpen]);
 
@@ -49,15 +57,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       let supaUserId = tgUser.userId || String(tgUser.id);
 
       if (!registeredEmail) {
-        const { data: prof } = await supabase
+        const { data: profList } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .eq('telegram_id', tgUser.id)
-          .maybeSingle();
+          .order('updated_at', { ascending: false });
+        const prof = profList?.find((p) => p.email && p.email.includes('@')) || profList?.[0];
         if (prof?.email) {
           registeredEmail = prof.email;
           if (prof.id) supaUserId = prof.id;
         }
+      }
+
+      if (!registeredEmail) {
+        detectedTelegramIdRef.current = tgUser.id;
+        setTelegramAuthCode('phone_' + tgUser.id);
+        setAwaitingOnboarding(true);
+        setTelegramWaiting(true);
+        setShowPhoneWidget(false);
+        setErrorMsg(
+          isEs
+            ? '⚠️ Cuenta verificada en Telegram. Por favor completa tu correo institucional y acepta los Términos para activar tu cuenta.'
+            : '⚠️ Telegram verified. Please complete your email and accept Terms to activate your account.'
+        );
+        return;
       }
 
       const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || (tgUser.username ? `@${tgUser.username}` : `Trader #${tgUser.id}`);
@@ -83,11 +106,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMsg(err.message || 'Error al autenticar con Telegram');
     } finally { setLoading(false); }
   }, [isEs, onLoginSuccess, onClose]);
-
-  const botName = (import.meta as any).env.VITE_TELEGRAM_BOT_NAME || 'ZytiTarde_bot';
-  const botToken = (import.meta as any).env.VITE_TELEGRAM_BOT_TOKEN || '';
-  const telegramPopupRef = useRef<Window | null>(null);
-  const detectedTelegramIdRef = useRef<number | null>(null);
 
   const openCenteredPopup = (url: string, title: string, w = 550, h = 650) => {
     const left = Math.max(0, (window.screen.width - w) / 2);
@@ -503,6 +521,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setErrorMsg(err.message || (isEs ? 'Error al iniciar sesión con Google' : 'Error signing in with Google'));
+      setLoading(false);
+    }
+  };
+
+  // Carga e inyección dinámica del widget de Telegram (para inicio con número telefónico)
+  useEffect(() => {
+    if (!showPhoneWidget || !phoneWidgetRef.current) return;
+    const container = phoneWidgetRef.current;
+    container.innerHTML = '';
+
+    (window as any).onTelegramWidgetAuth = (user: any) => {
+      handleTelegramAuthSuccess(user);
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', botName);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-radius', '12');
+    script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-userpic', 'true');
+    script.setAttribute('data-onauth', 'onTelegramWidgetAuth(user)');
+    script.async = true;
+    container.appendChild(script);
+  }, [showPhoneWidget, botName, handleTelegramAuthSuccess]);
+
   if (!isOpen) return null;
 
   return (
@@ -550,16 +607,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="w-full shrink-0 p-2.5 rounded-2xl bg-sky-500/10 border border-sky-300/60 text-center backdrop-blur-sm">
               <span className="text-[11px] font-black text-sky-950 flex items-center justify-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 fill-sky-500 text-sky-500" />
-                {isEs ? 'Verificación Segura vía Telegram' : 'Secure Telegram Verification'}
+                {isEs ? 'Autenticación Segura Multi-Método' : 'Multi-Method Secure Authentication'}
               </span>
               <span className="text-[9.5px] text-sky-900/90 font-medium block mt-0.5 leading-snug">
-                {isEs ? 'Sin contraseñas complicadas. Conexión directa con el bot oficial ZYTI.' : 'No complicated passwords. Direct connection with official ZYTI bot.'}
+                {isEs ? 'Conexión verificada con Telegram y Google. Cero contraseñas vulnerables.' : 'Verified Telegram and Google connection. Zero vulnerable passwords.'}
               </span>
             </div>
           </div>
 
           {/* PANEL DERECHO TRASLÚCIDO */}
-          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-3.5">
+          <div className="auth-modal-right no-scrollbar flex flex-col justify-center gap-3">
             <div className="text-center md:text-left mb-1">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/5 border border-slate-900/10 text-slate-800 text-[10px] font-mono font-bold mb-1.5">
                 <Sparkles className="w-3 h-3 text-amber-500" />
@@ -569,7 +626,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {isEs ? 'Conecta tu cuenta para operar' : 'Connect your account to trade'}
               </h4>
               <p className="text-[11px] text-slate-600 font-medium">
-                {isEs ? 'Inicia sesión con Telegram para ejecutar órdenes y gestionar tus cuentas.' : 'Sign in with Telegram to execute orders and manage accounts.'}
+                {isEs ? 'Elige tu método de acceso preferido para operar y gestionar cuentas.' : 'Choose your preferred access method to trade and manage accounts.'}
               </p>
             </div>
 
@@ -629,7 +686,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       }}
                       className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
                     >
-                      {isEs ? '← Volver' : '← Back'}
+                      {isEs ? '← Volver a opciones' : '← Back to options'}
                     </button>
                   </div>
                 </div>
@@ -667,25 +724,122 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       onClick={() => setTelegramWaiting(false)}
                       className="text-[10px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-0.5"
                     >
-                      {isEs ? '← Volver' : '← Back'}
+                      {isEs ? '← Volver a opciones' : '← Back to options'}
                     </button>
                   </div>
                 </div>
               )
+            ) : showPhoneWidget ? (
+              /* VISTA DE TELEGRAM CON NÚMERO TELEFÓNICO (WIDGET OFICIAL) */
+              <div className="w-full p-4 rounded-2xl bg-white/95 border border-slate-200/90 text-center flex flex-col items-center gap-2.5 backdrop-blur-md shadow-xs animate-in fade-in duration-200">
+                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-teal-400 shadow-xs">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-slate-900 block">
+                    {isEs ? 'Acceso con Teléfono (Telegram Widget)' : 'Phone Login (Telegram Widget)'}
+                  </span>
+                  <span className="text-[10px] text-slate-600 block mt-0.5 leading-snug">
+                    {isEs 
+                      ? 'Pulsa el botón oficial de Telegram para ingresar tu número y confirmar la notificación en tu app:' 
+                      : 'Click the official Telegram button to enter your phone number and confirm notification in app:'}
+                  </span>
+                </div>
+
+                <div ref={phoneWidgetRef} className="w-full flex items-center justify-center min-h-[46px] my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPhoneWidget(false)}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer pt-1"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                  <span>{isEs ? 'Volver a otros métodos' : 'Back to other methods'}</span>
+                </button>
+              </div>
             ) : (
-              /* BOTÓN HERO: TELEGRAM */
-              <div className="flex flex-col gap-2 pt-1">
+              /* OPCIONES DE ACCESO DIFERENCIADAS POR COLOR */
+              <div className="flex flex-col gap-2.5 pt-1">
+                {/* 1. TELEGRAM BOT (AZUL TELEGRAM #229ED9) */}
                 <button
                   type="button"
                   onClick={handleTelegramDeepLinkStart}
                   disabled={loading}
-                  className="w-full py-3 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1c8ec4] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 hover:shadow-lg"
-                  title={isEs ? 'Iniciar sesión con Telegram' : 'Log in with Telegram'}
+                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-[#229ED9] hover:bg-[#1b8bc2] text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-between cursor-pointer active:scale-98 group"
+                  title={isEs ? 'Iniciar con Bot de Telegram' : 'Log in with Telegram Bot'}
                 >
-                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
-                  </svg>
-                  <span>{isEs ? 'Continuar con Telegram' : 'Continue with Telegram'}</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <span className="block leading-tight font-black">{isEs ? 'Iniciar con Bot de Telegram' : 'Sign in with Telegram Bot'}</span>
+                      <span className="text-[10px] text-white/80 font-normal">{isEs ? 'Sin contraseñas • Deep Link' : 'No passwords • Deep Link'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase bg-white/20 px-2 py-0.5 rounded-full text-white shrink-0">
+                    Bot
+                  </span>
+                </button>
+
+                {/* 2. TELEGRAM CON TELÉFONO (DARK OBSIDIAN CON ACENTO TEAL) */}
+                <button
+                  type="button"
+                  onClick={() => { setShowPhoneWidget(true); setErrorMsg(null); }}
+                  disabled={loading}
+                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all flex items-center justify-between cursor-pointer active:scale-98 border border-slate-700/60 group"
+                  title={isEs ? 'Iniciar con Teléfono (Telegram Widget)' : 'Sign in with Phone (Telegram Widget)'}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
+                      <Smartphone className="w-4 h-4 text-teal-400" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block leading-tight font-black">{isEs ? 'Iniciar con Teléfono (Telegram)' : 'Sign in with Phone (Telegram)'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">{isEs ? 'Widget oficial con push a tu app' : 'Official widget with app push'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full shrink-0">
+                    Widget
+                  </span>
+                </button>
+
+                {/* SEPARADOR DIVISOR */}
+                <div className="relative flex items-center justify-center my-0.5">
+                  <div className="border-t border-slate-200/80 w-full" />
+                  <span className="bg-[#fbf9f4] px-2.5 text-[10px] font-mono text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                    {isEs ? 'o accede con' : 'or continue with'}
+                  </span>
+                  <div className="border-t border-slate-200/80 w-full" />
+                </div>
+
+                {/* 3. GOOGLE / GMAIL (BLANCO INSTITUCIONAL CON LOGO GOOGLE) */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition-all flex items-center justify-between cursor-pointer active:scale-98"
+                  title={isEs ? 'Continuar con Google (Gmail)' : 'Continue with Google (Gmail)'}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200/60 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <span className="block leading-tight font-black">{isEs ? 'Continuar con Google' : 'Continue with Google'}</span>
+                      <span className="text-[10px] text-slate-500 font-normal">{isEs ? 'Acceso rápido con tu Gmail' : 'Quick access with your Gmail'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 shrink-0">
+                    Gmail
+                  </span>
                 </button>
               </div>
             )}

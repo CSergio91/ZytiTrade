@@ -14,7 +14,7 @@ import { TradingTerminal } from './components/TradingTerminal';
 import { TerminalErrorBoundary } from './components/TerminalErrorBoundary';
 import { TelegramOnboardingApp } from './components/TelegramOnboardingApp';
 import { NotFoundPage } from './components/NotFoundPage';
-import { getStoredSession, setStoredSession, UserSession, supabase } from './lib/supabase';
+import { getStoredSession, setStoredSession, UserSession, supabase, fetchTraderAccounts } from './lib/supabase';
 import { Language } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -213,6 +213,30 @@ export const App: React.FC = () => {
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
+  }, [currentUser]);
+
+  // Capturar sesión si Google OAuth redirige directamente en la misma ventana
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && !currentUser) {
+        const user = session.user;
+        const accounts = await fetchTraderAccounts(user.email || '');
+        const userSession: UserSession = {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader',
+          avatarUrl: user.user_metadata?.avatar_url,
+          provider: (user.app_metadata?.provider as any) || 'google',
+          role: user.email?.toLowerCase().includes('admin@') ? 'admin' : 'trader',
+          accounts,
+          activeAccountId: accounts[0]?.id
+        };
+        setStoredSession(userSession);
+        setCurrentUser(userSession);
+        setAuthModalOpen(false);
+      }
+    });
+    return () => authListener?.subscription?.unsubscribe?.();
   }, [currentUser]);
 
 

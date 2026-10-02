@@ -209,8 +209,26 @@ export const TelegramOnboardingApp: React.FC = () => {
         }
       }
 
-      // 2. Actualizar perfil en public.profiles con los datos exactos
+      // 2. Actualizar perfil en public.profiles con los datos exactos garantizando unicidad de telegram_id
       if (userId) {
+        if (tgId) {
+          try {
+            const { data: existingTgProfiles } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('telegram_id', tgId);
+
+            if (existingTgProfiles && existingTgProfiles.length > 0) {
+              const extraIds = existingTgProfiles.filter(p => p.id !== userId).map(p => p.id);
+              if (extraIds.length > 0) {
+                await supabase.from('profiles').delete().in('id', extraIds);
+              }
+            }
+          } catch (cleanErr) {
+            console.warn('[Telegram Onboarding] Deduplication notice:', cleanErr);
+          }
+        }
+
         const { error: profileErr } = await supabase
           .from('profiles')
           .upsert({
@@ -226,20 +244,6 @@ export const TelegramOnboardingApp: React.FC = () => {
 
         if (profileErr) {
           console.warn('[Telegram Onboarding] Profile upsert warning:', profileErr);
-        }
-
-        // Asegurar consistencia actualizando también por telegram_id
-        if (tgId) {
-          await supabase
-            .from('profiles')
-            .update({
-              email: email.trim(),
-              full_name: name.trim(),
-              telegram_username: tgUsername || undefined,
-              is_verified: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('telegram_id', tgId);
         }
       }
 
