@@ -508,6 +508,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   });
 
+  // Trade enfocado para inspección y marcadores en el gráfico
+  const [focusedTrade, setFocusedTrade] = useState<ClosedTradeItem | null>(null);
+  const pendingTradeFocusRef = useRef<ClosedTradeItem | null>(null);
+
   // Reconciliar y cargar historial y posiciones abiertas desde Supabase (Cold Sync)
   useEffect(() => {
     const targetId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
@@ -1483,7 +1487,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           } catch {}
 
           activeChart.applyNewData(payload.bars, false);
-          activeChart.scrollToRealTime();
+          if (pendingTradeFocusRef.current) {
+            const pending = pendingTradeFocusRef.current;
+            pendingTradeFocusRef.current = null;
+            const targetTs = pending.openedAt ? new Date(pending.openedAt).getTime() : new Date(pending.closedAt).getTime();
+            if (targetTs && !isNaN(targetTs)) {
+              setTimeout(() => {
+                try {
+                  activeChart.scrollToTimestamp(targetTs, 300);
+                } catch {}
+              }, 120);
+            } else {
+              activeChart.scrollToRealTime();
+            }
+          } else {
+            activeChart.scrollToRealTime();
+          }
 
           try {
             (activeChart as any).adjustPaneViewport(true, true, true, true, true);
@@ -2022,6 +2041,38 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       });
     }
   };
+
+  const handleSelectHistoryTrade = useCallback((trade: ClosedTradeItem) => {
+    setFocusedTrade(trade);
+    const normTradeSym = normalizePair(trade.symbol);
+    const normCurrentSym = normalizePair(selectedPairRef.current);
+
+    const targetTs = trade.openedAt ? new Date(trade.openedAt).getTime() : new Date(trade.closedAt).getTime();
+
+    if (normTradeSym !== normCurrentSym) {
+      pendingTradeFocusRef.current = trade;
+      handleSelectPair(normTradeSym);
+    } else if (chartInstanceRef.current && targetTs && !isNaN(targetTs)) {
+      try {
+        (chartInstanceRef.current as any).scrollToTimestamp(targetTs, 300);
+      } catch (err) {
+        console.warn('[ZYTI Trade] Error al centrar gráfico en el trade:', err);
+      }
+    }
+  }, []);
+
+  const handleReturnToLive = useCallback(() => {
+    if (chartInstanceRef.current) {
+      try {
+        (chartInstanceRef.current as any).scrollToRealTime(300);
+      } catch {}
+    }
+    setFocusedTrade(null);
+  }, []);
+
+  const handleClearFocusedTrade = useCallback(() => {
+    setFocusedTrade(null);
+  }, []);
 
   // Sincronizar en segundo plano los símbolos de posiciones y órdenes límites activas con el worker
   // para que sus marcas de precio y PnL sigan actualizándose en vivo aunque el usuario navegue a otros pares
@@ -3167,6 +3218,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               chart={chartInstanceRef.current}
               positions={positions.filter((p) => p.symbol === selectedPair)}
               limitOrders={limitOrders.filter((o) => o.symbol === selectedPair)}
+              tradeHistory={tradeHistory}
+              focusedTrade={focusedTrade}
+              selectedPair={selectedPair}
               currentPrice={stats.lastPrice}
               demoBalance={demoBalance}
               isEs={isEs}
@@ -3192,6 +3246,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               onUpdatePreviewSLTP={handleUpdatePreviewSLTP}
               onUpdatePreviewEntry={handleUpdatePreviewEntry}
               onSetBreakEven={handleSetBreakEven}
+              onSelectTrade={handleSelectHistoryTrade}
+              onClearFocusedTrade={handleClearFocusedTrade}
+              onReturnToLive={handleReturnToLive}
             />
 
             {/* MODALITO FLOTANTE CON DETALLES DE VELA AL CLICAR DIRECTAMENTE (OHLC, VOL, CAMBIO %) */}
@@ -3221,6 +3278,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               onSelectPosition={handleSelectPositionItem}
               onSelectLimitOrder={handleSelectLimitOrderItem}
               onClearHistory={resetDemoBalance}
+              onSelectHistoryTrade={handleSelectHistoryTrade}
+              selectedHistoryTradeId={focusedTrade?.id}
             />
           )}
 
@@ -3304,6 +3363,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           onSelectPosition={handleSelectPositionItem}
           onSelectLimitOrder={handleSelectLimitOrderItem}
           onClearHistory={resetDemoBalance}
+          onSelectHistoryTrade={handleSelectHistoryTrade}
+          selectedHistoryTradeId={focusedTrade?.id}
         />
       )}
 

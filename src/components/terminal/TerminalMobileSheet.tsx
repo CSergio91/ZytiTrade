@@ -44,6 +44,8 @@ interface TerminalMobileSheetProps {
   onSelectPosition?: (pos: PositionItem) => void;
   onSelectLimitOrder?: (order: LimitOrderItem) => void;
   onClearHistory?: () => void;
+  onSelectHistoryTrade?: (trade: ClosedTradeItem) => void;
+  selectedHistoryTradeId?: string | null;
 }
 
 export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
@@ -79,7 +81,9 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onSetBreakEven,
   onSelectPosition,
   onSelectLimitOrder,
-  onClearHistory
+  onClearHistory,
+  onSelectHistoryTrade,
+  selectedHistoryTradeId
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getInitialEmail = (u?: UserSession | null): string => {
@@ -763,8 +767,22 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                     </div>
                   </div>
 
-                  {filteredMobileHistory.map((item) => (
-                    <div key={item.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
+                  {filteredMobileHistory.map((item) => {
+                    const isSelected = selectedHistoryTradeId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          onSelectHistoryTrade?.(item);
+                          setActiveSheet(null);
+                        }}
+                        className={`p-2.5 rounded-xl border shadow-xs flex items-center justify-between font-mono text-xs cursor-pointer transition-all active:scale-[0.99] select-none ${
+                          isSelected
+                            ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400'
+                            : 'bg-white hover:bg-slate-50 border-[#ded5c5]'
+                        }`}
+                        title={isEs ? 'Tocar para ver este trade en el gráfico' : 'Tap to view this trade on chart'}
+                      >
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-black text-slate-900">{item.symbol}</span>
@@ -824,7 +842,8 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
                   {history.length === 0 && (
                     <div className="text-center py-8 text-xs text-slate-400">

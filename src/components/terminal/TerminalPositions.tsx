@@ -22,6 +22,8 @@ interface TerminalPositionsProps {
   onSelectLimitOrder?: (order: LimitOrderItem) => void;
   onUpdateLimitOrder?: (id: string, newLimitPrice?: number, newSlPrice?: number | null, newTpPrice?: number | null) => void;
   onClearHistory?: () => void;
+  onSelectHistoryTrade?: (trade: ClosedTradeItem) => void;
+  selectedHistoryTradeId?: string | null;
 }
 
 export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
@@ -38,7 +40,9 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
   onSelectPosition,
   onSelectLimitOrder,
   onUpdateLimitOrder,
-  onClearHistory
+  onClearHistory,
+  onSelectHistoryTrade,
+  selectedHistoryTradeId
 }) => {
   // Pestaña activa: 'positions' | 'limits' | 'history'
   const [activeTab, setActiveTab] = useState<'positions' | 'limits' | 'history'>('positions');
@@ -874,8 +878,19 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredHistory.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  {filteredHistory.map((item) => {
+                    const isSelected = selectedHistoryTradeId === item.id;
+                    return (
+                      <tr
+                        key={item.id}
+                        onClick={() => onSelectHistoryTrade?.(item)}
+                        className={`cursor-pointer transition-colors group select-none ${
+                          isSelected
+                            ? 'bg-amber-100/70 ring-1 ring-inset ring-amber-400 font-medium'
+                            : 'hover:bg-amber-50/60'
+                        }`}
+                        title={isEs ? `Clic para centrar y ver el trade de ${item.symbol} en el gráfico` : `Click to focus and view ${item.symbol} trade on chart`}
+                      >
                       <td className="py-1 px-2">
                         {formatTradeDateTime(item.openedAt)}
                       </td>
@@ -934,7 +949,8 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
                         {item.isProfit ? '+' : ''}${item.pnlUsdt.toFixed(2)} ({item.pnlPercent})
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {filteredHistory.length === 0 && (
                     <tr>
                       <td colSpan={9} className="py-6 text-center text-xs text-slate-400">
