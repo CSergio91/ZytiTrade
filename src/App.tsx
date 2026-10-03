@@ -40,7 +40,12 @@ export const App: React.FC = () => {
   const getInitialSymbolFromUrl = (): string => {
     if (typeof window === 'undefined') return 'BTCUSDT';
     const match = window.location.pathname.match(/(?:(?:\/(?:es|en))?\/(?:zytiterminal|trade)\/([a-zA-Z0-9_-]+))/i);
-    return match?.[1] ? match[1].toUpperCase() : 'BTCUSDT';
+    if (match?.[1]) return match[1].toUpperCase();
+    try {
+      const saved = localStorage.getItem('zyti_selected_pair');
+      if (saved) return saved.replace('/', '').toUpperCase();
+    } catch {}
+    return 'BTCUSDT';
   };
 
   const getInitialView = (): 'landing' | 'terminal' | 'tg-onboarding' | 'not-found' | 'crm' => {
@@ -404,6 +409,7 @@ export const App: React.FC = () => {
           onExit={handleLogout} 
           onOpenAuth={() => setAuthModalOpen(true)}
           onLanguageChange={handleLanguageChange}
+          onPairChange={(newPair) => setUrlSymbol(newPair.replace('/', '').toUpperCase())}
           onUpdateUser={(updated) => {
             setCurrentUser(updated);
             setStoredSession(updated);

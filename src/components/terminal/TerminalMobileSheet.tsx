@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   BookOpen, Layers, X, Zap, History, Shield, Clock, User, LogOut, 
   Award, TrendingUp, CheckCircle2, ShieldCheck, Sparkles, Globe, 
-  Edit3, Check, ArrowLeftRight, Settings, Upload, Loader2, Trash2
+  Edit3, Check, ArrowLeftRight, Settings, Upload, Loader2, Download, Calendar, Trash2
 } from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
 import { UserSession, saveUserProfile } from '../../lib/supabase';
 import { Language } from '../../i18n/translations';
 import { optimizeImageToWebP } from '../../utils/imageOptimizer';
+import { exportTradesToCSV } from '../../utils/csvExport';
 
 interface TerminalMobileSheetProps {
   isEs: boolean;
@@ -95,6 +96,61 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Filtro por fecha de historial en móvil
+  const [mobileStartDate, setMobileStartDate] = useState<string>('');
+  const [mobileEndDate, setMobileEndDate] = useState<string>('');
+  const [mobileDatePreset, setMobileDatePreset] = useState<'all' | 'today' | '7d' | '30d'>('all');
+
+  const applyMobileDatePreset = (preset: 'all' | 'today' | '7d' | '30d') => {
+    setMobileDatePreset(preset);
+    const now = new Date();
+    const toYMD = (d: Date) => d.toISOString().slice(0, 10);
+    const todayStr = toYMD(now);
+
+    if (preset === 'all') {
+      setMobileStartDate('');
+      setMobileEndDate('');
+    } else if (preset === 'today') {
+      setMobileStartDate(todayStr);
+      setMobileEndDate(todayStr);
+    } else if (preset === '7d') {
+      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      setMobileStartDate(toYMD(past));
+      setMobileEndDate(todayStr);
+    } else if (preset === '30d') {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      setMobileStartDate(toYMD(past));
+      setMobileEndDate(todayStr);
+    }
+  };
+
+  const filteredMobileHistory = useMemo(() => {
+    let list = [...history];
+    if (mobileStartDate) {
+      const startTs = new Date(`${mobileStartDate}T00:00:00`).getTime();
+      list = list.filter(item => {
+        const t = new Date(item.closedAt || item.openedAt || 0).getTime();
+        return t >= startTs;
+      });
+    }
+    if (mobileEndDate) {
+      const endTs = new Date(`${mobileEndDate}T23:59:59.999`).getTime();
+      list = list.filter(item => {
+        const t = new Date(item.closedAt || item.openedAt || 0).getTime();
+        return t <= endTs;
+      });
+    }
+    return list;
+  }, [history, mobileStartDate, mobileEndDate]);
+
+  const mobileTotalRealizedPnL = useMemo(() => {
+    return filteredMobileHistory.reduce((acc, item) => acc + (item.pnlUsdt || 0), 0);
+  }, [filteredMobileHistory]);
+
+  const handleMobileExportCSV = () => {
+    exportTradesToCSV(filteredMobileHistory, isEs);
+  };
 
   useEffect(() => {
     if (user?.name) setEditName(user.name);
@@ -649,24 +705,65 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
 
               {/* VISTA 2: HISTORIAL DE POSICIONES CERRADAS */}
               {activeSheet === 'history' && (
-                <div className="space-y-2">
-                  {history.length > 0 && onClearHistory && (
-                    <div className="flex justify-end mb-2">
+                <div className="space-y-2.5">
+                  {/* BARRA DE FILTRO POR FECHAS Y DESCARGA CSV */}
+                  <div className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700">
+                        <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{isEs ? 'Filtrar Fechas' : 'Filter Dates'}</span>
+                      </div>
                       <button
                         type="button"
-                        onClick={onClearHistory}
-                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all"
+                        onClick={handleMobileExportCSV}
+                        disabled={filteredMobileHistory.length === 0}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                        <span>{isEs ? 'Limpiar Historial' : 'Clear History'}</span>
-                        <span className="px-1 rounded-full bg-rose-200 text-rose-900 text-[9px] font-mono font-bold">
-                          {history.length}
-                        </span>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>{isEs ? 'Descargar CSV' : 'Export CSV'}</span>
                       </button>
                     </div>
-                  )}
 
-                  {history.map((item) => (
+                    {/* Presets Rápidos */}
+                    <div className="flex items-center gap-1.5">
+                      {(['all', 'today', '7d', '30d'] as const).map((preset) => {
+                        const labels = {
+                          all: isEs ? 'Todo' : 'All',
+                          today: isEs ? 'Hoy' : 'Today',
+                          '7d': '7D',
+                          '30d': '30D'
+                        };
+                        const isSelected = mobileDatePreset === preset;
+                        return (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => applyMobileDatePreset(preset)}
+                            className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition-all text-center cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-600 text-white shadow-xs'
+                                : 'bg-[#fbf9f4] text-slate-600 border border-[#ded5c5]'
+                            }`}
+                          >
+                            {labels[preset]}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Resumen del Período */}
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-100">
+                      <span>{isEs ? 'Operaciones:' : 'Trades:'} <strong className="text-slate-900">{filteredMobileHistory.length}</strong></span>
+                      <span>
+                        {isEs ? 'PnL Período:' : 'Period PnL:'}{' '}
+                        <strong className={mobileTotalRealizedPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                          {mobileTotalRealizedPnL >= 0 ? '+' : ''}${mobileTotalRealizedPnL.toFixed(2)} USDT
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {filteredMobileHistory.map((item) => (
                     <div key={item.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
                       <div>
                         <div className="flex items-center gap-1.5">

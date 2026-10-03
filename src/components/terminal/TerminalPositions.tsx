@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Layers, History, CheckCircle2, AlertTriangle, Clock, Edit3, X, RotateCcw } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  ChevronDown, ChevronUp, Layers, History, CheckCircle2, 
+  AlertTriangle, Clock, Edit3, X, Download, ArrowUpDown, 
+  Calendar, Filter, RotateCcw
+} from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
+import { exportTradesToCSV } from '../../utils/csvExport';
 
 interface TerminalPositionsProps {
   isEs: boolean;
@@ -141,6 +146,192 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
   const isProfit = totalPnL >= 0;
   const equity = demoBalance + totalPnL;
 
+  // --- Estado de ordenación para la tabla de Posiciones ---
+  type PosSortKey = 'symbol' | 'side' | 'size' | 'entry' | 'mark' | 'slPrice' | 'tpPrice' | 'pnlUsdt';
+  const [posSortKey, setPosSortKey] = useState<PosSortKey | null>(null);
+  const [posSortDir, setPosSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handlePosSort = (key: PosSortKey) => {
+    if (posSortKey === key) {
+      if (posSortDir === 'asc') setPosSortDir('desc');
+      else {
+        setPosSortKey(null);
+        setPosSortDir('asc');
+      }
+    } else {
+      setPosSortKey(key);
+      setPosSortDir('asc');
+    }
+  };
+
+  const sortedPositions = useMemo(() => {
+    if (!posSortKey) return positions;
+    return [...positions].sort((a, b) => {
+      let valA: any = a[posSortKey];
+      let valB: any = b[posSortKey];
+      if (posSortKey === 'size') {
+        valA = a.sizeUnits || parseFloat(a.size) || 0;
+        valB = b.sizeUnits || parseFloat(b.size) || 0;
+      } else if (posSortKey === 'slPrice' || posSortKey === 'tpPrice') {
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+      } else if (typeof valA === 'string') {
+        valA = valA.toLowerCase();
+        valB = (valB || '').toLowerCase();
+        return posSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      } else {
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+      }
+      return posSortDir === 'asc' ? (valA < valB ? -1 : valA > valB ? 1 : 0) : (valA > valB ? -1 : valA < valB ? 1 : 0);
+    });
+  }, [positions, posSortKey, posSortDir]);
+
+  // --- Estado de ordenación para la tabla de Historial ---
+  type HistSortKey = 'openedAt' | 'closedAt' | 'symbol' | 'side' | 'size' | 'entry' | 'exitPrice' | 'closeReason' | 'pnlUsdt';
+  const [histSortKey, setHistSortKey] = useState<HistSortKey | null>('closedAt');
+  const [histSortDir, setHistSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleHistSort = (key: HistSortKey) => {
+    if (histSortKey === key) {
+      if (histSortDir === 'asc') setHistSortDir('desc');
+      else {
+        setHistSortKey(null);
+        setHistSortDir('asc');
+      }
+    } else {
+      setHistSortKey(key);
+      setHistSortDir('asc');
+    }
+  };
+
+  // --- Filtro por rango de fechas para Historial ---
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'this_month' | 'custom'>('all');
+
+  const applyDatePreset = (preset: 'all' | 'today' | '7d' | '30d' | 'this_month') => {
+    setDatePreset(preset);
+    const now = new Date();
+    const toYMD = (d: Date) => d.toISOString().slice(0, 10);
+    const todayStr = toYMD(now);
+
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'today') {
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === '7d') {
+      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      setStartDate(toYMD(past));
+      setEndDate(todayStr);
+    } else if (preset === '30d') {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      setStartDate(toYMD(past));
+      setEndDate(todayStr);
+    } else if (preset === 'this_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStartDate(toYMD(firstDay));
+      setEndDate(todayStr);
+    }
+  };
+
+  const filteredHistory = useMemo(() => {
+    let list = [...history];
+    if (startDate) {
+      const startTs = new Date(`${startDate}T00:00:00`).getTime();
+      list = list.filter(item => {
+        const t = new Date(item.closedAt || item.openedAt || 0).getTime();
+        return t >= startTs;
+      });
+    }
+    if (endDate) {
+      const endTs = new Date(`${endDate}T23:59:59.999`).getTime();
+      list = list.filter(item => {
+        const t = new Date(item.closedAt || item.openedAt || 0).getTime();
+        return t <= endTs;
+      });
+    }
+
+    if (histSortKey) {
+      list.sort((a, b) => {
+        let valA: any = a[histSortKey];
+        let valB: any = b[histSortKey];
+        if (histSortKey === 'openedAt' || histSortKey === 'closedAt') {
+          valA = new Date(valA || 0).getTime();
+          valB = new Date(valB || 0).getTime();
+        } else if (histSortKey === 'size') {
+          valA = a.sizeUnits || parseFloat(a.size) || 0;
+          valB = b.sizeUnits || parseFloat(b.size) || 0;
+        } else if (typeof valA === 'string') {
+          valA = valA.toLowerCase();
+          valB = (valB || '').toLowerCase();
+          return histSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          valA = Number(valA || 0);
+          valB = Number(valB || 0);
+        }
+        return histSortDir === 'asc' ? (valA < valB ? -1 : valA > valB ? 1 : 0) : (valA > valB ? -1 : valA < valB ? 1 : 0);
+      });
+    }
+
+    return list;
+  }, [history, startDate, endDate, histSortKey, histSortDir]);
+
+  const filteredTotalRealizedPnL = useMemo(() => {
+    return filteredHistory.reduce((acc, item) => acc + (item.pnlUsdt || 0), 0);
+  }, [filteredHistory]);
+
+  const handleExportCSV = () => {
+    exportTradesToCSV(filteredHistory, isEs);
+  };
+
+  const renderSortHeader = (
+    label: string,
+    field: string,
+    currentKey: string | null,
+    currentDir: 'asc' | 'desc',
+    onSort: (f: any) => void,
+    alignRight = false
+  ) => {
+    const isActive = currentKey === field;
+    return (
+      <th
+        onClick={() => onSort(field)}
+        className={`pb-1 px-2 cursor-pointer select-none transition-colors hover:text-amber-700 ${alignRight ? 'text-right' : ''}`}
+        title={isEs ? `Ordenar por ${label}` : `Sort by ${label}`}
+      >
+        <div className={`inline-flex items-center gap-1 ${alignRight ? 'justify-end' : ''}`}>
+          <span className={isActive ? 'text-amber-700 font-black' : ''}>{label}</span>
+          {isActive ? (
+            currentDir === 'asc' ? (
+              <ChevronUp className="w-2.5 h-2.5 text-amber-700 stroke-[3]" />
+            ) : (
+              <ChevronDown className="w-2.5 h-2.5 text-amber-700 stroke-[3]" />
+            )
+          ) : (
+            <ArrowUpDown className="w-2.5 h-2.5 text-slate-400 opacity-40 hover:opacity-100" />
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  const formatTradeDateTime = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const datePart = d.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+    const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-[10px] text-slate-700 font-bold">{timePart}</span>
+        <span className="text-[8.5px] text-slate-400 font-sans">{datePart}</span>
+      </div>
+    );
+  };
+
   return (
     <div 
       style={{ height: isExpanded ? `${panelHeight}px` : undefined }}
@@ -273,20 +464,21 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
             </button>
           )}
 
-          {activeTab === 'history' && history.length > 0 && onClearHistory && (
+          {activeTab === 'history' && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onClearHistory();
+                handleExportCSV();
               }}
-              className="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs active:scale-95"
-              title={isEs ? 'Purgar todo el historial de trades en la nube y local' : 'Purge all trade history from cloud and local'}
+              disabled={filteredHistory.length === 0}
+              className="px-2.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 text-emerald-700 hover:text-emerald-800 border border-emerald-200 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs active:scale-95"
+              title={isEs ? 'Descargar historial de operaciones en formato CSV' : 'Download trade history in CSV format'}
             >
-              <RotateCcw className="w-2.5 h-2.5" />
-              <span>{isEs ? 'Limpiar Historial' : 'Clear History'}</span>
-              <span className="px-1 rounded-full bg-rose-200 text-rose-900 text-[9px] font-mono font-bold">
-                {history.length}
+              <Download className="w-2.5 h-2.5" />
+              <span>{isEs ? 'Descargar CSV' : 'Download CSV'}</span>
+              <span className="px-1 rounded-full bg-emerald-200 text-emerald-900 text-[9px] font-mono font-bold">
+                {filteredHistory.length}
               </span>
             </button>
           )}
@@ -345,13 +537,14 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
             <table className="w-full text-left text-xs font-mono">
               <thead>
                 <tr className="text-[9px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  <th className="pb-1 px-2">Par</th>
-                  <th className="pb-1 px-2">Lado</th>
-                  <th className="pb-1 px-2">Tamaño</th>
-                  <th className="pb-1 px-2">Entrada</th>
-                  <th className="pb-1 px-2">Marca</th>
-                  <th className="pb-1 px-2">SL / TP</th>
-                  <th className="pb-1 px-2">PnL (%)</th>
+                  {renderSortHeader(isEs ? 'Par' : 'Symbol', 'symbol', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'Lado' : 'Side', 'side', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'Tamaño' : 'Size', 'size', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'Entrada' : 'Entry', 'entry', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'Marca' : 'Mark', 'mark', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'SL' : 'SL', 'slPrice', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'TP' : 'TP', 'tpPrice', posSortKey, posSortDir, handlePosSort)}
+                  {renderSortHeader(isEs ? 'PnL (%)' : 'PnL (%)', 'pnlUsdt', posSortKey, posSortDir, handlePosSort)}
                   <th className="pb-1 px-2 text-right">
                     {positions.length > 1 ? (
                       <button
@@ -369,7 +562,7 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {positions.map((pos) => (
+                {sortedPositions.map((pos) => (
                   <tr
                     key={pos.id}
                     onClick={() => onSelectPosition?.(pos)}
@@ -568,89 +761,190 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
 
           {/* PESTAÑA: HISTORIAL DE OPERACIONES CERRADAS */}
           {activeTab === 'history' && (
-            <table className="w-full text-left text-xs font-mono">
-              <thead>
-                <tr className="text-[9px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  <th className="pb-1 px-2">{isEs ? 'Apertura' : 'Open Time'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Cierre' : 'Close Time'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Par / Apalanc.' : 'Pair / Lev.'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Lado' : 'Side'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Tamaño' : 'Size'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Entrada / Salida' : 'Entry / Exit'}</th>
-                  <th className="pb-1 px-2">{isEs ? 'Tipo Cierre' : 'Close Type'}</th>
-                  <th className="pb-1 px-2 text-right">{isEs ? 'PnL Realizado' : 'Realized PnL'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {history.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-1 px-2 text-[10px] text-slate-500">
-                      {item.openedAt ? new Date(item.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
-                    </td>
-                    <td className="py-1 px-2 text-[10px] text-slate-500 font-bold">
-                      {item.closedAt ? new Date(item.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
-                    </td>
-                    <td className="py-1 px-2">
-                      <span className="font-bold text-slate-900">{item.symbol}</span>
-                      {item.leverage && (
-                        <span className="ml-1.5 px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-amber-100/70 text-amber-900 border border-amber-200">
-                          {item.leverage}x
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-1 px-2">
-                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                        item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                      }`}>
-                        {item.side}
-                      </span>
-                    </td>
-                    <td className="py-1 px-2 text-slate-600">{item.size}</td>
-                    <td className="py-1 px-2 text-[10px] text-slate-700 font-mono">
-                      <span>${item.entry.toLocaleString()}</span>
-                      <span className="text-slate-400 mx-1">➔</span>
-                      <span className="font-bold">${item.exitPrice.toLocaleString()}</span>
-                    </td>
-                    <td className="py-1 px-2 text-[10px]">
-                      {item.closeReason === 'TP' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-black border border-emerald-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                          TP
-                        </span>
-                      )}
-                      {item.closeReason === 'SL' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 font-black border border-rose-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                          SL
-                        </span>
-                      )}
-                      {item.closeReason === 'LIQUIDATION_BREACH' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold border border-purple-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
-                          Sentinel
-                        </span>
-                      )}
-                      {(!item.closeReason || item.closeReason === 'MANUAL') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                          {isEs ? 'Manual' : 'Manual'}
-                        </span>
-                      )}
-                    </td>
-                    <td className={`py-1 px-2 text-right font-bold ${item.isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {item.isProfit ? '+' : ''}${item.pnlUsdt.toFixed(2)} ({item.pnlPercent})
-                    </td>
+            <div className="flex flex-col gap-2">
+              {/* BARRA DE FILTRO POR RANGO DE FECHAS Y EXPORTACIÓN */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#f8f5ee] rounded-lg border border-stone-200 text-xs font-sans">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 mr-1">
+                    <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{isEs ? 'Período:' : 'Period:'}</span>
+                  </div>
+                  
+                  {/* Presets Rápidos */}
+                  {(['all', 'today', '7d', '30d', 'this_month'] as const).map((preset) => {
+                    const labelMap = {
+                      all: isEs ? 'Todo' : 'All',
+                      today: isEs ? 'Hoy' : 'Today',
+                      '7d': '7D',
+                      '30d': '30D',
+                      this_month: isEs ? 'Este Mes' : 'This Month'
+                    };
+                    const isSelected = datePreset === preset;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => applyDatePreset(preset)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-white hover:bg-amber-50 text-slate-600 hover:text-slate-900 border border-stone-200'
+                        }`}
+                      >
+                        {labelMap[preset]}
+                      </button>
+                    );
+                  })}
+
+                  {/* Selector de Rango de Fechas Personalizado */}
+                  <div className="flex items-center gap-1 ml-2">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setDatePreset('custom');
+                      }}
+                      className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[10px] font-mono text-slate-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                      title={isEs ? 'Fecha de inicio' : 'Start date'}
+                    />
+                    <span className="text-[10px] text-slate-400">➔</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setDatePreset('custom');
+                      }}
+                      className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[10px] font-mono text-slate-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                      title={isEs ? 'Fecha de fin' : 'End date'}
+                    />
+                    {(startDate || endDate) && (
+                      <button
+                        type="button"
+                        onClick={() => applyDatePreset('all')}
+                        className="p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                        title={isEs ? 'Limpiar filtro de fechas' : 'Clear date filter'}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Resumen del filtro & Descarga CSV */}
+                <div className="flex items-center gap-3 font-mono">
+                  <div className="text-[11px] text-slate-500">
+                    <span>{isEs ? 'Trades:' : 'Trades:'} <strong className="text-slate-800">{filteredHistory.length}</strong></span>
+                    <span className="mx-2 text-slate-300">|</span>
+                    <span>
+                      {isEs ? 'PnL Período:' : 'Period PnL:'}{' '}
+                      <strong className={filteredTotalRealizedPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                        {filteredTotalRealizedPnL >= 0 ? '+' : ''}${filteredTotalRealizedPnL.toFixed(2)} USDT
+                      </strong>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    disabled={filteredHistory.length === 0}
+                    className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-[10px] flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
+                    title={isEs ? 'Descargar operaciones filtradas en CSV' : 'Download filtered trades as CSV'}
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>{isEs ? 'Descargar CSV' : 'Export CSV'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* TABLA DE HISTORIAL CON ORDENACIÓN EN TODAS LAS COLUMNAS */}
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="text-[9px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    {renderSortHeader(isEs ? 'Apertura' : 'Open Time', 'openedAt', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Cierre' : 'Close Time', 'closedAt', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Par / Apalanc.' : 'Pair / Lev.', 'symbol', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Lado' : 'Side', 'side', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Tamaño' : 'Size', 'size', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Entrada' : 'Entry', 'entry', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Cierre' : 'Exit Price', 'exitPrice', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'Tipo Cierre' : 'Close Type', 'closeReason', histSortKey, histSortDir, handleHistSort)}
+                    {renderSortHeader(isEs ? 'PnL Realizado' : 'Realized PnL', 'pnlUsdt', histSortKey, histSortDir, handleHistSort, true)}
                   </tr>
-                ))}
-                {history.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="py-6 text-center text-xs text-slate-400">
-                      {isEs ? 'No hay operaciones cerradas registradas en el historial' : 'No closed trades recorded in history'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-1 px-2">
+                        {formatTradeDateTime(item.openedAt)}
+                      </td>
+                      <td className="py-1 px-2 font-bold">
+                        {formatTradeDateTime(item.closedAt)}
+                      </td>
+                      <td className="py-1 px-2">
+                        <span className="font-bold text-slate-900">{item.symbol}</span>
+                        {item.leverage && (
+                          <span className="ml-1.5 px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-amber-100/70 text-amber-900 border border-amber-200">
+                            {item.leverage}x
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1 px-2">
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                          item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {item.side}
+                        </span>
+                      </td>
+                      <td className="py-1 px-2 text-slate-600">{item.size}</td>
+                      <td className="py-1 px-2 text-[10px] text-slate-700 font-mono">
+                        ${Number(item.entry || 0).toLocaleString()}
+                      </td>
+                      <td className="py-1 px-2 text-[10px] font-bold text-slate-900 font-mono">
+                        ${Number(item.exitPrice || 0).toLocaleString()}
+                      </td>
+                      <td className="py-1 px-2 text-[10px]">
+                        {item.closeReason === 'TP' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-black border border-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                            TP
+                          </span>
+                        )}
+                        {item.closeReason === 'SL' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 font-black border border-rose-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                            SL
+                          </span>
+                        )}
+                        {item.closeReason === 'LIQUIDATION_BREACH' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold border border-purple-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                            Sentinel
+                          </span>
+                        )}
+                        {(!item.closeReason || item.closeReason === 'MANUAL') && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            {isEs ? 'Manual' : 'Manual'}
+                          </span>
+                        )}
+                      </td>
+                      <td className={`py-1 px-2 text-right font-bold ${item.isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {item.isProfit ? '+' : ''}${item.pnlUsdt.toFixed(2)} ({item.pnlPercent})
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="py-6 text-center text-xs text-slate-400">
+                        {isEs ? 'No hay operaciones que coincidan con el rango de fechas seleccionado' : 'No trades match the selected date range'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

@@ -237,14 +237,22 @@ function initHubEventListener() {
     const payload = event.payload as any;
     if (!payload) return;
 
-    // Filtro estricto: Descartar eventos de exchanges, pares o mercados anteriores
+    // Filtro estricto: Descartar eventos de exchanges o mercados que no correspondan
     const eventExchange = (payload.exchange || payload.stats?.exchange || '').toLowerCase();
     const eventSymbol = payload.symbol || payload.stats?.symbol || '';
     const eventMarket = payload.marketType || payload.stats?.marketType || '';
 
     if (eventExchange && eventExchange !== currentExchange.toLowerCase()) return;
-    if (eventSymbol && eventSymbol !== currentSymbol) return;
     if (eventMarket && eventMarket !== currentMarketType) return;
+
+    // Permitir eventos del símbolo visible en el chart O de cualquier par con posiciones activas
+    const normEventSym = (eventSymbol || '').replace('/', '').toUpperCase();
+    const isChartSymbol = normEventSym === (currentSymbol || '').replace('/', '').toUpperCase();
+    const isTrackedSymbol = Array.from(trackedPositionSymbols).some(
+      (s) => s.replace('/', '').toUpperCase() === normEventSym
+    );
+
+    if (!isChartSymbol && !isTrackedSymbol) return;
 
     switch (event.type) {
       case 'TICK_UPDATE': {
@@ -272,6 +280,8 @@ function initHubEventListener() {
         break;
       }
       case 'ORDERBOOK_UPDATE': {
+        // El libro de órdenes solo se despacha para el par visible en el gráfico
+        if (!isChartSymbol) break;
         if (payload.bids && payload.asks && (payload.bids.length > 0 || payload.asks.length > 0)) {
           self.postMessage(event);
         }
@@ -337,6 +347,11 @@ async function startFeed(
 ) {
   const requestId = ++feedSequenceId;
   initHubEventListener();
+
+  // Desuscribir el símbolo anterior del feed para evitar streams duplicados
+  if (currentSymbol && currentSymbol !== symbol) {
+    marketFeedHub.unsubscribe(currentExchange, currentSymbol, 'worker', currentMarketType);
+  }
 
   currentExchange = exchange;
   currentMarketType = marketType;

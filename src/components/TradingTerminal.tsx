@@ -38,7 +38,13 @@ import { CandleInfoModal } from './terminal/CandleInfoModal';
 import { TerminalToast, ToastNotification } from './terminal/TerminalToast';
 import { KLineBar } from '../core/market-feed/types';
 import { playOrderFilledSound } from '../utils/audioAlerts';
-import { SlidersHorizontal, X, AlertTriangle, RotateCcw } from 'lucide-react';
+import { SlidersHorizontal, X, AlertTriangle, RotateCcw, PenTool, Trash2 } from 'lucide-react';
+import { ZYTI_CHART_THEME, applyIndicatorsToChart } from './terminal/chartTheme';
+import { QuickTradeButtons } from './terminal/QuickTradeButtons';
+import { DrawdownBreachBanner } from './terminal/DrawdownBreachBanner';
+import { ChartContextMenu } from './terminal/ChartContextMenu';
+import { MobileRadialDrawingDial } from './terminal/MobileRadialDrawingDial';
+import { registerCustomChartOverlays } from './terminal/drawingTools';
 
 interface TradingTerminalProps {
   currentLang: Language;
@@ -48,193 +54,10 @@ interface TradingTerminalProps {
   onOpenAuth?: () => void;
   onLanguageChange?: (lang: Language) => void;
   onUpdateUser?: (updated: UserSession) => void;
+  onPairChange?: (pair: string) => void;
 }
 
 const SUPPORTED_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
-
-// Estilo institucional de KLineChart integrado con el tema Warm Cream de ZYTI Trade
-const ZYTI_CHART_THEME: DeepPartial<Styles> = {
-  grid: {
-    show: true,
-    horizontal: {
-      show: true,
-      size: 1,
-      color: 'rgba(214, 206, 192, 0.45)',
-      style: 'dashed' as any,
-      dashedValue: [3, 3]
-    },
-    vertical: {
-      show: true,
-      size: 1,
-      color: 'rgba(214, 206, 192, 0.45)',
-      style: 'dashed' as any,
-      dashedValue: [3, 3]
-    }
-  },
-  candle: {
-    type: 'candle_solid' as any,
-    bar: {
-      upColor: '#16a34a',
-      downColor: '#dc2626',
-      noChangeColor: '#888888',
-      upBorderColor: '#16a34a',
-      downBorderColor: '#dc2626',
-      noChangeBorderColor: '#888888',
-      upWickColor: '#16a34a',
-      downWickColor: '#dc2626',
-      noChangeWickColor: '#888888'
-    },
-    priceMark: {
-      show: true,
-      high: {
-        show: true,
-        color: '#64748b',
-        textOffset: 5,
-        textSize: 10
-      },
-      low: {
-        show: true,
-        color: '#64748b',
-        textOffset: 5,
-        textSize: 10
-      },
-      last: {
-        show: true,
-        upColor: '#16a34a',
-        downColor: '#dc2626',
-        noChangeColor: '#888888',
-        line: {
-          show: true,
-          style: 'dashed' as any,
-          dashedValue: [4, 4],
-          size: 1
-        },
-        text: {
-          show: true,
-          style: 'fill' as any,
-          size: 11,
-          paddingLeft: 4,
-          paddingTop: 4,
-          paddingRight: 4,
-          paddingBottom: 4,
-          color: '#ffffff',
-          borderRadius: 4
-        }
-      }
-    },
-    tooltip: {
-      showRule: 'none' as any,
-      showType: 'standard' as any,
-      text: {
-        size: 9,
-        color: '#475569'
-      }
-    }
-  },
-  indicator: {
-    tooltip: {
-      showRule: 'always' as any,
-      showType: 'standard' as any,
-      text: {
-        size: 9,
-        color: '#475569'
-      }
-    }
-  },
-  xAxis: {
-    show: true,
-    size: 'auto' as any,
-    axisLine: {
-      show: true,
-      color: '#ded5c5',
-      size: 1
-    },
-    tickText: {
-      show: true,
-      color: '#64748b',
-      size: 10,
-      family: 'JetBrains Mono, monospace'
-    },
-    tickLine: {
-      show: true,
-      size: 1,
-      length: 3,
-      color: '#ded5c5'
-    }
-  },
-  yAxis: {
-    show: true,
-    size: 'auto' as any,
-    position: 'right' as any,
-    axisLine: {
-      show: true,
-      color: '#ded5c5',
-      size: 1
-    },
-    tickText: {
-      show: true,
-      color: '#64748b',
-      size: 10,
-      family: 'JetBrains Mono, monospace'
-    },
-    tickLine: {
-      show: true,
-      size: 1,
-      length: 3,
-      color: '#ded5c5'
-    }
-  },
-  crosshair: {
-    show: true,
-    horizontal: {
-      show: true,
-      line: {
-        show: true,
-        style: 'dashed' as any,
-        dashedValue: [4, 4],
-        size: 1,
-        color: '#64748b'
-      },
-      text: {
-        show: true,
-        color: '#ffffff',
-        size: 10,
-        family: 'JetBrains Mono, monospace',
-        paddingLeft: 4,
-        paddingRight: 4,
-        paddingTop: 2,
-        paddingBottom: 2,
-        borderSize: 1,
-        borderColor: '#0f172a',
-        borderRadius: 3,
-        backgroundColor: '#0f172a'
-      }
-    },
-    vertical: {
-      show: true,
-      line: {
-        show: true,
-        style: 'dashed' as any,
-        dashedValue: [4, 4],
-        size: 1,
-        color: '#64748b'
-      },
-      text: {
-        show: true,
-        color: '#ffffff',
-        size: 10,
-        family: 'JetBrains Mono, monospace',
-        paddingLeft: 4,
-        paddingRight: 4,
-        paddingTop: 2,
-        paddingBottom: 2,
-        borderSize: 1,
-        borderColor: '#0f172a',
-        borderRadius: 3,
-      }
-    }
-  }
-};
 
 // Generador de ID robusto compatible con HTTP en móviles y túneles locales
 const generateId = (): string => {
@@ -267,6 +90,26 @@ const getStoredDailyStartEquity = (currentBalance: number): number => {
   }
 };
 
+const getPairLeverageKey = (pair: string, userId?: string): string => {
+  const cleanPair = (pair || 'BTC/USDT').replace('/', '_').toUpperCase();
+  return userId ? `zyti_leverage_${userId}_${cleanPair}` : `zyti_leverage_${cleanPair}`;
+};
+
+const getStoredPairLeverage = (pair: string, userId?: string): number => {
+  try {
+    const userKey = getPairLeverageKey(pair, userId);
+    const globalKey = getPairLeverageKey(pair);
+    const saved = localStorage.getItem(userKey) || localStorage.getItem(globalKey);
+    if (saved) {
+      const val = parseInt(saved, 10);
+      if (!isNaN(val) && val >= 1 && val <= 100) {
+        return val;
+      }
+    }
+  } catch {}
+  return 10;
+};
+
 export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   currentLang,
   user,
@@ -274,7 +117,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   onExit,
   onOpenAuth,
   onLanguageChange,
-  onUpdateUser
+  onUpdateUser,
+  onPairChange
 }) => {
   const isEs = currentLang === 'es';
   const normalizePair = (sym?: string): string => {
@@ -284,7 +128,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     return found || 'BTC/USDT';
   };
 
-  const [selectedPair, setSelectedPair] = useState(() => normalizePair(initialSymbol));
+  const [selectedPair, setSelectedPair] = useState(() => {
+    try {
+      const saved = localStorage.getItem('zyti_selected_pair');
+      if (saved) return normalizePair(saved);
+    } catch {}
+    return normalizePair(initialSymbol);
+  });
   const selectedPairRef = useRef<string>(selectedPair);
   selectedPairRef.current = selectedPair;
 
@@ -326,7 +176,42 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('1000');
-  const [leverage, setLeverage] = useState(10);
+  // Apalancamiento con persistencia por usuario y por par en localStorage
+  const [leverage, setLeverage] = useState<number>(() => {
+    return getStoredPairLeverage(normalizePair(initialSymbol), user?.id);
+  });
+  const handleSetLeverage = useCallback((newLev: number) => {
+    setLeverage(newLev);
+    try {
+      const pair = selectedPairRef.current;
+      const cleanPair = pair.replace('/', '_').toUpperCase();
+      if (user?.id) {
+        localStorage.setItem(`zyti_leverage_${user.id}_${cleanPair}`, String(newLev));
+      }
+      localStorage.setItem(`zyti_leverage_${cleanPair}`, String(newLev));
+    } catch {}
+  }, [user?.id]);
+
+  // Persistencia de visibilidad de la orden previa proyectada en el gráfico
+  const [showChartOrderPreview, setShowChartOrderPreview] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_show_chart_order_preview');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleChartOrderPreview = useCallback(() => {
+    setShowChartOrderPreview((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('zyti_show_chart_order_preview', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
   // Navegación lateral en escritorio y drawer en móvil
@@ -381,6 +266,127 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return next;
     });
   };
+
+  // Herramientas de dibujo en KLineChart (Línea Horizontal, Tendencia, Cuadros, Fibonacci)
+  const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [isRadialDialOpen, setIsRadialDialOpen] = useState<boolean>(false);
+  const [radialDialPos, setRadialDialPos] = useState<{ x: number; y: number } | null>(null);
+  const activeDrawingToolRef = useRef<string | null>(null);
+  activeDrawingToolRef.current = activeDrawingTool;
+  const isRadialDialOpenRef = useRef<boolean>(false);
+  isRadialDialOpenRef.current = isRadialDialOpen;
+
+  // ─── Persistencia de trazos en localStorage ────────────────────────────
+  const DRAWINGS_KEY = (pair: string) => `zyti_drawings_${pair}`;
+
+  const saveDrawings = useCallback((pair: string) => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+    try {
+      const store = (chart as any)._chartStore?.getOverlayStore?.();
+      if (!store) return;
+      const instances: any[] = store.getInstances() ?? [];
+      const serialized = instances
+        .filter((o: any) => o.name && Array.isArray(o.points) && o.points.length > 0 && !o.isDrawing?.())
+        .map((o: any) => ({ name: o.name, points: o.points, paneId: o.paneId ?? 'candle_pane' }));
+      localStorage.setItem(DRAWINGS_KEY(pair), JSON.stringify(serialized));
+    } catch { /* silencioso */ }
+  }, []);
+
+  const restoreDrawings = useCallback((pair: string) => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+    try {
+      const raw = localStorage.getItem(DRAWINGS_KEY(pair));
+      if (!raw) return;
+      const drawings: { name: string; points: any[]; paneId: string }[] = JSON.parse(raw);
+      drawings.forEach(({ name, points, paneId }) => {
+        try {
+          (chart as any).createOverlay({ name, points, paneId });
+        } catch { /* overlay desconocido, ignorar */ }
+      });
+    } catch { /* JSON corrupto, ignorar */ }
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────
+
+  const handleSelectDrawingTool = useCallback((overlayName: string) => {
+    setActiveDrawingTool(overlayName);
+    if (chartInstanceRef.current) {
+      try {
+        (chartInstanceRef.current as any).createOverlay({
+          name: overlayName,
+          onDrawEnd: () => {
+            setActiveDrawingTool(null);
+            // Guardar todos los trazos al terminar cada dibujo
+            saveDrawings(selectedPairRef.current);
+            return true;
+          },
+          onSelected: (event: any) => {
+            if (event?.overlay?.id) {
+              setSelectedOverlayId(event.overlay.id);
+            }
+            return true;
+          },
+          onDeselected: () => {
+            setSelectedOverlayId(null);
+            return true;
+          },
+          onRemoved: () => {
+            setSelectedOverlayId(null);
+            // Guardar estado actualizado tras eliminar
+            setTimeout(() => saveDrawings(selectedPairRef.current), 50);
+            return true;
+          }
+        });
+      } catch (err) {
+        console.warn('[ZYTI Trade] Error al crear overlay de dibujo:', err);
+      }
+    }
+  }, [saveDrawings]);
+
+  const handleCancelDrawing = useCallback(() => {
+    setActiveDrawingTool(null);
+  }, []);
+
+  const handleDeleteSelectedOverlay = useCallback(() => {
+    if (selectedOverlayId && chartInstanceRef.current) {
+      try {
+        (chartInstanceRef.current as any).removeOverlay(selectedOverlayId);
+      } catch (err) {
+        console.warn('[ZYTI Trade] Error al eliminar overlay seleccionado:', err);
+      }
+      setSelectedOverlayId(null);
+      setTimeout(() => saveDrawings(selectedPairRef.current), 50);
+    }
+  }, [selectedOverlayId, saveDrawings]);
+
+  const handleClearAllDrawings = useCallback(() => {
+    setActiveDrawingTool(null);
+    setSelectedOverlayId(null);
+    if (chartInstanceRef.current) {
+      try {
+        (chartInstanceRef.current as any).removeOverlay();
+      } catch (err) {
+        console.warn('[ZYTI Trade] Error al limpiar overlays:', err);
+      }
+    }
+    // Borrar también de localStorage
+    try { localStorage.removeItem(DRAWINGS_KEY(selectedPairRef.current)); } catch { /* noop */ }
+  }, []);
+
+  // Eliminar trazo seleccionado con la tecla Suprimir / Backspace
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedOverlayId) {
+        const activeTag = (document.activeElement?.tagName || '').toUpperCase();
+        if (['INPUT', 'TEXTAREA'].includes(activeTag)) return;
+        handleDeleteSelectedOverlay();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedOverlayId, handleDeleteSelectedOverlay]);
 
   // Detección reactiva de escritorio (>= 1024px)
   const [isDesktop, setIsDesktop] = useState<boolean>(() => {
@@ -1080,17 +1086,93 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const chartInstanceRef = useRef<Chart | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  // Escuchar clics fuera y tecla Escape para cerrar el menú contextual del gráfico
+  // Escuchar toques y clics fuera para cerrar el menú contextual del gráfico.
+  // IMPORTANTE: KLineChart llama preventDefault() en touchend, lo que impide que llegue
+  // el evento 'click' sintetizado al window. Por eso usamos document capture-phase (touchstart),
+  // que se ejecuta ANTES de cualquier handler y ANTES de que KLineChart pueda bloquearlo.
   useEffect(() => {
     const handleDismiss = () => setChartContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setChartContextMenu(null);
     };
-    window.addEventListener('click', handleDismiss);
-    window.addEventListener('keydown', handleKeyDown);
+    // capture:true garantiza que se ejecuta antes que el target/bubble y no puede ser bloqueado
+    document.addEventListener('touchstart', handleDismiss, { capture: true, passive: true });
+    document.addEventListener('click', handleDismiss, { capture: true });
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('click', handleDismiss);
-      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('touchstart', handleDismiss, { capture: true });
+      document.removeEventListener('click', handleDismiss, { capture: true });
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Detección de toque rápido en el gráfico para abrir el dial radial (FASE CAPTURA).
+  // Usa document+capture:true para ejecutarse ANTES de que KLineChart consuma el evento.
+  // CRÍTICO: Verifica que e.target sea un <canvas> hijo del chartContainer — los botones UI
+  // que se superponen al gráfico nunca son canvas, por lo que quedan excluidos automáticamente.
+  useEffect(() => {
+    let tapX = 0, tapY = 0, tapMs = 0, tapMoved = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const container = chartContainerRef.current;
+      if (!container) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      // El target debe ser un <canvas> hijo del contenedor del gráfico.
+      // KLineChart renderiza todo en canvas — cualquier botón/overlay React NO es canvas.
+      const target = e.target as Element | null;
+      if (!target || target.tagName !== 'CANVAS' || !container.contains(target)) {
+        tapMs = 0;
+        return;
+      }
+
+      // Excluir zona del eje de precios (derecha, 70px) y eje de tiempo (abajo, 36px)
+      const rect = container.getBoundingClientRect();
+      const relX = touch.clientX - rect.left;
+      const relY = touch.clientY - rect.top;
+      if (relX >= rect.width - 70 || relY >= rect.height - 36) { tapMs = 0; return; }
+
+      tapX = touch.clientX;
+      tapY = touch.clientY;
+      tapMs = Date.now();
+      tapMoved = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (tapMoved || tapMs === 0) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      if (Math.abs(touch.clientX - tapX) > 8 || Math.abs(touch.clientY - tapY) > 8) {
+        tapMoved = true;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (tapMs === 0) return;
+      const elapsed = Date.now() - tapMs;
+      tapMs = 0;
+      if (
+        !tapMoved &&
+        elapsed < 280 &&
+        window.innerWidth < 1024 &&
+        !activeDrawingToolRef.current &&
+        !isRadialDialOpenRef.current
+      ) {
+        setRadialDialPos({ x: tapX, y: tapY });
+        setIsRadialDialOpen(true);
+      }
+    };
+
+    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove',  onTouchMove,  { capture: true, passive: true });
+    document.addEventListener('touchend',   onTouchEnd,   { capture: true });
+    document.addEventListener('touchcancel', () => { tapMs = 0; }, { capture: true });
+
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart, { capture: true });
+      document.removeEventListener('touchmove',  onTouchMove,  { capture: true });
+      document.removeEventListener('touchend',   onTouchEnd,   { capture: true });
     };
   }, []);
 
@@ -1237,34 +1319,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 3000);
   };
 
-  // Función reutilizable para montar o restaurar los indicadores técnicos activos en KLineChart
-  const applyIndicatorsToChart = useCallback((chart: Chart, indicators: string[]) => {
-    if (!chart) return;
-    const hasOhlc = indicators.includes('OHLC');
-    chart.setStyles({
-      candle: {
-        tooltip: {
-          showRule: (hasOhlc ? 'always' : 'none') as any,
-          text: { size: 9, color: '#475569' }
-        }
-      }
-    });
-
-    indicators.forEach((name) => {
-      if (name === 'OHLC') return;
-      const indOption = ALL_INDICATORS.find((i) => i.name === name);
-      if (!indOption) return;
-      const targetPane = indOption.paneId || (indOption.category === 'main' ? 'candle_pane' : `pane_${name.toLowerCase()}`);
-      try {
-        chart.createIndicator(name, false, { id: targetPane });
-      } catch (_) {}
-    });
-  }, []);
-
   // 1. Inicialización de KLineChart Canvas y Web Worker
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!container) return;
+
+    registerCustomChartOverlays();
 
     const chart = init(container, {
       styles: ZYTI_CHART_THEME,
@@ -1285,58 +1345,110 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       }
     });
 
-    // Soporte táctil nativo y fluido para alejar/acercar en la barra lateral de precios (Y-Axis)
-    // y la barra inferior de tiempo (X-Axis) en dispositivos móviles y tablets
+    // Restablecer herramienta activa cuando el usuario termina de trazar
+    try {
+      chart.subscribeAction('onDrawEnd' as any, () => {
+        setActiveDrawingTool(null);
+      });
+    } catch {}
+
+    // Soporte táctil nativo y fluido en 2D (arriba/abajo y lados) para dispositivos móviles y tablets
     const chartEvent = (chart as any)._chartEvent;
     if (chartEvent) {
       const origTouchStart = chartEvent.touchStartEvent.bind(chartEvent);
       const origTouchMove = chartEvent.touchMoveEvent.bind(chartEvent);
       const origTouchEnd = chartEvent.touchEndEvent.bind(chartEvent);
 
-      let isTouchDraggingAxis = false;
-      let lastYAxisTapTime = 0;
+      let isSingleTouchActive = false;
+      let lastTapTime = 0;
+      // Estado de tap rápido para el dial radial (detectado DENTRO del override de KLineChart)
+      let tapStartX = 0;
+      let tapStartY = 0;
+      let tapStartMs = 0;
+      let tapMoved = false;
 
       chartEvent.touchStartEvent = function (e: any) {
         const found = chartEvent._findWidgetByEvent(e);
         const name = found?.widget?.getName?.();
-        if (name === 'yAxis' || name === 'xAxis') {
-          isTouchDraggingAxis = true;
+        const pane = found?.pane;
+        const yAxis = pane?.getAxisComponent?.();
 
-          // Doble toque rápido en el eje lateral de precios para restablecer el auto-escalado (análogo al doble clic en escritorio)
-          if (name === 'yAxis') {
-            const now = Date.now();
-            if (now - lastYAxisTapTime < 350) {
-              const yAxis = found?.pane?.getAxisComponent?.();
-              if (yAxis && !yAxis.getAutoCalcTickFlag?.()) {
-                yAxis.setAutoCalcTickFlag(true);
-                (chart as any).adjustPaneViewport(false, true, true, true);
-                isTouchDraggingAxis = false;
-                lastYAxisTapTime = 0;
-                return true;
-              }
-            }
-            lastYAxisTapTime = now;
+        // Guardar coordenadas para detección de tap rápido
+        const nativeTouch = e.changedTouches?.[0] ?? e.touches?.[0];
+        if (nativeTouch) {
+          tapStartX = nativeTouch.clientX;
+          tapStartY = nativeTouch.clientY;
+          tapStartMs = Date.now();
+          tapMoved = false;
+        }
+
+        // 1. Doble toque rápido para restablecer auto-escalado vertical
+        const now = Date.now();
+        if (now - lastTapTime < 350) {
+          if (yAxis && !yAxis.getAutoCalcTickFlag?.()) {
+            yAxis.setAutoCalcTickFlag(true);
+            (chart as any).adjustPaneViewport(false, true, true, true);
+            lastTapTime = 0;
+            return true;
           }
+        }
+        lastTapTime = now;
 
+        // 2. Si el usuario toca el eje lateral de precios (Y-Axis) o tiempo (X-Axis)
+        if (name === 'yAxis' || name === 'xAxis') {
+          isSingleTouchActive = true;
+          tapMoved = true; // los ejes no disparan el dial
           return chartEvent.mouseDownEvent(e);
         }
-        isTouchDraggingAxis = false;
+
+        // 3. Toque en el cuerpo del gráfico (velas e indicadores): permitir arrastre libre 2D (arriba/abajo y lados)
+        if (name === 'main') {
+          isSingleTouchActive = true;
+          if (yAxis) {
+            // Desbloquear escalado vertical para que el arrastre 2D (arriba/abajo y lados) funcione idéntico a escritorio
+            yAxis.setAutoCalcTickFlag(false);
+          }
+          chartEvent.mouseDownEvent(e);
+          return true;
+        }
+
+        isSingleTouchActive = false;
         return origTouchStart(e);
       };
 
       chartEvent.touchMoveEvent = function (e: any) {
-        if (isTouchDraggingAxis) {
+        // Si el dedo se mueve más de 8px se descarta el tap rápido
+        if (!tapMoved) {
+          const nativeTouch = e.changedTouches?.[0] ?? e.touches?.[0];
+          if (nativeTouch) {
+            const dx = Math.abs(nativeTouch.clientX - tapStartX);
+            const dy = Math.abs(nativeTouch.clientY - tapStartY);
+            if (dx > 8 || dy > 8) tapMoved = true;
+          }
+        }
+
+        if (isSingleTouchActive) {
           if (e.preventDefault) {
             try { e.preventDefault(); } catch {}
           }
           return chartEvent.pressedMouseMoveEvent(e);
         }
+
         return origTouchMove(e);
       };
 
       chartEvent.touchEndEvent = function (e: any) {
-        if (isTouchDraggingAxis) {
-          isTouchDraggingAxis = false;
+        // Detectar tap rápido para abrir el dial radial en móviles
+        if (!tapMoved && !activeDrawingToolRef.current && !isRadialDialOpenRef.current && window.innerWidth < 1024) {
+          const elapsed = Date.now() - tapStartMs;
+          if (elapsed < 280) {
+            setRadialDialPos({ x: tapStartX, y: tapStartY });
+            setIsRadialDialOpen(true);
+          }
+        }
+
+        if (isSingleTouchActive) {
+          isSingleTouchActive = false;
           return chartEvent.mouseUpEvent(e);
         }
         return origTouchEnd(e);
@@ -1355,22 +1467,36 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       const activeChart = chartInstanceRef.current;
       if (type === 'HISTORICAL_BARS') {
         if (activeChart && payload.bars && payload.bars.length > 0) {
+          const normPayloadSym = (payload.symbol || '').replace('/', '').toUpperCase();
+          const normCurrentSym = (selectedPairRef.current || '').replace('/', '').toUpperCase();
           // Descartar si las barras pertenecen a un par que ya no es el seleccionado en el chart
-          if (payload.symbol && payload.symbol !== selectedPairRef.current) {
+          if (normPayloadSym && normPayloadSym !== normCurrentSym) {
             return;
           }
-          const precision = (payload.symbol || '').includes('XRP') ? 4 : 2;
+          const precision = normPayloadSym.includes('XRP') ? 4 : 2;
           activeChart.setPriceVolumePrecision(precision, 4);
-          activeChart.clearData();
+
+          // Restablecer auto-cálculo de ticks en el eje Y para que la nueva escala se calibre de inmediato
+          try {
+            const candlePane = (activeChart as any)._candlePane;
+            candlePane?.getAxisComponent?.().setAutoCalcTickFlag?.(true);
+          } catch {}
+
           activeChart.applyNewData(payload.bars, false);
           activeChart.scrollToRealTime();
 
-          // Restaurar indicadores técnicos activos sobre el nuevo lienzo
-          applyIndicatorsToChart(activeChart, activeIndicatorsRef.current || ['MA', 'VOL']);
+          try {
+            (activeChart as any).adjustPaneViewport(true, true, true, true, true);
+          } catch {}
+
+          // Restaurar trazos de dibujo guardados en localStorage para este nuevo par
+          restoreDrawings(selectedPairRef.current);
         }
       } else if (type === 'TICK_UPDATE') {
         // 1. Alimentar el gráfico y las estadísticas SOLO si el tick pertenece al par activo del canvas
-        const isCurrentPair = payload.symbol === selectedPairRef.current;
+        const normPayloadSym = (payload.symbol || '').replace('/', '').toUpperCase();
+        const normCurrentSym = (selectedPairRef.current || '').replace('/', '').toUpperCase();
+        const isCurrentPair = normPayloadSym === normCurrentSym;
         if (isCurrentPair) {
           if (activeChart && payload.bar) {
             activeChart.updateData(payload.bar);
@@ -1386,8 +1512,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
         // 2. Evaluar posiciones abiertas para este símbolo (continúa en vivo aunque el usuario esté en otro par)
         if (!payload.isInitialBars && currentP > 0 && tickSymbol) {
+          const normTick = (tickSymbol || '').replace('/', '').toUpperCase();
           const currentPositions = positionsRef.current;
-          if (currentPositions.some((p) => p.symbol === tickSymbol)) {
+          if (currentPositions.some((p) => (p.symbol || '').replace('/', '').toUpperCase() === normTick)) {
             const evaluation = TradingEngine.evaluatePositionsOnTick(
               currentPositions,
               currentP,
@@ -1456,7 +1583,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
           // 3. Evaluación de Órdenes Límite pendientes para este símbolo
           const currentLimits = limitOrdersRef.current.filter(
-            (o) => o.symbol === tickSymbol && o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+            (o) => (o.symbol || '').replace('/', '').toUpperCase() === normTick && o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
           );
           if (currentLimits.length > 0) {
             const limitEval = TradingEngine.evaluateLimitOrdersOnTick(
@@ -1527,14 +1654,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           }
         } else if (type === 'TICKER') {
         if (payload.stats && payload.stats.lastPrice > 0 && !isNaN(payload.stats.lastPrice)) {
-          if (payload.stats.symbol === selectedPairRef.current) {
+          const normTickerSym = (payload.stats.symbol || payload.symbol || '').replace('/', '').toUpperCase();
+          const normCurrentChartSym = (selectedPairRef.current || '').replace('/', '').toUpperCase();
+          if (normTickerSym === normCurrentChartSym) {
             setStats(payload.stats);
           }
           const currentP = payload.stats.lastPrice;
           const currentPositions = positionsRef.current;
-          if (currentPositions.length > 0) {
-            const tickSymbol = payload.stats?.symbol || payload.symbol;
-            const tickExchange = payload.exchange || payload.stats?.exchange;
+          const tickSymbol = payload.stats?.symbol || payload.symbol;
+          const tickExchange = payload.exchange || payload.stats?.exchange;
+
+          if (currentPositions.length > 0 && currentPositions.some((p) => (p.symbol || '').replace('/', '').toUpperCase() === normTickerSym)) {
             const evaluation = TradingEngine.evaluatePositionsOnTick(
               currentPositions,
               currentP,
@@ -1586,7 +1716,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
           // Evaluación de Órdenes Límite pendientes en TICKER
           const currentLimitsTicker = limitOrdersRef.current.filter(
-            (o) => o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+            (o) => (o.symbol || '').replace('/', '').toUpperCase() === normTickerSym && o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
           );
           if (currentLimitsTicker.length > 0) {
             const tickSymbol = payload.stats?.symbol || payload.symbol;
@@ -1699,7 +1829,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     };
   }, []);
 
-  // 1.B Soporte de gestos táctiles para zoom en eje lateral (precio) e inferior (tiempo) en móviles
+  // 1.B Soporte de gestos táctiles para zoom en ejes lateral/inferior en móviles
+  // NOTA: La detección de tap rápido para el dial radial está integrada dentro del override
+  // de _chartEvent en el bloque de inicialización del chart, ya que KLineChart captura los
+  // eventos táctiles antes de que lleguen a los listeners del DOM.
   useEffect(() => {
     const container = chartContainerRef.current;
     if (!container) return;
@@ -1715,6 +1848,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
+      startTouchX = touch.clientX;
+      startTouchY = touch.clientY;
+
       // Eje lateral derecho (Precio): zona derecha (últimos 70px)
       const isRightAxis = x >= rect.width - 70;
       // Eje inferior (Tiempo): base (últimos 36px)
@@ -1722,27 +1858,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
       if (isRightAxis) {
         activeTouchAxis = 'yAxis';
-        startTouchX = touch.clientX;
-        startTouchY = touch.clientY;
-        const synthDown = new MouseEvent('mousedown', {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          bubbles: true,
-          cancelable: true,
-          button: 0
-        });
+        const synthDown = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY, bubbles: true, cancelable: true, button: 0 });
         container.dispatchEvent(synthDown);
       } else if (isBottomAxis) {
         activeTouchAxis = 'xAxis';
-        startTouchX = touch.clientX;
-        startTouchY = touch.clientY;
-        const synthDown = new MouseEvent('mousedown', {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          bubbles: true,
-          cancelable: true,
-          button: 0
-        });
+        const synthDown = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY, bubbles: true, cancelable: true, button: 0 });
         container.dispatchEvent(synthDown);
       } else {
         activeTouchAxis = null;
@@ -1752,17 +1872,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     const handleTouchMove = (e: TouchEvent) => {
       if (!activeTouchAxis || e.touches.length !== 1) return;
       const touch = e.touches[0];
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-
-      const synthMove = new MouseEvent('mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-        bubbles: true,
-        cancelable: true,
-        buttons: 1
-      });
+      if (e.cancelable) e.preventDefault();
+      const synthMove = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY, bubbles: true, cancelable: true, buttons: 1 });
       container.dispatchEvent(synthMove);
     };
 
@@ -1772,9 +1883,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       const synthUp = new MouseEvent('mouseup', {
         clientX: touch ? touch.clientX : startTouchX,
         clientY: touch ? touch.clientY : startTouchY,
-        bubbles: true,
-        cancelable: true,
-        button: 0
+        bubbles: true, cancelable: true, button: 0
       });
       container.dispatchEvent(synthUp);
       activeTouchAxis = null;
@@ -1839,10 +1948,24 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const handleSelectPair = (pair: string) => {
     setSelectedPair(pair);
     selectedPairRef.current = pair;
-    // Limpiar gráfico de inmediato para que la escala del par previo no quede anclada en el eje
+    try {
+      localStorage.setItem('zyti_selected_pair', pair);
+    } catch {}
+    onPairChange?.(pair);
+
+    // Restaurar apalancamiento persistido para este par específico
+    const savedLev = getStoredPairLeverage(pair, user?.id);
+    setLeverage(savedLev);
+
+    // Limpiar overlays del par anterior y desbloquear auto-escala del eje vertical
     if (chartInstanceRef.current) {
-      chartInstanceRef.current.clearData();
+      try {
+        const candlePane = (chartInstanceRef.current as any)._candlePane;
+        candlePane?.getAxisComponent?.().setAutoCalcTickFlag?.(true);
+        (chartInstanceRef.current as any).removeOverlay();
+      } catch {}
     }
+
     // Sincronizar URL dinámica para compartir y SEO (/es/zytiterminal/BTCUSDT)
     const cleanPair = pair.replace('/', '').toUpperCase();
     const targetPath = `/${currentLang}/zytiterminal/${cleanPair}`;
@@ -1919,11 +2042,19 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   useEffect(() => {
     if (initialSymbol) {
       const match = normalizePair(initialSymbol);
-      if (match && match !== selectedPair) {
+      if (match && match !== selectedPairRef.current) {
         handleSelectPair(match);
       }
     }
   }, [initialSymbol]);
+
+  // Sincronizar apalancamiento al cambiar de usuario / sesión
+  useEffect(() => {
+    if (user?.id) {
+      const savedLev = getStoredPairLeverage(selectedPairRef.current, user.id);
+      setLeverage(savedLev);
+    }
+  }, [user?.id]);
 
   // ── Pestaña del navegador: precio en vivo en tiempo real vía WebSocket (sin conexiones adicionales, reusando el feed del chart)
   useEffect(() => {
@@ -2557,8 +2688,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return;
     }
 
+    positionsRef.current = [result.position!, ...positionsRef.current];
     setPositions((prev) => [result.position!, ...prev]);
     playOrderFilledSound();
+
+    if (workerRef.current) {
+      const activeSymbols = Array.from(
+        new Set([
+          ...positionsRef.current.map((p) => p.symbol),
+          ...limitOrdersRef.current.filter((o) => o.status === 'PENDING').map((o) => o.symbol)
+        ])
+      );
+      workerRef.current.postMessage({
+        type: 'SYNC_TRACKED_SYMBOLS',
+        payload: { symbols: activeSymbols }
+      });
+    }
 
     // Persistir orden abierta asíncronamente en public.account_trades
     const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
@@ -2652,8 +2797,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     );
 
     if (result.success && result.position) {
+      positionsRef.current = [result.position!, ...positionsRef.current];
       setPositions((prev) => [result.position!, ...prev]);
       playOrderFilledSound();
+
+      if (workerRef.current) {
+        const activeSymbols = Array.from(
+          new Set([
+            ...positionsRef.current.map((p) => p.symbol),
+            ...limitOrdersRef.current.filter((o) => o.status === 'PENDING').map((o) => o.symbol)
+          ])
+        );
+        workerRef.current.postMessage({
+          type: 'SYNC_TRACKED_SYMBOLS',
+          payload: { symbols: activeSymbols }
+        });
+      }
 
       // Persistir orden rápida abierta asíncronamente en public.account_trades
       const targetAccId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
@@ -2760,6 +2919,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       orderMode={orderMode}
       orderSuccess={orderSuccess}
       quickTradeEnabled={quickTradeEnabled}
+      showChartPreview={showChartOrderPreview}
+      onToggleChartPreview={handleToggleChartOrderPreview}
       isDesktop={isDesktop}
       isMinimized={isOrderFormMinimized}
       onToggleMinimize={() => setIsOrderFormMinimized((m) => !m)}
@@ -2772,7 +2933,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       setSide={setSide}
       setOrderType={handleSelectOrderType}
       setAmount={setAmount}
-      setLeverage={setLeverage}
+      setLeverage={handleSetLeverage}
       setRiskPercent={setRiskPercent}
       setSlPercent={setSlPercent}
       setTpPercent={setTpPercent}
@@ -2890,10 +3051,14 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             favoriteTimeframes={favoriteTimeframes}
             activeIndicators={activeIndicators}
             favoriteIndicators={favoriteIndicators}
+            activeDrawingTool={activeDrawingTool}
             onSelectTimeframe={handleSelectTimeframe}
             onToggleIndicator={handleToggleIndicator}
             onToggleFavoriteTimeframe={toggleFavoriteTimeframe}
             onToggleFavoriteIndicator={toggleFavoriteIndicator}
+            onSelectDrawingTool={handleSelectDrawingTool}
+            onCancelDrawing={handleCancelDrawing}
+            onClearAllDrawings={handleClearAllDrawings}
           />
 
           {/* CONTENEDOR KLINECHART v9.8.6 OFICIAL */}
@@ -2924,133 +3089,78 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               className="w-full h-full block" 
             />
 
-            {/* BOTONES FLOTANTES SUPERIORES DE COMPRA / VENTA 1-CLICK EN ESCRITORIO (SOLO CUANDO EL PANEL DE TRADING ESTÁ OCULTO) */}
-            {isDesktop && (!isTradingSidebarOpen || !showOrderForm) && (
-              <div className="absolute top-3 right-16 z-30 flex items-center gap-1.5 pointer-events-auto bg-[#fbf9f4]/90 backdrop-blur-md p-1 rounded-xl border border-[#ded5c5] shadow-lg animate-in fade-in zoom-in-95 duration-200">
-                {/* BOTÓN VENTA 1-CLICK */}
+            {/* CESTITO DE BASURA ÚNICO AL SELECCIONAR UN DIBUJO EN EL GRÁFICO */}
+            {selectedOverlayId && (
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 p-1 rounded-full bg-slate-950/90 border border-slate-700/80 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 select-none">
                 <button
                   type="button"
-                  onClick={() => handleQuickTrade('sell')}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-700 border border-red-500/30 hover:border-red-500/70 font-mono font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs group"
-                  title={isEs ? 'Venta a Mercado Inmediata (1-Click)' : '1-Click Immediate Market Sell'}
+                  onClick={handleDeleteSelectedOverlay}
+                  className="p-1.5 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all active:scale-90 cursor-pointer shadow-sm"
+                  title={isEs ? 'Eliminar dibujo seleccionado' : 'Delete selected drawing'}
                 >
-                  <span className="font-sans font-black text-[11px] uppercase tracking-wider text-red-700 group-hover:text-red-900">
-                    {isEs ? 'Vender' : 'Sell'}
-                  </span>
-                  <span className="text-[11px] font-mono font-bold text-red-800">
-                    ${stats.lastPrice > 0 ? stats.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '---'}
-                  </span>
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
-
-                {/* BOTÓN COMPRA 1-CLICK */}
                 <button
                   type="button"
-                  onClick={() => handleQuickTrade('buy')}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 hover:border-emerald-500/70 font-mono font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs group"
-                  title={isEs ? 'Compra a Mercado Inmediata (1-Click)' : '1-Click Immediate Market Buy'}
+                  onClick={() => setSelectedOverlayId(null)}
+                  className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title={isEs ? 'Deseleccionar' : 'Deselect'}
                 >
-                  <span className="font-sans font-black text-[11px] uppercase tracking-wider text-emerald-700 group-hover:text-emerald-900">
-                    {isEs ? 'Comprar' : 'Buy'}
-                  </span>
-                  <span className="text-[11px] font-mono font-bold text-emerald-800">
-                    ${stats.lastPrice > 0 ? stats.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '---'}
-                  </span>
+                  <X className="w-3 h-3" />
                 </button>
               </div>
             )}
+
+            {/* AVISO FLOTANTE SUPERIOR CUANDO HAY HERRAMIENTA ACTIVA PARA TRAZAR */}
+            {activeDrawingTool && (
+              <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-[#060B14]/95 border border-cyan-400/90 text-cyan-200 shadow-[0_0_18px_rgba(0,240,255,0.4)] text-[9px] sm:text-[11px] font-mono backdrop-blur-md animate-in fade-in select-none">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="hidden sm:inline">{isEs ? 'Toca o haz clic en el gráfico para colocar' : 'Click/tap on chart to place'}</span>
+                <span className="sm:hidden">{isEs ? 'Toca para colocar' : 'Tap to place'}</span>
+                <button
+                  type="button"
+                  onClick={handleCancelDrawing}
+                  className="p-0.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                  title={isEs ? 'Cancelar' : 'Cancel'}
+                >
+                  <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </button>
+              </div>
+            )}
+
+            {/* BOTONES FLOTANTES SUPERIORES DE COMPRA / VENTA 1-CLICK EN ESCRITORIO (SOLO CUANDO EL PANEL DE TRADING ESTÁ OCULTO) */}
+            <QuickTradeButtons
+              isDesktop={isDesktop}
+              visible={!isTradingSidebarOpen || !showOrderForm}
+              isEs={isEs}
+              lastPrice={stats.lastPrice}
+              onQuickTrade={handleQuickTrade}
+            />
 
             {/* BANNER DE INFRACCIÓN DE DRAWDOWN DE PROP FIRM (5% DIARIO O 10% TOTAL) */}
-            {isAccountBreached && (
-              <div className="absolute top-2 left-4 right-4 z-40 bg-red-950/95 border border-red-500/90 text-red-100 rounded-xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-red-900/80 text-red-200">
-                    <AlertTriangle className="w-5 h-5 text-red-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="font-black text-xs text-red-200 uppercase tracking-wider">
-                      {isEs ? 'Infracción de Reglas de Prop Firm' : 'Prop Firm Rule Breach'}
-                    </div>
-                    <div className="text-[11px] text-red-300 font-mono">
-                      {breachReason}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetDemoBalance}
-                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-xs cursor-pointer shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>{isEs ? 'Reiniciar Evaluación' : 'Reset Evaluation'}</span>
-                </button>
-              </div>
-            )}
+            <DrawdownBreachBanner
+              isEs={isEs}
+              isAccountBreached={isAccountBreached}
+              breachReason={breachReason}
+              onResetEvaluation={resetDemoBalance}
+            />
 
             {/* MENÚ CONTEXTUAL FLOTANTE DE CLIC DERECHO EN EL GRÁFICO */}
-            {chartContextMenu && (
-              <div
-                style={{ top: `${chartContextMenu.y}px`, left: `${chartContextMenu.x}px` }}
-                onClick={(e) => e.stopPropagation()}
-                className="fixed z-50 min-w-56 bg-slate-950/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl p-2 font-mono text-xs"
-              >
-                <div className="px-2.5 py-1.5 border-b border-slate-800 flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    {selectedPair}
-                  </span>
-                  <span className="text-amber-400 font-black">
-                    ${chartContextMenu.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  {/* Botón Buy Limit / Buy Stop */}
-                  <button
-                    type="button"
-                    onClick={() => handlePlacePendingOrderFromChart('buy', chartContextMenu.price)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-emerald-300 hover:text-white hover:bg-emerald-950/70 border border-emerald-900/40 hover:border-emerald-500/80 transition-all cursor-pointer font-bold"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      {chartContextMenu.price <= stats.lastPrice ? 'Buy Limit' : 'Buy Stop'}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      {chartContextMenu.price <= stats.lastPrice ? (isEs ? 'Retroceso' : 'Dip') : (isEs ? 'Ruptura' : 'Breakout')}
-                    </span>
-                  </button>
-
-                  {/* Botón Sell Limit / Sell Stop */}
-                  <button
-                    type="button"
-                    onClick={() => handlePlacePendingOrderFromChart('sell', chartContextMenu.price)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-rose-300 hover:text-white hover:bg-rose-950/70 border border-rose-900/40 hover:border-rose-500/80 transition-all cursor-pointer font-bold"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      {chartContextMenu.price >= stats.lastPrice ? 'Sell Limit' : 'Sell Stop'}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      {chartContextMenu.price >= stats.lastPrice ? (isEs ? 'Repunte' : 'Rally') : (isEs ? 'Ruptura' : 'Breakdown')}
-                    </span>
-                  </button>
-
-                  {/* Configurar en panel */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLimitPrice(chartContextMenu.price.toFixed(2));
-                      setOrderType('limit');
-                      setIsTradingSidebarOpen(true);
-                      setShowOrderForm(true);
-                      setChartContextMenu(null);
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all cursor-pointer text-[11px]"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{isEs ? 'Configurar en Panel' : 'Set in Order Form'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            <ChartContextMenu
+              isEs={isEs}
+              selectedPair={selectedPair}
+              lastPrice={stats.lastPrice}
+              contextMenu={chartContextMenu}
+              onPlacePendingOrder={handlePlacePendingOrderFromChart}
+              onClose={() => setChartContextMenu(null)}
+              onConfigureInPanel={(price) => {
+                setLimitPrice(price.toFixed(2));
+                setOrderType('limit');
+                setIsTradingSidebarOpen(true);
+                setShowOrderForm(true);
+                setChartContextMenu(null);
+              }}
+            />
 
             {/* OVERLAY INTERACTIVO: ENTRADAS (AZUL), TAKE PROFIT (VERDE) Y STOP LOSS (ROJO) ARRASTRABLES + PREVIEW + ÓRDENES LÍMITES */}
             <PositionChartOverlay
@@ -3061,7 +3171,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               demoBalance={demoBalance}
               isEs={isEs}
               tradeSetupPreview={{
-                enabled: isTradingSidebarOpen && showOrderForm && !isOrderFormMinimized,
+                enabled: showChartOrderPreview && (isDesktop
+                  ? (isTradingSidebarOpen && showOrderForm && !isOrderFormMinimized)
+                  : (mobileSheet === 'order' || (showOrderForm && !isOrderFormMinimized))),
                 orderType,
                 side,
                 entryPrice: effectiveRefPrice,
@@ -3072,6 +3184,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                 estimatedLossUsd: previewEstimatedLossUsd,
                 estimatedProfitUsd: previewEstimatedProfitUsd
               }}
+              onHidePreview={handleToggleChartOrderPreview}
               onUpdatePositionSLTP={handleUpdatePositionSLTP}
               onClosePosition={handleClosePosition}
               onCancelLimitOrder={handleCancelLimitOrder}
@@ -3224,7 +3337,18 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         />
       )}
 
-      {/* 5. SISTEMA DE TOAST NOTIFICATIONS CON SONIDO (TP, SL, EJECUCIÓN) */}
+      {/* 5. DIAL RADIAL DE HERRAMIENTAS TÁCTIL / MÓVIL ESTILO TERMÓMETRO CRM */}
+      <MobileRadialDrawingDial
+        isOpen={isRadialDialOpen}
+        onClose={() => setIsRadialDialOpen(false)}
+        onSelectTool={handleSelectDrawingTool}
+        onClearDrawings={handleClearAllDrawings}
+        activeTool={activeDrawingTool}
+        position={radialDialPos}
+        isEs={isEs}
+      />
+
+      {/* 6. SISTEMA DE TOAST NOTIFICATIONS CON SONIDO (TP, SL, EJECUCIÓN) */}
       <TerminalToast
         toasts={toasts}
         onDismiss={dismissToast}

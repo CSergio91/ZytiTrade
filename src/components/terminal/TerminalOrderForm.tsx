@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Zap, Shield, Target, DollarSign, Percent, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { TrendingUp, Zap, Shield, Target, DollarSign, Percent, ChevronDown, ChevronUp, X, Eye, EyeOff } from 'lucide-react';
 
 interface TerminalOrderFormProps {
   isEs: boolean;
@@ -18,11 +18,13 @@ interface TerminalOrderFormProps {
   orderMode: 'amount' | 'risk';
   orderSuccess: string | null;
   quickTradeEnabled: boolean;
+  showChartPreview?: boolean;
   isDesktop?: boolean;
   isMinimized?: boolean;
   onToggleMinimize?: () => void;
   onClose?: () => void;
   onToggleQuickTrade: () => void;
+  onToggleChartPreview?: () => void;
   setSide: (side: 'buy' | 'sell') => void;
   setOrderType: (type: 'market' | 'limit') => void;
   setAmount: (amount: string) => void;
@@ -51,11 +53,13 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
   orderMode,
   orderSuccess,
   quickTradeEnabled,
+  showChartPreview = true,
   isDesktop = false,
   isMinimized = false,
   onToggleMinimize,
   onClose,
   onToggleQuickTrade,
+  onToggleChartPreview,
   setSide,
   setOrderType,
   setAmount,
@@ -475,6 +479,23 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
             onChange={(e) => setLeverage(Number(e.target.value))}
             className="w-full accent-amber-500 cursor-pointer h-1.5"
           />
+          {/* BOTONES RÁPIDOS DE APALANCAMIENTO */}
+          <div className="flex items-center gap-1 mt-1">
+            {[2, 5, 10, 20, 50, 100].map((lev) => (
+              <button
+                key={lev}
+                type="button"
+                onClick={() => setLeverage(lev)}
+                className={`flex-1 py-0.5 rounded text-[8.5px] font-mono font-bold border transition-all cursor-pointer ${
+                  leverage === lev
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50'
+                }`}
+              >
+                {lev}x
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* FEEDBACK DE ÉXITO */}
@@ -484,6 +505,33 @@ export const TerminalOrderForm: React.FC<TerminalOrderFormProps> = ({
             <span>{orderSuccess}</span>
           </div>
         )}
+
+        {/* CHECKBOX MOSTRAR ORDEN PREVIA EN EL GRÁFICO (PERSISTENTE EN LOCALSTORAGE) */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex flex-col pr-2">
+            <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+              {showChartPreview ? (
+                <Eye className="w-3.5 h-3.5 text-amber-600" />
+              ) : (
+                <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span>{isEs ? 'Ver orden en el gráfico' : 'Show order on chart'}</span>
+            </span>
+            <span className="text-[9px] text-slate-400 leading-tight">
+              {isEs ? 'Proyectar entrada, SL y TP antes de ejecutar' : 'Preview entry, SL & TP before placing'}
+            </span>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={showChartPreview}
+              onChange={onToggleChartPreview}
+              className="sr-only peer"
+            />
+            <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-amber-500 cursor-pointer" />
+          </label>
+        </div>
 
         {/* CHECKBOX BOTONES FLOTANTES DE 1 TOQUE (EXCLUSIVO PARA MÓVILES < 1024px) */}
         {!isDesktop && (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Chart } from 'klinecharts';
 import { PositionItem, LimitOrderItem } from './types';
-import { X, ShieldAlert, Target, Clock } from 'lucide-react';
+import { X, ShieldAlert, Target, Clock, EyeOff } from 'lucide-react';
 
 export interface TradeSetupPreview {
   enabled: boolean;
@@ -31,6 +31,7 @@ interface PositionChartOverlayProps {
   onUpdatePreviewSLTP?: (slPercent?: number, tpPercent?: number) => void;
   onUpdatePreviewEntry?: (newPrice: number) => void;
   onUpdateLimitOrder?: (id: string, newLimitPrice?: number, newSlPrice?: number | null, newTpPrice?: number | null) => void;
+  onHidePreview?: () => void;
 }
 
 interface LimitOrderCoords {
@@ -63,7 +64,8 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
   onCancelLimitOrder,
   onUpdatePreviewSLTP,
   onUpdatePreviewEntry,
-  onUpdateLimitOrder
+  onUpdateLimitOrder,
+  onHidePreview
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,7 +95,7 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
 
   const hasOpenPositions = positions.length > 0;
   const hasLimitOrders = limitOrders.length > 0;
-  const isPreviewMode = !hasOpenPositions && Boolean(tradeSetupPreview?.enabled);
+  const isPreviewMode = Boolean(tradeSetupPreview?.enabled);
 
   // Conversor pixel Y -> precio en el gráfico KLineChart
   const pixelToPrice = useCallback((pixelY: number): number | null => {
@@ -970,6 +972,20 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             <span className="px-1 text-amber-400 hover:text-white">
               ⇅
             </span>
+            {onHidePreview && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHidePreview();
+                }}
+                className="p-0.5 rounded hover:bg-slate-700/60 text-slate-400 hover:text-white cursor-pointer ml-0.5"
+                title={isEs ? 'Ocultar orden del gráfico' : 'Hide order from chart'}
+              >
+                <EyeOff className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
 
           {/* BADGE PREVIO TAKE PROFIT ARRASTRABLE (ACTUALIZA PANEL EN TIEMPO REAL) */}
