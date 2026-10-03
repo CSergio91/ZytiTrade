@@ -1,7 +1,8 @@
 import React from 'react';
 import { CrmKpiStats } from '../types/crm.types';
 import { CrmLang, crmTranslations } from '../types/i18n';
-import { Activity, ShieldCheck, DollarSign, KeyRound, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Activity, Cpu, DollarSign, KeyRound, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { useZytiEngineTelemetry } from '../hooks/useZytiEngineTelemetry';
 
 interface KpiHeaderProps {
   kpis: CrmKpiStats | null;
@@ -11,6 +12,7 @@ interface KpiHeaderProps {
 
 export const KpiHeader: React.FC<KpiHeaderProps> = ({ kpis, lang = 'es' }) => {
   const t = crmTranslations[lang] || crmTranslations.es;
+  const telemetry = useZytiEngineTelemetry();
 
   const stats = kpis || {
     totalAccounts: 24,
@@ -74,16 +76,38 @@ export const KpiHeader: React.FC<KpiHeaderProps> = ({ kpis, lang = 'es' }) => {
         </div>
       </div>
 
-      {/* 4. Sentinela de Riesgo */}
+      {/* 4. Servidores ZYTI Engine (100% Real: Solo ON / OFF) */}
       <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white border border-[#e5dfd3] shadow-[0_4px_20px_-4px_rgba(27,24,18,0.04)] hover:border-slate-400 transition-colors">
-        <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200/80 flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-4 h-4 text-indigo-700" />
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+          telemetry.wsStatus === 'ON' ? 'bg-[#0A0D14] border-slate-800 text-amber-400' : 'bg-rose-50 border-rose-200 text-rose-600'
+        }`}>
+          <Cpu className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500">{t.kpiRiskSentinel}</div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-            <span className="text-xs font-bold text-emerald-700">{t.kpiRiskActive}</span>
+          <div className="text-[10px] uppercase tracking-wider font-black text-slate-500">
+            ZYTI ENGINE
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold">
+              <span className="text-slate-400 font-sans text-[9.5px]">WS</span>
+              <span className={telemetry.wsStatus === 'ON' ? 'text-emerald-600' : 'text-rose-600'}>
+                {telemetry.wsStatus === 'ON' ? 'ON ●' : 'OFF ○'}
+              </span>
+            </span>
+            <span className="text-slate-300 font-mono">·</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold">
+              <span className="text-slate-400 font-sans text-[9.5px]">BUS</span>
+              <span className={telemetry.redisStatus === 'ON' ? 'text-emerald-600' : 'text-rose-600'}>
+                {telemetry.redisStatus === 'ON' ? 'ON ●' : 'OFF ○'}
+              </span>
+            </span>
+            <span className="text-slate-300 font-mono">·</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold">
+              <span className="text-slate-400 font-sans text-[9.5px]">RISK</span>
+              <span className={telemetry.riskSentinelStatus === 'ON' ? 'text-emerald-600' : 'text-rose-600'}>
+                {telemetry.riskSentinelStatus === 'ON' ? 'ON ●' : 'OFF ○'}
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -104,3 +128,4 @@ export const KpiHeader: React.FC<KpiHeaderProps> = ({ kpis, lang = 'es' }) => {
     </div>
   );
 };
+

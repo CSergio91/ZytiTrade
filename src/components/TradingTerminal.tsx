@@ -285,6 +285,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   };
 
   const [selectedPair, setSelectedPair] = useState(() => normalizePair(initialSymbol));
+  const selectedPairRef = useRef<string>(selectedPair);
+  selectedPairRef.current = selectedPair;
+
   const [currentExchange, setCurrentExchange] = useState<string>(() => {
     try {
       return localStorage.getItem('zyti_exchange') || 'binance';
@@ -301,8 +304,25 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   });
   const [connectionStatus, setConnectionStatus] = useState<AdapterConnectionStatus>('CONNECTING');
   const [selectedCandle, setSelectedCandle] = useState<KLineBar | null>(null);
-  const [timeframe, setTimeframe] = useState('15m');
-  const [activeIndicators, setActiveIndicators] = useState<string[]>(['MA', 'VOL']);
+  const [timeframe, setTimeframe] = useState<string>(() => {
+    try {
+      return localStorage.getItem('zyti_selected_timeframe') || '15m';
+    } catch {
+      return '15m';
+    }
+  });
+  const [activeIndicators, setActiveIndicators] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_active_indicators');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return ['MA', 'VOL'];
+  });
+  const activeIndicatorsRef = useRef<string[]>(activeIndicators);
+  activeIndicatorsRef.current = activeIndicators;
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('1000');
@@ -520,6 +540,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           });
         }
       }).catch(() => {});
+
+      // 3. Reconciliación en frío del Balance General de la cuenta desde Supabase
+      const identifier = targetId || user?.id || user?.email;
+      if (identifier) {
+        fetchTraderAccounts(identifier).then((accounts) => {
+          if (accounts && accounts.length > 0) {
+            const activeAcc = (targetId ? accounts.find((a) => a.id === targetId) : null) || accounts[0];
+            if (activeAcc && typeof activeAcc.currentBalance === 'number' && !isNaN(activeAcc.currentBalance) && activeAcc.currentBalance > 0) {
+              setDemoBalance(activeAcc.currentBalance);
+              demoBalanceRef.current = activeAcc.currentBalance;
+              try { localStorage.setItem('zyti_demo_balance', activeAcc.currentBalance.toString()); } catch {}
+            }
+          }
+        }).catch(() => {});
+      }
     }
   }, [activeAccountId, user]);
 
@@ -729,9 +764,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         case 'SL_TP_UPDATED': {
           const { id, slPrice, tpPrice } = event.payload || {};
           if (id) {
-            setPositions((prev) =>
-              prev.map((p) => (p.id === id ? { ...p, slPrice, tpPrice } : p))
-            );
+            setPositions((prev) => {
+              const next = prev.map((p) => (p.id === id ? { ...p, slPrice, tpPrice } : p));
+              positionsRef.current = next;
+              try { localStorage.setItem('zyti_open_positions', JSON.stringify(next)); } catch {}
+              return next;
+            });
           }
           break;
         }
@@ -739,7 +777,52 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           const { balance } = event.payload || {};
           if (typeof balance === 'number') {
             setDemoBalance(balance);
+            demoBalanceRef.current = balance;
             try { localStorage.setItem('zyti_demo_balance', balance.toString()); } catch {}
+          }
+          break;
+        }
+        case 'LIMIT_ORDER_PLACED': {
+          const { order } = event.payload || {};
+          if (order && order.id) {
+            setLimitOrders((prev) => {
+              if (prev.some((o) => o.id === order.id)) return prev;
+              const next = [order, ...prev];
+              limitOrdersRef.current = next;
+              try { localStorage.setItem('zyti_limit_orders', JSON.stringify(next)); } catch {}
+              return next;
+            });
+            playOrderFilledSound();
+          }
+          break;
+        }
+        case 'LIMIT_ORDER_CANCELLED': {
+          const { orderId } = event.payload || {};
+          if (orderId) {
+            setLimitOrders((prev) => {
+              const next = prev.filter((o) => o.id !== orderId);
+              limitOrdersRef.current = next;
+              try { localStorage.setItem('zyti_limit_orders', JSON.stringify(next)); } catch {}
+              return next;
+            });
+          }
+          break;
+        }
+        case 'ALL_LIMIT_ORDERS_CANCELLED': {
+          setLimitOrders([]);
+          limitOrdersRef.current = [];
+          try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+          break;
+        }
+        case 'LIMIT_ORDER_UPDATED': {
+          const { orderId, newLimitPrice, newSlPrice, newTpPrice } = event.payload || {};
+          if (orderId) {
+            setLimitOrders((prev) => {
+              const next = TradingEngine.updateLimitOrder(prev, orderId, newLimitPrice, newSlPrice, newTpPrice);
+              limitOrdersRef.current = next;
+              try { localStorage.setItem('zyti_limit_orders', JSON.stringify(next)); } catch {}
+              return next;
+            });
           }
           break;
         }
@@ -825,6 +908,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       type: 'TRADE_CLOSED',
       payload: { id: item.id, realizedPnl: item.pnlUsdt, newBalance }
     });
+
+    if (newBalance !== undefined) {
+      zytiTradingClient.publishEvent({
+        type: 'BALANCE_UPDATED',
+        payload: { balance: newBalance }
+      });
+    }
 
     TradePersistenceService.persistClosedTrade({
       tradeId: item.id,
@@ -1120,6 +1210,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrdersRef.current));
     } catch {}
 
+    // Difundir orden límite por WebSocket Gateway a todos los dispositivos
+    zytiTradingClient.publishEvent({
+      type: 'LIMIT_ORDER_PLACED',
+      payload: { order: result.limitOrder }
+    });
+
     playOrderFilledSound();
     const isBuy = orderSide === 'buy';
     const subtype = result.limitOrder.orderSubtype || (isBuy ? (targetPrice <= stats.lastPrice ? 'LIMIT' : 'STOP') : (targetPrice >= stats.lastPrice ? 'LIMIT' : 'STOP'));
@@ -1141,6 +1237,30 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 3000);
   };
 
+  // Función reutilizable para montar o restaurar los indicadores técnicos activos en KLineChart
+  const applyIndicatorsToChart = useCallback((chart: Chart, indicators: string[]) => {
+    if (!chart) return;
+    const hasOhlc = indicators.includes('OHLC');
+    chart.setStyles({
+      candle: {
+        tooltip: {
+          showRule: (hasOhlc ? 'always' : 'none') as any,
+          text: { size: 9, color: '#475569' }
+        }
+      }
+    });
+
+    indicators.forEach((name) => {
+      if (name === 'OHLC') return;
+      const indOption = ALL_INDICATORS.find((i) => i.name === name);
+      if (!indOption) return;
+      const targetPane = indOption.paneId || (indOption.category === 'main' ? 'candle_pane' : `pane_${name.toLowerCase()}`);
+      try {
+        chart.createIndicator(name, false, { id: targetPane });
+      } catch (_) {}
+    });
+  }, []);
+
   // 1. Inicialización de KLineChart Canvas y Web Worker
   useEffect(() => {
     const container = chartContainerRef.current;
@@ -1154,8 +1274,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     chartInstanceRef.current = chart;
 
     chart.setPriceVolumePrecision(2, 4);
-    chart.createIndicator('MA', false, { id: 'candle_pane' });
-    chart.createIndicator('VOL', false, { id: 'pane_vol' });
+
+    // Restaurar los indicadores guardados en el navegador por el usuario
+    applyIndicatorsToChart(chart, activeIndicatorsRef.current || ['MA', 'VOL']);
 
     // Suscripción al clic de vela para mostrar modalito con información detallada
     chart.subscribeAction('onCandleBarClick' as any, (data: any) => {
@@ -1234,105 +1355,116 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       const activeChart = chartInstanceRef.current;
       if (type === 'HISTORICAL_BARS') {
         if (activeChart && payload.bars && payload.bars.length > 0) {
+          // Descartar si las barras pertenecen a un par que ya no es el seleccionado en el chart
+          if (payload.symbol && payload.symbol !== selectedPairRef.current) {
+            return;
+          }
           const precision = (payload.symbol || '').includes('XRP') ? 4 : 2;
           activeChart.setPriceVolumePrecision(precision, 4);
           activeChart.clearData();
           activeChart.applyNewData(payload.bars, false);
           activeChart.scrollToRealTime();
+
+          // Restaurar indicadores técnicos activos sobre el nuevo lienzo
+          applyIndicatorsToChart(activeChart, activeIndicatorsRef.current || ['MA', 'VOL']);
         }
       } else if (type === 'TICK_UPDATE') {
-        if (activeChart && payload.bar) {
-          activeChart.updateData(payload.bar);
+        // 1. Alimentar el gráfico y las estadísticas SOLO si el tick pertenece al par activo del canvas
+        const isCurrentPair = payload.symbol === selectedPairRef.current;
+        if (isCurrentPair) {
+          if (activeChart && payload.bar) {
+            activeChart.updateData(payload.bar);
+          }
+          if (payload.stats && payload.stats.lastPrice > 0 && !isNaN(payload.stats.lastPrice)) {
+            setStats(payload.stats);
+          }
         }
-        if (payload.stats && payload.stats.lastPrice > 0 && !isNaN(payload.stats.lastPrice)) {
-          setStats(payload.stats);
-          const currentP = payload.stats.lastPrice;
 
-          // Solo evaluar TP/SL en ticks en vivo de WebSocket, NUNCA en la carga inicial de velas históricas
-          if (!payload.isInitialBars) {
-            const currentPositions = positionsRef.current;
-            if (currentPositions.length > 0) {
-              const tickSymbol = payload.stats?.symbol || payload.symbol;
-              const tickExchange = payload.exchange || payload.stats?.exchange;
-              const evaluation = TradingEngine.evaluatePositionsOnTick(
-                currentPositions,
-                currentP,
-                tickSymbol,
-                tickExchange
-              );
+        const tickSymbol = payload.stats?.symbol || payload.symbol;
+        const tickExchange = payload.exchange || payload.stats?.exchange;
+        const currentP = payload.stats?.lastPrice || payload.bar?.close;
 
-              // Actualizar posiciones sincrónicamente en la referencia y en el estado
-              positionsRef.current = evaluation.updatedPositions;
-              setPositions(evaluation.updatedPositions);
-              checkLiveRiskAndDrawdownRef.current(evaluation.updatedPositions, demoBalanceRef.current);
+        // 2. Evaluar posiciones abiertas para este símbolo (continúa en vivo aunque el usuario esté en otro par)
+        if (!payload.isInitialBars && currentP > 0 && tickSymbol) {
+          const currentPositions = positionsRef.current;
+          if (currentPositions.some((p) => p.symbol === tickSymbol)) {
+            const evaluation = TradingEngine.evaluatePositionsOnTick(
+              currentPositions,
+              currentP,
+              tickSymbol,
+              tickExchange
+            );
 
-              // Actualizar saldo realizado si hubo ejecuciones de TP o SL
-              if (evaluation.balanceDelta !== 0) {
-                setDemoBalance((prevB) => {
-                  const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
-                  try {
-                    localStorage.setItem('zyti_demo_balance', nextB.toString());
-                  } catch {}
-                  return nextB;
-                });
-              }
+            // Actualizar posiciones sincrónicamente en la referencia y en el estado
+            positionsRef.current = evaluation.updatedPositions;
+            setPositions(evaluation.updatedPositions);
+            checkLiveRiskAndDrawdownRef.current(evaluation.updatedPositions, demoBalanceRef.current);
 
-              // Despachar Toasts, registrar en historial y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
-              const nextB = evaluation.balanceDelta !== 0 ? Number((demoBalanceRef.current + evaluation.balanceDelta).toFixed(2)) : undefined;
-              evaluation.events.forEach((evt) => {
-                if (closedPositionIdsRef.current.has(evt.position.id)) return;
-                closedPositionIdsRef.current.add(evt.position.id);
-
-                // Registrar en Historial y sincronizar en Supabase
-                recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL', nextB);
-
-                if (evt.type === 'TP_HIT') {
-                  addToastRef.current({
-                    type: 'tp',
-                    title: isEs ? '¡Take Profit Alcanzado!' : 'Take Profit Triggered!',
-                    symbol: evt.position.symbol,
-                    pnlUsdt: evt.realizedPnL,
-                    pnlPercent: evt.position.pnlPercentNum,
-                    price: evt.price
-                  });
-                  setOrderSuccess(
-                    isEs
-                      ? `¡Take Profit alcanzado en ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
-                      : `Take Profit hit on ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
-                  );
-                  setTimeout(() => setOrderSuccess(null), 4000);
-                } else if (evt.type === 'SL_HIT') {
-                  addToastRef.current({
-                    type: 'sl',
-                    title: isEs ? 'Stop Loss Ejecutado' : 'Stop Loss Triggered',
-                    symbol: evt.position.symbol,
-                    pnlUsdt: evt.realizedPnL,
-                    pnlPercent: evt.position.pnlPercentNum,
-                    price: evt.price
-                  });
-                  setOrderSuccess(
-                    isEs
-                      ? `Stop Loss ejecutado en ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
-                      : `Stop Loss triggered on ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
-                  );
-                  setTimeout(() => setOrderSuccess(null), 4000);
-                }
+            // Actualizar saldo realizado si hubo ejecuciones de TP o SL
+            if (evaluation.balanceDelta !== 0) {
+              setDemoBalance((prevB) => {
+                const nextB = Number((prevB + evaluation.balanceDelta).toFixed(2));
+                try {
+                  localStorage.setItem('zyti_demo_balance', nextB.toString());
+                } catch {}
+                return nextB;
               });
             }
 
-            // Evaluación de Órdenes Límite pendientes en TICK_UPDATE
-            const currentLimits = limitOrdersRef.current.filter(
-              (o) => o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+            // Despachar Toasts, registrar en historial y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
+            const nextB = evaluation.balanceDelta !== 0 ? Number((demoBalanceRef.current + evaluation.balanceDelta).toFixed(2)) : undefined;
+            evaluation.events.forEach((evt) => {
+              if (closedPositionIdsRef.current.has(evt.position.id)) return;
+              closedPositionIdsRef.current.add(evt.position.id);
+
+              // Registrar en Historial y sincronizar en Supabase
+              recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL', nextB);
+
+              if (evt.type === 'TP_HIT') {
+                addToastRef.current({
+                  type: 'tp',
+                  title: isEs ? '¡Take Profit Alcanzado!' : 'Take Profit Triggered!',
+                  symbol: evt.position.symbol,
+                  pnlUsdt: evt.realizedPnL,
+                  pnlPercent: evt.position.pnlPercentNum,
+                  price: evt.price
+                });
+                setOrderSuccess(
+                  isEs
+                    ? `¡Take Profit alcanzado en ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                    : `Take Profit hit on ${evt.position.symbol}! (+${evt.realizedPnL.toFixed(2)} USDT)`
+                );
+                setTimeout(() => setOrderSuccess(null), 4000);
+              } else if (evt.type === 'SL_HIT') {
+                addToastRef.current({
+                  type: 'sl',
+                  title: isEs ? 'Stop Loss Ejecutado' : 'Stop Loss Triggered',
+                  symbol: evt.position.symbol,
+                  pnlUsdt: evt.realizedPnL,
+                  pnlPercent: evt.position.pnlPercentNum,
+                  price: evt.price
+                });
+                setOrderSuccess(
+                  isEs
+                    ? `Stop Loss ejecutado en ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                    : `Stop Loss triggered on ${evt.position.symbol}. (${evt.realizedPnL.toFixed(2)} USDT)`
+                );
+                setTimeout(() => setOrderSuccess(null), 4000);
+              }
+            });
+          }
+
+          // 3. Evaluación de Órdenes Límite pendientes para este símbolo
+          const currentLimits = limitOrdersRef.current.filter(
+            (o) => o.symbol === tickSymbol && o.status === 'PENDING' && !filledLimitOrderIdsRef.current.has(o.id)
+          );
+          if (currentLimits.length > 0) {
+            const limitEval = TradingEngine.evaluateLimitOrdersOnTick(
+              currentLimits,
+              currentP,
+              tickSymbol,
+              tickExchange
             );
-            if (currentLimits.length > 0) {
-              const tickSymbol = payload.stats?.symbol || payload.symbol;
-              const tickExchange = payload.exchange || payload.stats?.exchange;
-              const limitEval = TradingEngine.evaluateLimitOrdersOnTick(
-                currentLimits,
-                currentP,
-                tickSymbol,
-                tickExchange
-              );
 
               if (limitEval.filledOrders.length > 0) {
                 // Registrar inmediatamente los IDs ejecutados para prevenir cualquier ejecución duplicada por ticks concurrentes
@@ -1393,10 +1525,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               }
             }
           }
-        }
-      } else if (type === 'TICKER') {
+        } else if (type === 'TICKER') {
         if (payload.stats && payload.stats.lastPrice > 0 && !isNaN(payload.stats.lastPrice)) {
-          setStats(payload.stats);
+          if (payload.stats.symbol === selectedPairRef.current) {
+            setStats(payload.stats);
+          }
           const currentP = payload.stats.lastPrice;
           const currentPositions = positionsRef.current;
           if (currentPositions.length > 0) {
@@ -1705,6 +1838,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   const handleSelectPair = (pair: string) => {
     setSelectedPair(pair);
+    selectedPairRef.current = pair;
     // Limpiar gráfico de inmediato para que la escala del par previo no quede anclada en el eje
     if (chartInstanceRef.current) {
       chartInstanceRef.current.clearData();
@@ -1752,8 +1886,35 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           marketType: currentMarketType
         }
       });
+      // Sincronizar de inmediato las posiciones abiertas para que el worker mantenga ambos streams vivos
+      const activeSymbols = Array.from(
+        new Set([
+          ...positionsRef.current.map((p) => p.symbol),
+          ...limitOrdersRef.current.filter((o) => o.status === 'PENDING').map((o) => o.symbol)
+        ])
+      );
+      workerRef.current.postMessage({
+        type: 'SYNC_TRACKED_SYMBOLS',
+        payload: { symbols: activeSymbols }
+      });
     }
   };
+
+  // Sincronizar en segundo plano los símbolos de posiciones y órdenes límites activas con el worker
+  // para que sus marcas de precio y PnL sigan actualizándose en vivo aunque el usuario navegue a otros pares
+  useEffect(() => {
+    if (!workerRef.current) return;
+    const activeSymbols = Array.from(
+      new Set([
+        ...positions.map((p) => p.symbol),
+        ...limitOrders.filter((o) => o.status === 'PENDING').map((o) => o.symbol)
+      ])
+    );
+    workerRef.current.postMessage({
+      type: 'SYNC_TRACKED_SYMBOLS',
+      payload: { symbols: activeSymbols }
+    });
+  }, [positions, limitOrders]);
 
   useEffect(() => {
     if (initialSymbol) {
@@ -1797,6 +1958,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
   const handleSelectTimeframe = (tf: string) => {
     setTimeframe(tf);
+    try {
+      localStorage.setItem('zyti_selected_timeframe', tf);
+    } catch {}
     if (chartInstanceRef.current) {
       chartInstanceRef.current.clearData();
     }
@@ -1825,7 +1989,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           }
         }
       });
-      setActiveIndicators(willBeActive ? [...activeIndicators, 'OHLC'] : activeIndicators.filter((i) => i !== 'OHLC'));
+      const next = willBeActive ? [...activeIndicators, 'OHLC'] : activeIndicators.filter((i) => i !== 'OHLC');
+      setActiveIndicators(next);
+      try {
+        localStorage.setItem('zyti_active_indicators', JSON.stringify(next));
+      } catch {}
       return;
     }
 
@@ -1834,10 +2002,18 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     if (activeIndicators.includes(name)) {
       chart.removeIndicator(targetPane, name);
-      setActiveIndicators(activeIndicators.filter((i) => i !== name));
+      const next = activeIndicators.filter((i) => i !== name);
+      setActiveIndicators(next);
+      try {
+        localStorage.setItem('zyti_active_indicators', JSON.stringify(next));
+      } catch {}
     } else {
       chart.createIndicator(name, false, { id: targetPane });
-      setActiveIndicators([...activeIndicators, name]);
+      const next = [...activeIndicators, name];
+      setActiveIndicators(next);
+      try {
+        localStorage.setItem('zyti_active_indicators', JSON.stringify(next));
+      } catch {}
     }
   };
 
@@ -1894,13 +2070,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return;
     }
 
-    setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
+    setPositions((prev) => {
+      const next = TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice);
+      positionsRef.current = next;
+      try { localStorage.setItem('zyti_open_positions', JSON.stringify(next)); } catch {}
+      return next;
+    });
 
-    // Difundir modificación de SL/TP a otros dispositivos vía WebSocket Gateway
+    // 1. Difundir modificación de SL/TP a otros dispositivos vía WebSocket Gateway
     zytiTradingClient.publishEvent({
       type: 'SL_TP_UPDATED',
       payload: { id, slPrice, tpPrice }
     });
+
+    // 2. Persistir en Base de Datos Supabase (Write-Behind) para que no se pierda al recargar
+    TradePersistenceService.updateTradeSLTP(id, slPrice, tpPrice);
 
     if (slPrice !== undefined) {
       if (slPrice !== null) {
@@ -1965,15 +2149,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return;
     }
 
-    // Posición en ganancia o equilibrio: fijar SL en el precio de entrada exacto
-    setPositions((prev) => TradingEngine.updatePositionSLTP(prev, pos.id, pos.entry, pos.tpPrice ?? null));
-    addToast({
-      type: 'info',
-      title: isEs ? 'Stop Loss en Break-Even' : 'Stop Loss at Break-Even',
-      message: isEs
-        ? `Operación ${pos.side} en ${pos.symbol} asegurada al precio de entrada ($${pos.entry.toLocaleString()} USDT). Riesgo cero.`
-        : `${pos.side} trade on ${pos.symbol} secured at entry price ($${pos.entry.toLocaleString()} USDT). Zero risk.`
-    });
+    // Posición en ganancia o equilibrio: fijar SL en el precio de entrada delegando a handleUpdatePositionSLTP.
+    // Esto difunde el evento por WebSocket a todos los dispositivos, actualiza la base de datos Supabase y persiste en caché local.
+    handleUpdatePositionSLTP(pos.id, pos.entry, pos.tpPrice ?? null);
   }, [selectedPair, stats.lastPrice, isEs, addToast]);
 
   const handleUpdatePreviewSLTP = useCallback((newSlPct?: number, newTpPct?: number) => {
@@ -2161,6 +2339,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     limitOrdersRef.current = remainingOrders;
     setLimitOrders(remainingOrders);
     try { localStorage.setItem('zyti_limit_orders', JSON.stringify(remainingOrders)); } catch {}
+
+    // Difundir cancelación por WebSocket Gateway a todos los dispositivos
+    zytiTradingClient.publishEvent({
+      type: 'LIMIT_ORDER_CANCELLED',
+      payload: { orderId }
+    });
+
     addToast({
       type: 'info',
       title: isEs ? 'Orden Límite Cancelada' : 'Limit Order Cancelled',
@@ -2175,6 +2360,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     limitOrdersRef.current = [];
     setLimitOrders([]);
     try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+
+    // Difundir cancelación masiva por WebSocket Gateway a todos los dispositivos
+    zytiTradingClient.publishEvent({
+      type: 'ALL_LIMIT_ORDERS_CANCELLED',
+      payload: {}
+    });
+
     addToast({
       type: 'info',
       title: isEs ? 'Órdenes Límites Canceladas' : 'All Limit Orders Cancelled',
@@ -2219,6 +2411,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     try {
       localStorage.setItem('zyti_limit_orders', JSON.stringify(updated));
     } catch {}
+
+    // Difundir actualización por WebSocket Gateway a todos los dispositivos
+    zytiTradingClient.publishEvent({
+      type: 'LIMIT_ORDER_UPDATED',
+      payload: { orderId, newLimitPrice, newSlPrice, newTpPrice }
+    });
 
     const ord = updated.find((o) => o.id === orderId);
     if (ord) {
@@ -2304,6 +2502,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       try {
         localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrdersRef.current));
       } catch {}
+
+      // Difundir orden límite por WebSocket Gateway a todos los dispositivos
+      zytiTradingClient.publishEvent({
+        type: 'LIMIT_ORDER_PLACED',
+        payload: { order: result.limitOrder }
+      });
 
       playOrderFilledSound();
       const isBuy = side === 'buy';

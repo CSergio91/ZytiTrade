@@ -104,6 +104,31 @@ export const TradePersistenceService = {
   },
 
   /**
+   * Actualiza los niveles de Stop Loss y Take Profit de una posición abierta en Supabase.
+   * Ejecución asíncrona Write-Behind sin bloquear el hilo principal.
+   */
+  async updateTradeSLTP(tradeId: string, slPrice?: number | null, tpPrice?: number | null): Promise<void> {
+    try {
+      const updateData: { sl_price?: number | null; tp_price?: number | null } = {};
+      if (slPrice !== undefined) updateData.sl_price = slPrice;
+      if (tpPrice !== undefined) updateData.tp_price = tpPrice;
+
+      const { error } = await supabase
+        .from('account_trades')
+        .update(updateData)
+        .eq('id', tradeId);
+
+      if (error) {
+        console.warn('[TradePersistence] Error actualizando SL/TP en DB:', error.message);
+      } else {
+        console.log('[TradePersistence] SL/TP persistido en DB para trade:', tradeId, updateData);
+      }
+    } catch (err) {
+      console.warn('[TradePersistence] Excepción actualizando SL/TP:', err);
+    }
+  },
+
+  /**
    * Actualiza el trade al cerrarse (TP, SL o Manual) y sincroniza el balance de la cuenta oficial de 100K
    */
   async persistClosedTrade(payload: ClosedTradePayload): Promise<void> {
@@ -146,6 +171,34 @@ export const TradePersistenceService = {
       }
     } catch (err) {
       console.warn('[TradePersistence] Excepción persistiendo trade cerrado:', err);
+    }
+  },
+
+  /**
+   * Actualiza el balance y equidad de la cuenta de trading en public.trading_accounts
+   */
+  async persistAccountBalance(accountId?: string, userId?: string, email?: string, newBalance?: number): Promise<void> {
+    if (newBalance === undefined || isNaN(newBalance)) return;
+    try {
+      const resolvedAccountId = await this.resolveAccountId(accountId, userId, email);
+      if (!resolvedAccountId) return;
+
+      const { error } = await supabase
+        .from('trading_accounts')
+        .update({
+          current_balance: Number(newBalance.toFixed(2)),
+          equity: Number(newBalance.toFixed(2)),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', resolvedAccountId);
+
+      if (error) {
+        console.warn('[TradePersistence] Error persistiendo balance de cuenta:', error.message);
+      } else {
+        console.log('[TradePersistence] Balance sincronizado en DB:', resolvedAccountId, newBalance);
+      }
+    } catch (err) {
+      console.warn('[TradePersistence] Excepción persistiendo balance:', err);
     }
   },
 

@@ -15,6 +15,7 @@ status: Authoritative
 3. **Copy Trading de API a API:** Replicación en milisegundos de operaciones entre diferentes exchanges mediante API Keys cifradas localmente (Zero-Knowledge / AES-GCM).
 4. **Arbitraje entre Exchanges:** Detección de spreads cruzados y arbitraje sintético/triangular en tiempo real.
 5. **Pasarela para Empresas de Fondeo (Prop Firms):** Aprovisionamiento automático de cuentas de trading vía REST API y despacho de Webhooks para auditoría de riesgo externa.
+6. **Bus de Eventos WebSocket Multi-Dispositivo & Telemetría:** Sincronización en sub-2ms de órdenes, SL/TP, Break-Even, órdenes límite y balances en todas las pantallas vivas, respaldado por telemetría instrumental en vivo (60 FPS Damped Spring).
 
 ---
 

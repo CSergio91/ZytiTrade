@@ -18,6 +18,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         ws: true,
         rewrite: (path) => path.replace(/^\/ws-gateway/, '')
+      },
+      '/gateway-health': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/gateway-health/, '/health')
       }
     }
   }

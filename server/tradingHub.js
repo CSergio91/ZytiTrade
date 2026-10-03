@@ -125,6 +125,8 @@ const server = http.createServer((req, res) => {
       connectedSockets: totalSubscribers,
       mode: isRedisActive ? 'REDIS_CLUSTER' : 'LOCAL_IN_MEMORY',
       redisUrl: isRedisActive ? REDIS_URL : null,
+      memoryHeapMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
       timestamp: new Date().toISOString()
     }, null, 2));
     return;
@@ -220,7 +222,7 @@ wss.on('connection', (ws, req) => {
     try {
       const message = JSON.parse(data.toString());
 
-      switch (message.action) {
+      switch (message.action || message.type) {
         // Suscribir este socket a una cuenta de trading
         case 'SUBSCRIBE': {
           const { accountId } = message;
@@ -278,7 +280,29 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'PING': {
-          ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+          ws.send(JSON.stringify({ 
+            type: 'PONG', 
+            clientPingTimestamp: message.timestamp || null,
+            serverTime: Date.now(),
+            uptimeSeconds: Math.floor(process.uptime()),
+            connectedSockets: wss.clients.size,
+            mode: isRedisActive ? 'REDIS_CLUSTER' : 'LOCAL_IN_MEMORY',
+            memoryHeapMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
+          }));
+          break;
+        }
+
+        case 'SUBSCRIBE_TELEMETRY': {
+          ws.isTelemetrySubscriber = true;
+          ws.send(JSON.stringify({
+            type: 'TELEMETRY_UPDATE',
+            uptimeSeconds: Math.floor(process.uptime()),
+            connectedSockets: wss.clients.size,
+            mode: isRedisActive ? 'REDIS_CLUSTER' : 'LOCAL_IN_MEMORY',
+            memoryHeapMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
+          }));
           break;
         }
 
@@ -313,8 +337,25 @@ const heartbeatInterval = setInterval(() => {
   });
 }, 25000);
 
+// Streaming continuo de telemetría institucional por WebSocket (1.2s ticker sin coste de egress)
+const telemetryStreamInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isTelemetrySubscriber && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'TELEMETRY_UPDATE',
+        uptimeSeconds: Math.floor(process.uptime()),
+        connectedSockets: wss.clients.size,
+        mode: isRedisActive ? 'REDIS_CLUSTER' : 'LOCAL_IN_MEMORY',
+        memoryHeapMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
+      }));
+    }
+  });
+}, 1200);
+
 wss.on('close', () => {
   clearInterval(heartbeatInterval);
+  clearInterval(telemetryStreamInterval);
 });
 
 // ----------------------------------------------------------------------------

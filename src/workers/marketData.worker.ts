@@ -288,6 +288,44 @@ function initHubEventListener() {
   });
 }
 
+// Símbolos suscritos actualmente en el Adaptador de Mercado
+let activeSubscribedSymbols = new Set<string>();
+let trackedPositionSymbols = new Set<string>();
+
+function syncAllMarketSubscriptions() {
+  initHubEventListener();
+
+  // Todos los símbolos necesarios: el que está en el gráfico + todas las posiciones u órdenes activas
+  const neededSymbols = new Set<string>();
+  if (currentSymbol) {
+    neededSymbols.add(currentSymbol);
+  }
+  trackedPositionSymbols.forEach((sym) => {
+    if (sym) neededSymbols.add(sym);
+  });
+
+  // 1. Suscribir los símbolos que falten en el WebSocket de mercado
+  neededSymbols.forEach((sym) => {
+    if (!activeSubscribedSymbols.has(sym)) {
+      marketFeedHub.subscribe(currentExchange, sym, currentTimeframe || '15m', 'engine', currentMarketType);
+      activeSubscribedSymbols.add(sym);
+    }
+  });
+
+  // 2. Desuscribir los símbolos que ya no se necesitan
+  activeSubscribedSymbols.forEach((sym) => {
+    if (!neededSymbols.has(sym)) {
+      marketFeedHub.unsubscribe(currentExchange, sym, 'engine', currentMarketType);
+      activeSubscribedSymbols.delete(sym);
+    }
+  });
+}
+
+function updateTrackedPositionSymbols(symbols: string[]) {
+  trackedPositionSymbols = new Set(symbols);
+  syncAllMarketSubscriptions();
+}
+
 /**
  * Inicia la suscripción a través de MarketFeedHub
  */
@@ -300,13 +338,13 @@ async function startFeed(
   const requestId = ++feedSequenceId;
   initHubEventListener();
 
-  // Desuscribir stream previo del hub
-  marketFeedHub.unsubscribe(currentExchange, currentSymbol, 'worker', currentMarketType);
-
   currentExchange = exchange;
   currentMarketType = marketType;
   currentSymbol = symbol;
   currentTimeframe = timeframe;
+
+  // Sincronizar todas las suscripciones: el par del gráfico + todos los pares de posiciones abiertas
+  syncAllMarketSubscriptions();
 
   // Notificar estado conectando
   self.postMessage({
@@ -318,10 +356,22 @@ async function startFeed(
     }
   });
 
+  // 1. Despacho INMEDIATO en 0ms de barras bootstrap para calibrar la escala del eje Y instantáneamente
+  const instantBars = generateFallbackHistoricalBars(symbol, timeframe);
+  self.postMessage({
+    type: 'HISTORICAL_BARS',
+    payload: {
+      symbol,
+      timeframe,
+      bars: instantBars,
+      isBootstrap: true
+    }
+  });
+
   // Suscribir inmediatamente al hub para que no haya delay en la conexión WebSocket
   marketFeedHub.subscribe(exchange, symbol, timeframe, 'worker', marketType);
 
-  // 1. Obtener y despachar historial de velas
+  // 2. Obtener y despachar historial oficial de velas
   const bars = await fetchHistoricalKlines(exchange, symbol, timeframe, marketType);
   if (requestId !== feedSequenceId) {
     // Si hubo otra solicitud mientras esperábamos la red, descartar para evitar sobreescrituras desfasadas
@@ -337,8 +387,8 @@ async function startFeed(
     }
   });
 
-  // 2. Emitir inmediatamente el precio actual derivado de la última barra para cambio instantáneo en UI
-  const lastBar = bars[bars.length - 1];
+  // 3. Emitir inmediatamente el precio actual derivado de la última barra para cambio instantáneo en UI
+  const lastBar = bars[bars.length - 1] || instantBars[instantBars.length - 1];
   if (lastBar && lastBar.close > 0) {
     const open24h = bars[0]?.open || lastBar.open;
     const change24h = open24h > 0 ? ((lastBar.close - open24h) / open24h) * 100 : 0;
@@ -402,6 +452,12 @@ self.onmessage = (e: MessageEvent) => {
       const exchange = payload?.exchange || currentExchange;
       const marketType = (payload?.marketType as MarketType) || currentMarketType;
       startFeed(exchange, currentSymbol, currentTimeframe, marketType);
+      break;
+    }
+
+    case 'SYNC_TRACKED_SYMBOLS': {
+      const symbols: string[] = payload?.symbols || [];
+      updateTrackedPositionSymbols(symbols);
       break;
     }
 

@@ -297,31 +297,9 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
 
         {/* Telemetría, Datos del Staff y Controles */}
         <div className="flex items-center gap-2.5">
-          {/* Selector de Perspectiva de Rol (Admin, Soporte, Marketing) */}
-          <div className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-[#f4efe4] border border-[#ded7c8] text-xs font-black">
-            <span className="text-[10px] text-slate-500 uppercase px-1.5">{isEs ? 'Rol:' : 'Role:'}</span>
-            {CRM_ALLOWED_ROLES.map(role => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => {
-                  setCurrentStaffRole(role);
-                  localStorage.setItem('zyti_staff_role', role);
-                }}
-                className={`px-2 py-0.5 rounded-lg transition-all capitalize cursor-pointer text-[11px] ${
-                  currentStaffRole === role
-                    ? 'bg-[#0F172A] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-
           {/* Identidad del Usuario Logueado (Staff) */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-[#e5dfd3] shadow-xs">
-            <div className="w-7 h-7 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center text-[10px] font-black text-purple-900 overflow-hidden shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs">
+            <div className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white overflow-hidden shrink-0">
               {staffAvatar ? (
                 <img src={staffAvatar} alt={staffName} className="w-full h-full object-cover" />
               ) : (
@@ -332,39 +310,17 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
               <div className="text-xs font-black text-slate-900 leading-tight truncate">
                 {staffName}
               </div>
-              <div className="text-[9px] font-bold text-purple-700 leading-tight truncate">
-                {staffEmail}
+              <div className="text-[9px] font-bold text-amber-700 leading-tight uppercase tracking-wider">
+                {currentStaffRole}
               </div>
             </div>
           </div>
 
-          {/* Reloj UTC */}
-          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f8f6f0] border border-[#e5dfd3] text-xs font-mono text-slate-600">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-semibold">{utcTime || '00:00:00 UTC'}</span>
-          </div>
-
-          {/* Estado de Conexión Redis Ingestion */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f8f6f0] border border-[#e5dfd3] text-xs">
-            <Server className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-bold text-slate-700">{t.redisBus}</span>
-          </div>
-
-          {/* Botón Refrescar */}
-          <button
-            onClick={() => refreshData()}
-            className="p-2 rounded-xl bg-[#f8f6f0] hover:bg-slate-100 border border-[#e5dfd3] text-slate-600 hover:text-slate-950 transition-colors cursor-pointer"
-            title={t.refresh}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-purple-700' : ''}`} />
-          </button>
-
-          {/* Selector de Idioma (Luminoso, sin fondos negros) */}
+          {/* Selector de Idioma */}
           <div className="relative" ref={langDropdownRef}>
             <button 
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#ded5c5] bg-[#f8f6f0] hover:bg-slate-100 transition-colors text-xs font-bold text-slate-900 shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#ded5c5] bg-white hover:bg-slate-50 transition-colors text-xs font-bold text-slate-900 shadow-2xs cursor-pointer"
             >
               <Globe className="w-3.5 h-3.5 text-slate-600" />
               <span>{lang.toUpperCase()}</span>

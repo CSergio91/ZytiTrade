@@ -368,14 +368,18 @@ export abstract class BaseMarketAdapter implements IMarketAdapter {
 
       // Despachar comandos si hay tokens
       while (this.tokenBucket.tokens > 0 && this.commandQueue.length > 0) {
-        const item = this.commandQueue.shift()!;
+        const item = this.commandQueue[0];
         const ws = this.sockets.get(item.marketType);
         if (ws && ws.readyState === WebSocket.OPEN) {
+          this.commandQueue.shift();
           try {
             const raw = typeof item.payload === 'string' ? item.payload : JSON.stringify(item.payload);
             ws.send(raw);
             this.tokenBucket.tokens--;
           } catch {}
+        } else {
+          // Socket en CONNECTING o cerrado: pausar hasta que el socket esté OPEN sin perder el comando
+          break;
         }
       }
     }, 50);

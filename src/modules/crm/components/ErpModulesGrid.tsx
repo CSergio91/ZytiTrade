@@ -27,16 +27,16 @@ export const ErpModulesGrid: React.FC<ErpModulesGridProps> = ({
     brandSub: string;
     description: string;
   }[] = [
-    // 0. Despliegue & DevOps Infraestructura - EXCLUSIVO ADMIN (Dark Obsidian)
+    // 0. ZYTI Engine (Infraestructura Visual & Telemetría) - EXCLUSIVO ADMIN (Dark Obsidian)
     {
       id: 'deployment',
       headerType: 'obsidian',
-      tag: 'DEVOPS & INFRA',
-      brandName: isEs ? 'DESPLIEGUE & DOCKER' : 'DEVOPS & DOCKER',
-      brandSub: isEs ? 'Guía Paso a Paso & Bash' : 'Step-by-Step & Bash',
+      tag: 'CORE ARCHITECTURE',
+      brandName: 'ZYTI ENGINE',
+      brandSub: isEs ? 'Telemetría & Servidores' : 'Live Telemetry & Infra',
       description: isEs 
-        ? 'Manual paso a paso para levantar el clúster en local (sin Docker), Docker Compose (Redis + DB) y paquetización SDK para Prop Firms.' 
-        : 'Step-by-step guide for local run (no Docker), Docker Compose (Redis + DB) and Prop Firm npm SDK.'
+        ? 'Arquitectura visual del ecosistema ZYTI en gráficos en vivo, tacómetros radiales de servidores y configuración Docker.' 
+        : 'Live visual architecture of the ZYTI ecosystem, radial server gauges and Docker deployment.'
     },
 
     // 1. Motor de Riesgo (Risk Sentinel) - ROJO SÓLIDO (solicitado: debe ser roja)

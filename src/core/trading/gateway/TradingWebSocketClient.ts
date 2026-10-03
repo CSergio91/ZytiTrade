@@ -14,6 +14,10 @@ export interface TradingEvent {
     | 'TRADE_OPENED'
     | 'TRADE_CLOSED'
     | 'SL_TP_UPDATED'
+    | 'LIMIT_ORDER_PLACED'
+    | 'LIMIT_ORDER_CANCELLED'
+    | 'LIMIT_ORDER_UPDATED'
+    | 'ALL_LIMIT_ORDERS_CANCELLED'
     | 'BALANCE_UPDATED'
     | 'ACCOUNT_RESET'
     | 'DRAWDOWN_BREACH';
