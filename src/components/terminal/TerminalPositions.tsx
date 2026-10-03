@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Layers, History, CheckCircle2, AlertTriangle, Clock, Edit3, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers, History, CheckCircle2, AlertTriangle, Clock, Edit3, X, RotateCcw } from 'lucide-react';
 import { PositionItem, ClosedTradeItem, LimitOrderItem } from './types';
 
 interface TerminalPositionsProps {
@@ -16,6 +16,7 @@ interface TerminalPositionsProps {
   onSelectPosition?: (pos: PositionItem) => void;
   onSelectLimitOrder?: (order: LimitOrderItem) => void;
   onUpdateLimitOrder?: (id: string, newLimitPrice?: number, newSlPrice?: number | null, newTpPrice?: number | null) => void;
+  onClearHistory?: () => void;
 }
 
 export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
@@ -31,7 +32,8 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
   onSetBreakEven,
   onSelectPosition,
   onSelectLimitOrder,
-  onUpdateLimitOrder
+  onUpdateLimitOrder,
+  onClearHistory
 }) => {
   // Pestaña activa: 'positions' | 'limits' | 'history'
   const [activeTab, setActiveTab] = useState<'positions' | 'limits' | 'history'>('positions');
@@ -267,6 +269,24 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
               <span>{isEs ? 'Cancelar Todo' : 'Cancel All'}</span>
               <span className="px-1 rounded-full bg-red-200 text-red-900 text-[9px] font-mono font-bold">
                 {limitOrders.length}
+              </span>
+            </button>
+          )}
+
+          {activeTab === 'history' && history.length > 0 && onClearHistory && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClearHistory();
+              }}
+              className="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs active:scale-95"
+              title={isEs ? 'Purgar todo el historial de trades en la nube y local' : 'Purge all trade history from cloud and local'}
+            >
+              <RotateCcw className="w-2.5 h-2.5" />
+              <span>{isEs ? 'Limpiar Historial' : 'Clear History'}</span>
+              <span className="px-1 rounded-full bg-rose-200 text-rose-900 text-[9px] font-mono font-bold">
+                {history.length}
               </span>
             </button>
           )}
@@ -551,52 +571,74 @@ export const TerminalPositions: React.FC<TerminalPositionsProps> = ({
             <table className="w-full text-left text-xs font-mono">
               <thead>
                 <tr className="text-[9px] text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  <th className="pb-1 px-2">Par</th>
-                  <th className="pb-1 px-2">Lado</th>
-                  <th className="pb-1 px-2">Tamaño</th>
-                  <th className="pb-1 px-2">Entrada</th>
-                  <th className="pb-1 px-2">Salida</th>
-                  <th className="pb-1 px-2">Cierre</th>
-                  <th className="pb-1 px-2">PnL Realizado</th>
-                  <th className="pb-1 px-2 text-right">Fecha</th>
+                  <th className="pb-1 px-2">{isEs ? 'Apertura' : 'Open Time'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Cierre' : 'Close Time'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Par / Apalanc.' : 'Pair / Lev.'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Lado' : 'Side'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Tamaño' : 'Size'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Entrada / Salida' : 'Entry / Exit'}</th>
+                  <th className="pb-1 px-2">{isEs ? 'Tipo Cierre' : 'Close Type'}</th>
+                  <th className="pb-1 px-2 text-right">{isEs ? 'PnL Realizado' : 'Realized PnL'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {history.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-1 px-2 font-bold text-slate-900">{item.symbol}</td>
+                    <td className="py-1 px-2 text-[10px] text-slate-500">
+                      {item.openedAt ? new Date(item.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
+                    </td>
+                    <td className="py-1 px-2 text-[10px] text-slate-500 font-bold">
+                      {item.closedAt ? new Date(item.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
+                    </td>
                     <td className="py-1 px-2">
-                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
-                        item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      <span className="font-bold text-slate-900">{item.symbol}</span>
+                      {item.leverage && (
+                        <span className="ml-1.5 px-1 py-0.2 rounded text-[8.5px] font-mono font-bold bg-amber-100/70 text-amber-900 border border-amber-200">
+                          {item.leverage}x
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-1 px-2">
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                        item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                       }`}>
                         {item.side}
                       </span>
                     </td>
                     <td className="py-1 px-2 text-slate-600">{item.size}</td>
-                    <td className="py-1 px-2 font-bold text-slate-800">${item.entry.toLocaleString()}</td>
-                    <td className="py-1 px-2 text-slate-600">${item.exitPrice.toLocaleString()}</td>
+                    <td className="py-1 px-2 text-[10px] text-slate-700 font-mono">
+                      <span>${item.entry.toLocaleString()}</span>
+                      <span className="text-slate-400 mx-1">➔</span>
+                      <span className="font-bold">${item.exitPrice.toLocaleString()}</span>
+                    </td>
                     <td className="py-1 px-2 text-[10px]">
                       {item.closeReason === 'TP' && (
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-black border border-emerald-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                           TP
                         </span>
                       )}
                       {item.closeReason === 'SL' && (
-                        <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold border border-red-200">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 font-black border border-rose-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
                           SL
                         </span>
                       )}
+                      {item.closeReason === 'LIQUIDATION_BREACH' && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold border border-purple-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                          Sentinel
+                        </span>
+                      )}
                       {(!item.closeReason || item.closeReason === 'MANUAL') && (
-                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                           {isEs ? 'Manual' : 'Manual'}
                         </span>
                       )}
                     </td>
-                    <td className={`py-1 px-2 font-bold ${item.isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <td className={`py-1 px-2 text-right font-bold ${item.isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {item.isProfit ? '+' : ''}${item.pnlUsdt.toFixed(2)} ({item.pnlPercent})
-                    </td>
-                    <td className="py-1 px-2 text-right text-[10px] text-slate-400">
-                      {new Date(item.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </td>
                   </tr>
                 ))}

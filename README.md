@@ -1,4 +1,4 @@
-﻿# ⚡ ZYTI Trade — Institutional Trading OS & Prop Firm Gateway
+# ⚡ ZYTI Trade — Institutional Trading OS & Prop Firm Gateway
 
 Plataforma de trading multiactivo de grado institucional para traders profesionales, brokers y empresas de fondeo (**Prop Firms**). Motor KLineChart v10 Canvas a 60 FPS, arquitectura Fan-Out con Redis, autenticación multi-proveedor con Cloudflare Turnstile anti-bot, y soporte híbrido **Cloud / On-Premise**.
 
@@ -278,34 +278,137 @@ Cargar esquema ZYTI:
 docker exec -i supabase-db psql -U postgres -d postgres < docker/init.sql
 ```
 
-### Opción B: Stack Ligero (PostgreSQL + Redis)
+### Opción B: Stack Completo de Infraestructura (PostgreSQL + Redis + ZYTI Gateway)
 
 ```bash
-# Solo PostgreSQL 16 + Redis Alpine (sin panel de Supabase)
-docker compose -f docker-compose.infra.yml up -d
+# Levantar PostgreSQL 16 + Redis 7 + ZYTI Trading Gateway en Docker
+docker compose -f docker-compose.infra.yml up -d --build
+
+# Verificar que los 3 contenedores estén saludables
+docker compose -f docker-compose.infra.yml ps
+
+# Ver logs del gateway en tiempo real
+docker compose -f docker-compose.infra.yml logs -f zyti-gateway
 ```
 
-El archivo [`docker-compose.infra.yml`](docker-compose.infra.yml) monta [`docker/init.sql`](docker/init.sql) automáticamente al primer inicio.
+El archivo [`docker-compose.infra.yml`](docker-compose.infra.yml) monta [`docker/init.sql`](docker/init.sql) automáticamente al primer inicio y enlaza el clúster Redis en memoria con el servidor WebSocket institucional en el puerto `8080`.
 
 ---
 
-## ⚡ Arquitectura Fan-Out con Redis
+## ⚡ ZYTI Trading WebSocket & Redis Gateway (Hot State <2ms)
 
-En lugar de que cada navegador abra un WebSocket a Binance (riesgo de baneo por IP):
+Microservicio de sincronización multi-dispositivo y baja latencia para terminales y plataformas de fondeo. Permite que cuando un trader abre o cierra una posición en su ordenador, la tablet, el teléfono y todas las pestañas abiertas reciban la orden en sub-5 milisegundos.
 
-1. **Worker Central** (`src/server/worker.ts`):
-   - 1 sola conexión WebSocket persistente con Binance por instrumento
-   - Escribe en Redis Pub/Sub: `stream:kline:BTC/USDT:15m`, `stream:orderbook:BTC/USDT`
+### 💻 1. Ejecución Local en Terminal (Directo en Windows/macOS SIN Docker)
 
-2. **Gateway Server** (`src/server/gateway.ts`):
-   - Lee Redis en memoria y distribuye a todos los terminales conectados (10 o 10.000 traders) sin conexiones adicionales a Binance
+No necesitas tener Docker abierto para desarrollar o probar el clúster. El servidor cuenta con **fallback inteligente In-Memory**:
+
+```powershell
+# En una terminal dedicada, arrancar el servidor Gateway:
+npm run server
+```
+
+Salida esperada en terminal:
+```text
+===============================================================
+🚀 ZYTI TRADING WEBSOCKET & REDIS GATEWAY ACTIVO
+===============================================================
+• Puerto WebSocket & HTTP : http://localhost:8080
+• URL WebSocket           : ws://localhost:8080
+• Health Check            : http://localhost:8080/health
+===============================================================
+
+⚡ [ZYTI Hub] Modo Local In-Memory Activo (Ejecución directa en Windows sin Docker)
+```
+
+> **Nota:** Si tienes Redis corriendo en `localhost:6379`, el servidor detectará el clúster automáticamente activando `REDIS_CLUSTER`. Si no hay Redis, opera en `LOCAL_IN_MEMORY` sin fallar.
+
+### 🐳 2. Despliegue con Docker Compose (Para Servidores / VPS)
 
 ```bash
-# Arrancar el worker de ingestion
-npm run worker
+# 1. Compilar y levantar PostgreSQL + Redis + Gateway
+docker compose -f docker-compose.infra.yml up -d --build
 
-# Arrancar el gateway WebSocket
-npm run gateway
+# 2. Consultar el estado de salud del Gateway
+curl http://localhost:8080/health
+```
+
+Respuesta JSON del Health Check:
+```json
+{
+  "status": "healthy",
+  "name": "ZYTI Trading WebSocket & Redis Gateway",
+  "version": "1.0.0",
+  "uptimeSeconds": 120,
+  "activeAccounts": 3,
+  "connectedSockets": 6,
+  "mode": "REDIS_CLUSTER",
+  "redisUrl": "redis://zyti-redis:6379",
+  "timestamp": "2026-10-03T02:20:00.000Z"
+}
+```
+
+### 🌐 3. Despliegue en Producción en VPS (Ubuntu / Debian + Nginx + SSL)
+
+Configuración recomendada con Nginx como proxy inverso para SSL (`wss://api.tudominio.com`):
+
+```nginx
+# /etc/nginx/sites-available/zyti-gateway
+server {
+    server_name api.tudominio.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
+```
+
+Activar y certificar con SSL Let's Encrypt:
+```bash
+sudo ln -s /etc/nginx/sites-available/zyti-gateway /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d api.tudominio.com
+```
+
+### 📦 4. Integración del SDK para Empresas de Fondeo (npm)
+
+Las empresas de fondeo pueden instalar el paquete o importar el cliente SDK directamente en su frontend o backend:
+
+```typescript
+import { zytiTradingClient } from '@zyti/trading-sdk';
+
+// 1. Conectar a la pasarela institucional con el ID de la cuenta
+zytiTradingClient.connect('ZYTI-100K-TF001');
+
+// 2. Escuchar eventos de trading sincronizados (Aperturas, Cierres, SL/TP, Balance)
+const unsubscribe = zytiTradingClient.onEvent((event) => {
+  console.log(`Evento recibido [${event.type}]:`, event.payload);
+  
+  if (event.type === 'TRADE_OPENED') {
+    // Sincronizar en UI de la prop firm
+  } else if (event.type === 'TRADE_CLOSED') {
+    // Actualizar balance y métricas de consistencia
+  }
+});
+
+// 3. Emitir evento cuando el trader opere
+zytiTradingClient.publishEvent({
+  type: 'TRADE_OPENED',
+  payload: {
+    symbol: 'BTC/USDT',
+    side: 'LONG',
+    size: 0.5,
+    entryPrice: 96450.00
+  }
+});
 ```
 
 ---

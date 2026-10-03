@@ -8,6 +8,7 @@ import { RiskEngineCard } from './components/RiskEngineCard';
 import { AffiliatesManagerCard } from './components/AffiliatesManagerCard';
 import { DynamicRulesModal } from './components/DynamicRulesModal';
 import { CreateApiKeyModal } from './components/CreateApiKeyModal';
+import { DeploymentGuideView } from './components/DeploymentGuideView';
 import { CrmLang, crmTranslations } from './types/i18n';
 import { CrmModuleId, CrmStaffRole, CRM_ALLOWED_ROLES } from './types/crm.types';
 import { UserSession } from '../../lib/supabase';
@@ -106,7 +107,8 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
     if (typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
 
-    if (path.includes('/risk-engine')) setActiveModule('risk_engine');
+    if (path.includes('/deployment')) setActiveModule('deployment');
+    else if (path.includes('/risk-engine')) setActiveModule('risk_engine');
     else if (path.includes('/apis')) setActiveModule('apis');
     else if (path.includes('/challenges')) setActiveModule('challenges');
     else if (path.includes('/plans')) setActiveModule('plans');
@@ -140,6 +142,7 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
 
     const moduleSlugMap: Record<CrmModuleId, string> = {
       hub: '',
+      deployment: '/deployment',
       risk_engine: '/risk-engine',
       apis: '/apis',
       challenges: '/challenges',
@@ -158,6 +161,7 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
 
   const moduleTitles: Record<CrmModuleId, { es: string; en: string }> = {
     hub: { es: 'Panel Principal', en: 'ERP Hub' },
+    deployment: { es: 'Despliegue & Docker', en: 'Deployment & Docker' },
     risk_engine: { es: 'Motor de Riesgo', en: 'Risk Engine' },
     apis: { es: 'APIs & Agentes IA', en: 'Developer APIs' },
     challenges: { es: 'Retos de Fondeo', en: 'Challenges' },
@@ -473,6 +477,11 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
               onOpenRiskEngineForTrader={() => handleSelectModuleWithUrl('risk_engine')}
             />
           </>
+        )}
+
+        {/* 1. Vista Dedicada: Guía de Despliegue & DevOps (Exclusiva Admin) */}
+        {activeModule === 'deployment' && (
+          <DeploymentGuideView lang={lang} />
         )}
 
         {/* 2. Vista Dedicada: Risk Engine */}

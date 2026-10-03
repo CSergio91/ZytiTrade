@@ -177,6 +177,8 @@ export interface ClosedTradeItem {
   pnlPercentNum: number;
   pnlPercent: string;
   isProfit: boolean;
+  openedAt?: string;
   closedAt: string;
-  closeReason?: 'TP' | 'SL' | 'MANUAL';
+  leverage?: number;
+  closeReason?: 'TP' | 'SL' | 'MANUAL' | 'LIQUIDATION_BREACH';
 }

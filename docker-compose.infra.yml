@@ -39,6 +39,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # ============================================================================
+  # 3. ZYTI TRADING WEBSOCKET & REDIS GATEWAY (Microservicio Fan-Out)
+  # ============================================================================
+  zyti-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: zyti-trading-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      REDIS_URL: redis://zyti-redis:6379
+      NODE_ENV: production
+    depends_on:
+      zyti-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   zyti_pg_data:
   zyti_redis_data:

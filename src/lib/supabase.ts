@@ -104,17 +104,18 @@ export const setStoredSession = (user: UserSession | null) => {
 };
 
 /**
- * Consulta en Supabase las cuentas de fondeo asignadas al correo del trader
+ * Consulta en Supabase las cuentas de fondeo asignadas al ID de usuario o correo del trader
  */
-export async function fetchTraderAccounts(email: string): Promise<PropFirmAccount[]> {
+export async function fetchTraderAccounts(identifier: string): Promise<PropFirmAccount[]> {
   try {
-    const clean = email.trim().toLowerCase();
+    const clean = identifier.trim().toLowerCase();
     if (!clean) return [];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('trading_accounts')
       .select(`
         id,
+        user_id,
         firm_id,
         account_number,
         initial_balance,
@@ -126,8 +127,15 @@ export async function fetchTraderAccounts(email: string): Promise<PropFirmAccoun
           id,
           name
         )
-      `)
-      .eq('trader_email', clean);
+      `);
+
+    if (IS_UUID_REGEX.test(clean)) {
+      query = query.or(`user_id.eq.${clean},id.eq.${clean}`);
+    } else {
+      query = query.eq('trader_email', clean);
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) {
       console.warn('[ZYTI DB] No se pudieron cargar cuentas de fondeo:', error?.message);
@@ -181,6 +189,7 @@ export async function ensureDefaultDemoAccount(email: string, userId?: string): 
     const { data, error } = await supabase
       .from('trading_accounts')
       .insert({
+        user_id: (userId && IS_UUID_REGEX.test(userId)) ? userId : null,
         account_number: accountNumber,
         trader_email: clean,
         initial_balance: 100000.00,

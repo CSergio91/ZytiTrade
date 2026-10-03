@@ -21,12 +21,24 @@ export const ErpModulesGrid: React.FC<ErpModulesGridProps> = ({
 
   const modules: {
     id: CrmModuleId;
-    headerType: 'solid_red' | 'mantecado' | 'solid_blue' | 'white' | 'solid_green' | 'solid_indigo';
+    headerType: 'solid_red' | 'mantecado' | 'solid_blue' | 'white' | 'solid_green' | 'solid_indigo' | 'obsidian';
     tag: string;
     brandName: string;
     brandSub: string;
     description: string;
   }[] = [
+    // 0. Despliegue & DevOps Infraestructura - EXCLUSIVO ADMIN (Dark Obsidian)
+    {
+      id: 'deployment',
+      headerType: 'obsidian',
+      tag: 'DEVOPS & INFRA',
+      brandName: isEs ? 'DESPLIEGUE & DOCKER' : 'DEVOPS & DOCKER',
+      brandSub: isEs ? 'Guía Paso a Paso & Bash' : 'Step-by-Step & Bash',
+      description: isEs 
+        ? 'Manual paso a paso para levantar el clúster en local (sin Docker), Docker Compose (Redis + DB) y paquetización SDK para Prop Firms.' 
+        : 'Step-by-step guide for local run (no Docker), Docker Compose (Redis + DB) and Prop Firm npm SDK.'
+    },
+
     // 1. Motor de Riesgo (Risk Sentinel) - ROJO SÓLIDO (solicitado: debe ser roja)
     {
       id: 'risk_engine',
@@ -201,6 +213,20 @@ export const ErpModulesGrid: React.FC<ErpModulesGridProps> = ({
                     {mod.brandName}
                   </span>
                   <span className="text-[10px] font-bold text-emerald-900 mt-0.5">
+                    {mod.brandSub}
+                  </span>
+                </div>
+              )}
+
+              {mod.headerType === 'obsidian' && (
+                <div className="w-full h-22 bg-[#0A0D14] border-b border-slate-800 px-3.5 py-3 flex flex-col items-center justify-center text-center transition-all group-hover:bg-[#121620]">
+                  <span className="text-[9.5px] font-mono tracking-widest text-amber-400 uppercase font-black">
+                    {mod.tag}
+                  </span>
+                  <span className="text-[14px] font-black text-white tracking-tight uppercase leading-tight mt-0.5">
+                    {mod.brandName}
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-400 mt-0.5">
                     {mod.brandSub}
                   </span>
                 </div>

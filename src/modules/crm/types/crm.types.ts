@@ -13,7 +13,8 @@ export type CrmModuleId =
   | 'exchanges' 
   | 'prop_firms' 
   | 'support' 
-  | 'marketing';
+  | 'marketing'
+  | 'deployment';
 
 export type ApiKeyType = 'prop_firm' | 'ai_agent' | 'webhook';
 
@@ -78,6 +79,7 @@ export const CRM_ALLOWED_ROLES: CrmStaffRole[] = ['admin', 'soporte', 'marketing
 
 export const ROLE_CARD_PERMISSIONS: Record<CrmStaffRole, CrmModuleId[]> = {
   admin: [
+    'deployment',
     'risk_engine',
     'apis',
     'challenges',

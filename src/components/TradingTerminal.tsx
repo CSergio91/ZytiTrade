@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { init, dispose, Chart, DeepPartial, Styles } from 'klinecharts';
 import { Language } from '../i18n/translations';
-import { UserSession, PropFirmAccount } from '../lib/supabase';
+import { supabase, UserSession, PropFirmAccount, fetchTraderAccounts } from '../lib/supabase';
 import { MarketStats, OrderBookPayload } from '../workers/marketData.worker';
 import { MarketType, AdapterConnectionStatus } from '../core/market-feed/types';
 
@@ -21,7 +21,9 @@ import {
   LimitOrderItem,
   OrderRequest, 
   AccountMetrics,
-  generateTradeId 
+  generateTradeId,
+  TradePersistenceService,
+  zytiTradingClient
 } from '../core/trading';
 import { TerminalHeader } from './terminal/TerminalHeader';
 import { TerminalToolbar } from './terminal/TerminalToolbar';
@@ -389,10 +391,23 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     asks: []
   });
 
-  // Posiciones abiertas (por defecto vacío, sin operaciones predeterminadas)
-  const [positions, setPositions] = useState<PositionItem[]>([]);
+  // Posiciones abiertas con persistencia Local-First (0ms al recargar el navegador)
+  const [positions, setPositions] = useState<PositionItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('zyti_open_positions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const positionsRef = useRef<PositionItem[]>(positions);
   positionsRef.current = positions;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('zyti_open_positions', JSON.stringify(positions));
+    } catch {}
+  }, [positions]);
 
   // Órdenes Límites pendientes con persistencia en localStorage
   const [limitOrders, setLimitOrders] = useState<LimitOrderItem[]>(() => {
@@ -434,7 +449,30 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   // Seguro contra clics múltiples rápidos en colocación de órdenes
   const isSubmittingOrderRef = useRef<boolean>(false);
 
-  // Historial de operaciones cerradas con persistencia local
+  // Cuenta de fondeo oficial activa (100K)
+  const [activeAccountId, setActiveAccountId] = useState<string | undefined>(() => {
+    return user?.activeAccountId || user?.accounts?.[0]?.id || localStorage.getItem('zyti_active_account_id') || undefined;
+  });
+
+  // Asegurar resolución de la cuenta oficial del usuario autenticado
+  useEffect(() => {
+    if (user?.activeAccountId) {
+      setActiveAccountId(user.activeAccountId);
+      try { localStorage.setItem('zyti_active_account_id', user.activeAccountId); } catch {}
+    } else if (user?.accounts && user.accounts.length > 0) {
+      setActiveAccountId(user.accounts[0].id);
+      try { localStorage.setItem('zyti_active_account_id', user.accounts[0].id); } catch {}
+    } else if (user?.email) {
+      fetchTraderAccounts(user.email).then((accs) => {
+        if (accs.length > 0) {
+          setActiveAccountId(accs[0].id);
+          try { localStorage.setItem('zyti_active_account_id', accs[0].id); } catch {}
+        }
+      });
+    }
+  }, [user]);
+
+  // Historial de operaciones cerradas con persistencia local y sincronización con Supabase
   const [tradeHistory, setTradeHistory] = useState<ClosedTradeItem[]>(() => {
     try {
       const saved = localStorage.getItem('zyti_trade_history');
@@ -443,6 +481,290 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       return [];
     }
   });
+
+  // Reconciliar y cargar historial y posiciones abiertas desde Supabase (Cold Sync)
+  useEffect(() => {
+    const targetId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (targetId || user?.id || user?.email) {
+      // 1. Cargar historial de trades cerrados
+      TradePersistenceService.fetchAccountTradesHistory(targetId, user?.id, user?.email).then((dbHistory) => {
+        if (dbHistory && dbHistory.length > 0) {
+          setTradeHistory(dbHistory);
+          try { localStorage.setItem('zyti_trade_history', JSON.stringify(dbHistory)); } catch {}
+        }
+      }).catch(() => {});
+
+      // 2. Reconciliación en frío de posiciones abiertas desde la base de datos
+      TradePersistenceService.fetchOpenPositions(targetId, user?.id, user?.email).then((dbPositions) => {
+        if (dbPositions && dbPositions.length > 0) {
+          setPositions((prev) => {
+            const map = new Map<string, PositionItem>();
+            dbPositions.forEach((p) => map.set(p.id, p));
+            prev.forEach((p) => {
+              if (map.has(p.id)) {
+                map.set(p.id, {
+                  ...map.get(p.id)!,
+                  mark: p.mark,
+                  pnlUsdt: p.pnlUsdt,
+                  pnl: p.pnl,
+                  pnlPercent: p.pnlPercent,
+                  pnlPercentNum: p.pnlPercentNum,
+                  isProfit: p.isProfit
+                });
+              }
+            });
+            const merged = Array.from(map.values());
+            positionsRef.current = merged;
+            try { localStorage.setItem('zyti_open_positions', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [activeAccountId, user]);
+
+  // Sincronización Multi-Dispositivo en Tiempo Real (PC <-> Móvil <-> Tablet) vía Supabase Realtime
+  // Zero-Egress: Solo transmite ~200 bytes ante un evento real de apertura/cierre de ESTA cuenta.
+  useEffect(() => {
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (!targetAccountId) return;
+
+    const channel = supabase
+      .channel(`sync_trades_${targetAccountId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'account_trades',
+          filter: `account_id=eq.${targetAccountId}`
+        },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new;
+            if (row && row.status === 'OPEN') {
+              setPositions((prev) => {
+                if (prev.some((p) => p.id === row.id)) return prev;
+                const entry = Number(row.entry_price) || 1;
+                const sizeUnits = Number(row.size) || 0;
+                const leverage = Number(row.leverage) || 10;
+                const newPos: PositionItem = {
+                  id: row.id,
+                  userId: row.user_id,
+                  symbol: row.symbol,
+                  exchange: row.exchange || 'binance',
+                  side: (row.side as 'LONG' | 'SHORT') || 'LONG',
+                  orderType: 'market',
+                  status: 'OPEN',
+                  size: `${sizeUnits.toFixed(4)} ${row.symbol.split('/')[0] || ''}`.trim(),
+                  sizeUnits,
+                  entry,
+                  entryTimestamp: new Date(row.opened_at).getTime(),
+                  mark: entry,
+                  slPrice: row.sl_price ? Number(row.sl_price) : null,
+                  tpPrice: row.tp_price ? Number(row.tp_price) : null,
+                  leverage,
+                  collateralUsdt: (sizeUnits * entry) / leverage,
+                  pnlUsdt: 0,
+                  pnlPercentNum: 0,
+                  pnl: '$0.00',
+                  pnlPercent: '0.00%',
+                  isProfit: true,
+                  createdAt: row.opened_at
+                };
+                playOrderFilledSound();
+                return [newPos, ...prev];
+              });
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const row = payload.new;
+            if (row && row.status === 'CLOSED') {
+              // Posición liquidada o cerrada en otro dispositivo (ej: desde el ordenador)
+              setPositions((prev) => prev.filter((p) => p.id !== row.id));
+              closedPositionIdsRef.current.add(row.id);
+
+              // Actualizar saldo de inmediato si el payload incluye el PnL realizado
+              if (typeof row.realized_pnl !== 'undefined' && row.realized_pnl !== null) {
+                const pnlDelta = Number(row.realized_pnl) || 0;
+                setDemoBalance((prev) => {
+                  const nextBal = Number((prev + pnlDelta).toFixed(2));
+                  try { localStorage.setItem('zyti_demo_balance', nextBal.toString()); } catch {}
+                  return nextBal;
+                });
+              }
+
+              // Recargar historial para que aparezca de inmediato en la pestaña de historial del tablet/móvil
+              TradePersistenceService.fetchAccountTradesHistory(targetAccountId, user?.id, user?.email).then((dbHist) => {
+                if (dbHist && dbHist.length > 0) {
+                  setTradeHistory(dbHist);
+                  try { localStorage.setItem('zyti_trade_history', JSON.stringify(dbHist)); } catch {}
+                }
+              });
+            } else if (row && row.status === 'OPEN') {
+              // Actualización de SL o TP arrastrado desde otro dispositivo
+              setPositions((prev) =>
+                prev.map((p) =>
+                  p.id === row.id
+                    ? {
+                        ...p,
+                        slPrice: row.sl_price ? Number(row.sl_price) : null,
+                        tpPrice: row.tp_price ? Number(row.tp_price) : null
+                      }
+                    : p
+                )
+              );
+            }
+          } else if (payload.eventType === 'DELETE') {
+            // Se ejecutó una purga/reset desde otro dispositivo
+            setPositions([]);
+            setTradeHistory([]);
+            setDemoBalance(100000);
+            try { localStorage.removeItem('zyti_open_positions'); } catch {}
+            try { localStorage.removeItem('zyti_trade_history'); } catch {}
+            try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'trading_accounts',
+          filter: `id=eq.${targetAccountId}`
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (row && typeof row.current_balance !== 'undefined') {
+            const newBal = Number(row.current_balance);
+            if (!isNaN(newBal) && newBal > 0) {
+              setDemoBalance(newBal);
+              try { localStorage.setItem('zyti_demo_balance', newBal.toString()); } catch {}
+            }
+            if (row.status === 'BREACHED') {
+              setIsAccountBreached(true);
+              isBreachedRef.current = true;
+              setBreachReason(row.breach_reason || (isEs ? 'Infracción de reglas de riesgo' : 'Risk rules breached'));
+            } else if (row.status === 'ACTIVE') {
+              setIsAccountBreached(false);
+              isBreachedRef.current = false;
+              setBreachReason('');
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeAccountId, user, isEs]);
+
+  // Sincronización instantánea inter-pestañas en la misma máquina (Zero-Egress total a 0ms)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.BroadcastChannel) return;
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (!targetAccountId) return;
+
+    const bc = new BroadcastChannel('zyti_trading_sync');
+    bc.onmessage = (event) => {
+      const msg = event.data;
+      if (!msg || msg.accountId !== targetAccountId) return;
+      if (msg.type === 'BALANCE_SYNC' && typeof msg.balance === 'number') {
+        setDemoBalance(msg.balance);
+        try { localStorage.setItem('zyti_demo_balance', msg.balance.toString()); } catch {}
+      } else if (msg.type === 'RESET_SYNC') {
+        setDemoBalance(100000);
+        setPositions([]);
+        setTradeHistory([]);
+        try { localStorage.removeItem('zyti_open_positions'); } catch {}
+        try { localStorage.removeItem('zyti_trade_history'); } catch {}
+        try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
+      }
+    };
+
+    return () => {
+      bc.close();
+    };
+  }, [activeAccountId, user]);
+
+  // Sincronización Institucional mediante ZYTI Trading WebSocket Gateway (Redis Pub/Sub)
+  useEffect(() => {
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (!targetAccountId) return;
+
+    zytiTradingClient.connect(targetAccountId);
+
+    const unsubscribe = zytiTradingClient.onEvent((event) => {
+      switch (event.type) {
+        case 'TRADE_OPENED': {
+          const pos = event.payload;
+          if (pos && pos.id) {
+            setPositions((prev) => {
+              if (prev.some((p) => p.id === pos.id)) return prev;
+              playOrderFilledSound();
+              return [pos, ...prev];
+            });
+          }
+          break;
+        }
+        case 'TRADE_CLOSED': {
+          const { id, newBalance: remoteBal } = event.payload || {};
+          if (id) {
+            setPositions((prev) => prev.filter((p) => p.id !== id));
+            closedPositionIdsRef.current.add(id);
+          }
+          if (typeof remoteBal === 'number') {
+            setDemoBalance(remoteBal);
+            try { localStorage.setItem('zyti_demo_balance', remoteBal.toString()); } catch {}
+          }
+          TradePersistenceService.fetchAccountTradesHistory(targetAccountId, user?.id, user?.email).then((dbHist) => {
+            if (dbHist && dbHist.length > 0) {
+              setTradeHistory(dbHist);
+              try { localStorage.setItem('zyti_trade_history', JSON.stringify(dbHist)); } catch {}
+            }
+          });
+          break;
+        }
+        case 'SL_TP_UPDATED': {
+          const { id, slPrice, tpPrice } = event.payload || {};
+          if (id) {
+            setPositions((prev) =>
+              prev.map((p) => (p.id === id ? { ...p, slPrice, tpPrice } : p))
+            );
+          }
+          break;
+        }
+        case 'BALANCE_UPDATED': {
+          const { balance } = event.payload || {};
+          if (typeof balance === 'number') {
+            setDemoBalance(balance);
+            try { localStorage.setItem('zyti_demo_balance', balance.toString()); } catch {}
+          }
+          break;
+        }
+        case 'ACCOUNT_RESET': {
+          setPositions([]);
+          setTradeHistory([]);
+          setDemoBalance(100000);
+          try { localStorage.removeItem('zyti_open_positions'); } catch {}
+          try { localStorage.removeItem('zyti_trade_history'); } catch {}
+          try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
+          break;
+        }
+        case 'DRAWDOWN_BREACH': {
+          setIsAccountBreached(true);
+          isBreachedRef.current = true;
+          setBreachReason(event.payload?.reason || (isEs ? 'Infracción de reglas de riesgo' : 'Risk rules breached'));
+          break;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeAccountId, user, isEs]);
 
   const recordClosedTrade = useCallback((
     item: {
@@ -455,10 +777,15 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       mark: number;
       pnlUsdt: number;
       pnlPercentNum: number;
+      createdAt?: string;
+      openedAt?: string;
+      leverage?: number;
     },
-    reason: 'TP' | 'SL' | 'MANUAL'
+    reason: 'TP' | 'SL' | 'MANUAL' | 'LIQUIDATION_BREACH',
+    newBalance?: number
   ) => {
     const isProfit = item.pnlUsdt >= 0;
+    const nowIso = new Date().toISOString();
     const record: ClosedTradeItem = {
       id: item.id,
       symbol: item.symbol,
@@ -471,15 +798,46 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       pnlPercentNum: Number(item.pnlPercentNum.toFixed(2)),
       pnlPercent: `${isProfit ? '+' : ''}${item.pnlPercentNum.toFixed(2)}%`,
       isProfit,
-      closedAt: new Date().toISOString(),
+      openedAt: item.createdAt || item.openedAt || nowIso,
+      closedAt: nowIso,
+      leverage: item.leverage || 10,
       closeReason: reason
     };
+
     setTradeHistory((prev) => {
       const updated = [record, ...prev.filter((p) => p.id !== item.id)].slice(0, 100);
       try { localStorage.setItem('zyti_trade_history', JSON.stringify(updated)); } catch {}
       return updated;
     });
-  }, []);
+
+    // Write-Behind Queue: persistir cierre asíncronamente en Supabase y sincronizar balance de la cuenta
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (newBalance !== undefined) {
+      try {
+        const bc = new BroadcastChannel('zyti_trading_sync');
+        bc.postMessage({ type: 'BALANCE_SYNC', balance: newBalance, accountId: targetAccountId });
+        bc.close();
+      } catch {}
+    }
+
+    // Difundir al WebSocket Gateway / Redis
+    zytiTradingClient.publishEvent({
+      type: 'TRADE_CLOSED',
+      payload: { id: item.id, realizedPnl: item.pnlUsdt, newBalance }
+    });
+
+    TradePersistenceService.persistClosedTrade({
+      tradeId: item.id,
+      accountId: targetAccountId,
+      userId: user?.id,
+      traderEmail: user?.email,
+      exitPrice: item.mark,
+      realizedPnl: Number(item.pnlUsdt.toFixed(2)),
+      closeReason: reason,
+      closedAt: nowIso,
+      newBalance
+    }).catch(() => {});
+  }, [activeAccountId, user]);
 
   const recordClosedTradeRef = useRef(recordClosedTrade);
   recordClosedTradeRef.current = recordClosedTrade;
@@ -651,9 +1009,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     const currentPositions = positionsRef.current;
     let totalRealized = 0;
     currentPositions.forEach((pos) => {
-      closedPositionIdsRef.current.add(pos.id);
-      recordClosedTradeRef.current(pos, 'SL');
       totalRealized += (pos.pnlUsdt ?? 0);
+    });
+
+    const nextB = Number((demoBalanceRef.current + totalRealized).toFixed(2));
+    currentPositions.forEach((pos) => {
+      closedPositionIdsRef.current.add(pos.id);
+      recordClosedTradeRef.current(pos, 'LIQUIDATION_BREACH', nextB);
     });
 
     positionsRef.current = [];
@@ -663,8 +1025,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setLimitOrders([]);
     try { localStorage.removeItem('zyti_limit_orders'); } catch {}
 
-    setDemoBalance((prevB) => {
-      const nextB = Number((prevB + totalRealized).toFixed(2));
+    setDemoBalance(() => {
       try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
       return nextB;
     });
@@ -917,12 +1278,13 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               }
 
               // Despachar Toasts, registrar en historial y alertas sonoras de TP o SL FUERA del setState (exactamente una vez)
+              const nextB = evaluation.balanceDelta !== 0 ? Number((demoBalanceRef.current + evaluation.balanceDelta).toFixed(2)) : undefined;
               evaluation.events.forEach((evt) => {
                 if (closedPositionIdsRef.current.has(evt.position.id)) return;
                 closedPositionIdsRef.current.add(evt.position.id);
 
-                // Registrar en Historial
-                recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL');
+                // Registrar en Historial y sincronizar en Supabase
+                recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL', nextB);
 
                 if (evt.type === 'TP_HIT') {
                   addToastRef.current({
@@ -990,6 +1352,26 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
                 setPositions((prev) => [...limitEval.newlyOpenedPositions, ...prev]);
                 playOrderFilledSound();
 
+                // Persistir órdenes límites ejecutadas como posiciones en Supabase
+                limitEval.newlyOpenedPositions.forEach((pos) => {
+                  const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+                  TradePersistenceService.persistOpenedTrade({
+                    id: pos.id,
+                    accountId: targetAccountId,
+                    userId: user?.id,
+                    traderEmail: user?.email,
+                    exchange: pos.exchange || currentExchange,
+                    symbol: pos.symbol,
+                    side: pos.side,
+                    size: pos.sizeUnits,
+                    leverage: pos.leverage,
+                    entryPrice: pos.entry,
+                    slPrice: pos.slPrice,
+                    tpPrice: pos.tpPrice,
+                    openedAt: pos.createdAt
+                  }).catch(() => {});
+                });
+
                 limitEval.filledOrders.forEach((filled) => {
                   const isBuy = filled.side === 'buy';
                   const subtype = filled.orderSubtype || (isBuy ? (filled.limitPrice <= filled.placedAtPrice ? 'LIMIT' : 'STOP') : (filled.limitPrice >= filled.placedAtPrice ? 'LIMIT' : 'STOP'));
@@ -1040,11 +1422,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             }
 
             // Despachar Toasts, registrar en historial si ocurrió TP o SL en TICKER
+            const nextB = evaluation.balanceDelta !== 0 ? Number((demoBalanceRef.current + evaluation.balanceDelta).toFixed(2)) : undefined;
             evaluation.events.forEach((evt) => {
               if (closedPositionIdsRef.current.has(evt.position.id)) return;
               closedPositionIdsRef.current.add(evt.position.id);
 
-              recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL');
+              recordClosedTradeRef.current(evt.position, evt.type === 'TP_HIT' ? 'TP' : 'SL', nextB);
 
               if (evt.type === 'TP_HIT') {
                 addToastRef.current({
@@ -1099,6 +1482,26 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               setLimitOrders(limitEval.remainingOrders);
               setPositions((prev) => [...limitEval.newlyOpenedPositions, ...prev]);
               playOrderFilledSound();
+
+              // Persistir órdenes límites ejecutadas como posiciones en Supabase
+              limitEval.newlyOpenedPositions.forEach((pos) => {
+                const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+                TradePersistenceService.persistOpenedTrade({
+                  id: pos.id,
+                  accountId: targetAccountId,
+                  userId: user?.id,
+                  traderEmail: user?.email,
+                  exchange: pos.exchange || currentExchange,
+                  symbol: pos.symbol,
+                  side: pos.side,
+                  size: pos.sizeUnits,
+                  leverage: pos.leverage,
+                  entryPrice: pos.entry,
+                  slPrice: pos.slPrice,
+                  tpPrice: pos.tpPrice,
+                  openedAt: pos.createdAt
+                }).catch(() => {});
+              });
 
               limitEval.filledOrders.forEach((filled) => {
                 const isBuy = filled.side === 'buy';
@@ -1493,6 +1896,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     setPositions((prev) => TradingEngine.updatePositionSLTP(prev, id, slPrice, tpPrice));
 
+    // Difundir modificación de SL/TP a otros dispositivos vía WebSocket Gateway
+    zytiTradingClient.publishEvent({
+      type: 'SL_TP_UPDATED',
+      payload: { id, slPrice, tpPrice }
+    });
+
     if (slPrice !== undefined) {
       if (slPrice !== null) {
         const isLong = target.side === 'LONG';
@@ -1586,12 +1995,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     closedPositionIdsRef.current.add(id);
 
-    // Registrar en Historial de operaciones cerradas
-    recordClosedTrade(closedPosition, 'MANUAL');
+    const nextB = Number((demoBalanceRef.current + realizedPnL).toFixed(2));
+    // Registrar en Historial de operaciones cerradas y sincronizar Supabase
+    recordClosedTrade(closedPosition, 'MANUAL', nextB);
 
     setPositions(remainingPositions);
-    setDemoBalance((prevB) => {
-      const nextB = Number((prevB + realizedPnL).toFixed(2));
+    setDemoBalance(() => {
       try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
       return nextB;
     });
@@ -1623,14 +2032,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     let totalRealizedPnL = 0;
     currentPositions.forEach((pos) => {
-      closedPositionIdsRef.current.add(pos.id);
-      recordClosedTrade(pos, 'MANUAL');
       totalRealizedPnL += (pos.pnlUsdt ?? 0);
     });
 
+    const nextB = Number((demoBalanceRef.current + totalRealizedPnL).toFixed(2));
+    currentPositions.forEach((pos) => {
+      closedPositionIdsRef.current.add(pos.id);
+      recordClosedTrade(pos, 'MANUAL', nextB);
+    });
+
     setPositions([]);
-    setDemoBalance((prevB) => {
-      const nextB = Number((prevB + totalRealizedPnL).toFixed(2));
+    setDemoBalance(() => {
       try { localStorage.setItem('zyti_demo_balance', nextB.toString()); } catch {}
       return nextB;
     });
@@ -1654,19 +2066,27 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setTimeout(() => setOrderSuccess(null), 3000);
   };
 
-  // Resetear el saldo demo al valor inicial de $10,000 y restaurar reglas de Prop Firm
+  // Resetear el saldo demo al valor inicial de $100,000, eliminar historial local y purgar Supabase
   const resetDemoBalance = () => {
+    // 1. Limpieza de posiciones y órdenes en memoria RAM
     closedPositionIdsRef.current.clear();
     filledLimitOrderIdsRef.current.clear();
     setPositions([]);
     positionsRef.current = [];
     setLimitOrders([]);
     limitOrdersRef.current = [];
+
+    // 2. Limpieza radical de LocalStorage e historial de trades
     try { localStorage.removeItem('zyti_limit_orders'); } catch {}
+    try { localStorage.removeItem('zyti_trade_history'); } catch {}
+    try { localStorage.removeItem('zyti_open_positions'); } catch {}
+    setTradeHistory([]);
+
+    // 3. Restauración de Saldo y Métricas a 100K
     setDemoBalance(100000);
     try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
 
-    // Resetear centinela de Drawdown y nuevo baseline diario a 100K
+    // 4. Resetear centinela de Drawdown y nuevo baseline diario a 100K
     const today = new Date().toISOString().split('T')[0];
     dailyStartEquityRef.current = 100000;
     try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: 100000 })); } catch {}
@@ -1674,14 +2094,24 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     setIsAccountBreached(false);
     setBreachReason('');
 
+    // 5. Purgar historial forense en la nube (Supabase) para la cuenta activa y difundir por Broadcast
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    try {
+      const bc = new BroadcastChannel('zyti_trading_sync');
+      bc.postMessage({ type: 'RESET_SYNC', accountId: targetAccountId });
+      bc.close();
+    } catch {}
+    TradePersistenceService.purgeAccountTrades(targetAccountId, user?.id, user?.email).catch(() => {});
+
+    // 6. Toast de confirmación institucional
     addToast({
       type: 'info',
-      title: isEs ? 'Cuenta Demo 100K Restablecida' : '100K Demo Account Reset',
-      message: isEs ? 'Saldo restablecido a $100,000.00 USDT iniciales y riesgo reiniciado.' : 'Balance reset to initial $100,000.00 USDT and risk cleared.'
+      title: isEs ? '¡Cuenta e Historial Restablecidos!' : 'Account & History Cleared!',
+      message: isEs
+        ? 'Saldo restablecido a $100,000.00 USDT y todo el historial de trades fue purgado de la base de datos y memoria local.'
+        : 'Balance reset to $100,000.00 USDT and all trade history was purged from cloud database and local storage.'
     });
   };
-
-  const [activeAccountId, setActiveAccountId] = useState<string | undefined>(user?.activeAccountId);
 
   const handleSelectAccount = useCallback((account: PropFirmAccount | null) => {
     if (account) {
@@ -1925,6 +2355,33 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
 
     setPositions((prev) => [result.position!, ...prev]);
     playOrderFilledSound();
+
+    // Persistir orden abierta asíncronamente en public.account_trades
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    if (result.position) {
+      // Difundir al WebSocket Gateway / Redis para sync multi-dispositivo instantáneo
+      zytiTradingClient.publishEvent({
+        type: 'TRADE_OPENED',
+        payload: result.position
+      });
+
+      TradePersistenceService.persistOpenedTrade({
+        id: result.position.id,
+        accountId: targetAccountId,
+        userId: user?.id,
+        traderEmail: user?.email,
+        exchange: currentExchange,
+        symbol: result.position.symbol,
+        side: result.position.side,
+        size: result.position.sizeUnits,
+        leverage: result.position.leverage,
+        entryPrice: result.position.entry,
+        slPrice: result.position.slPrice,
+        tpPrice: result.position.tpPrice,
+        openedAt: result.position.createdAt
+      }).catch(() => {});
+    }
+
     const isBuy = side === 'buy';
     addToast({
       type: isBuy ? 'buy' : 'sell',
@@ -1993,6 +2450,32 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     if (result.success && result.position) {
       setPositions((prev) => [result.position!, ...prev]);
       playOrderFilledSound();
+
+      // Persistir orden rápida abierta asíncronamente en public.account_trades
+      const targetAccId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+      if (result.position) {
+        // Difundir al WebSocket Gateway / Redis para sync multi-dispositivo instantáneo
+        zytiTradingClient.publishEvent({
+          type: 'TRADE_OPENED',
+          payload: result.position
+        });
+
+        TradePersistenceService.persistOpenedTrade({
+          id: result.position.id,
+          accountId: targetAccId,
+          userId: user?.id,
+          traderEmail: user?.email,
+          exchange: currentExchange,
+          symbol: result.position.symbol,
+          side: result.position.side,
+          size: result.position.sizeUnits,
+          leverage: result.position.leverage,
+          entryPrice: result.position.entry,
+          slPrice: result.position.slPrice,
+          tpPrice: result.position.tpPrice,
+          openedAt: result.position.createdAt
+        }).catch(() => {});
+      }
       const isQuickBuy = quickSide === 'buy';
       addToast({
         type: isQuickBuy ? 'buy' : 'sell',
@@ -2420,6 +2903,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
               onSetBreakEven={handleSetBreakEven}
               onSelectPosition={handleSelectPositionItem}
               onSelectLimitOrder={handleSelectLimitOrderItem}
+              onClearHistory={resetDemoBalance}
             />
           )}
 
@@ -2502,6 +2986,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           onSetBreakEven={handleSetBreakEven}
           onSelectPosition={handleSelectPositionItem}
           onSelectLimitOrder={handleSelectLimitOrderItem}
+          onClearHistory={resetDemoBalance}
         />
       )}
 

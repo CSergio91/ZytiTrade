@@ -42,6 +42,7 @@ interface TerminalMobileSheetProps {
   onSetBreakEven?: (pos: PositionItem) => void;
   onSelectPosition?: (pos: PositionItem) => void;
   onSelectLimitOrder?: (order: LimitOrderItem) => void;
+  onClearHistory?: () => void;
 }
 
 export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
@@ -76,7 +77,8 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
   onCancelAllLimitOrders,
   onSetBreakEven,
   onSelectPosition,
-  onSelectLimitOrder
+  onSelectLimitOrder,
+  onClearHistory
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getInitialEmail = (u?: UserSession | null): string => {
@@ -648,33 +650,71 @@ export const TerminalMobileSheet: React.FC<TerminalMobileSheetProps> = ({
               {/* VISTA 2: HISTORIAL DE POSICIONES CERRADAS */}
               {activeSheet === 'history' && (
                 <div className="space-y-2">
+                  {history.length > 0 && onClearHistory && (
+                    <div className="flex justify-end mb-2">
+                      <button
+                        type="button"
+                        onClick={onClearHistory}
+                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <span>{isEs ? 'Limpiar Historial' : 'Clear History'}</span>
+                        <span className="px-1 rounded-full bg-rose-200 text-rose-900 text-[9px] font-mono font-bold">
+                          {history.length}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
                   {history.map((item) => (
                     <div key={item.id} className="p-2.5 rounded-xl bg-white border border-[#ded5c5] shadow-xs flex items-center justify-between font-mono text-xs">
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-black text-slate-900">{item.symbol}</span>
+                          {item.leverage && (
+                            <span className="text-[8.5px] font-bold px-1 py-0.2 rounded bg-amber-100/70 text-amber-900 border border-amber-200">
+                              {item.leverage}x
+                            </span>
+                          )}
                           <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
                             item.side === 'LONG' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {item.side}
                           </span>
-                          {item.closeReason && (
-                            <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold ${
-                              item.closeReason === 'TP'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : item.closeReason === 'SL'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {item.closeReason}
+                          {item.closeReason === 'TP' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-700 text-[8.5px] font-black border border-emerald-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                              TP
+                            </span>
+                          )}
+                          {item.closeReason === 'SL' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-700 text-[8.5px] font-black border border-rose-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                              SL
+                            </span>
+                          )}
+                          {item.closeReason === 'LIQUIDATION_BREACH' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[8.5px] font-bold border border-purple-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                              Sentinel
+                            </span>
+                          )}
+                          {(!item.closeReason || item.closeReason === 'MANUAL') && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 text-[8.5px] font-bold border border-slate-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                              Manual
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
-                          Entrada: ${item.entry.toLocaleString()} • Salida: ${item.exitPrice.toLocaleString()}
+                        <div className="text-[10px] text-slate-500 mt-1 font-mono">
+                          <span>${item.entry.toLocaleString()}</span>
+                          <span className="text-slate-400 mx-1">➔</span>
+                          <span className="font-bold text-slate-800">${item.exitPrice.toLocaleString()}</span>
                         </div>
-                        <div className="text-[9px] text-slate-400 mt-0.5">
-                          {item.closedAt}
+                        <div className="text-[9px] text-slate-400 mt-1 flex items-center gap-2">
+                          <span>{item.openedAt ? new Date(item.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}</span>
+                          <span>➔</span>
+                          <span className="font-bold text-slate-600">{item.closedAt ? new Date(item.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}</span>
                         </div>
                       </div>
 
