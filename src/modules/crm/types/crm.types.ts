@@ -49,6 +49,7 @@ export interface RiskRuleConfigEntity {
   name: string;
   max_daily_loss_percent: number;
   max_total_drawdown_percent: number;
+  profit_target_percent?: number;
   max_trailing_drawdown_percent?: number | null;
   drawdown_type: 'EOD' | 'TRAILING_EQUITY';
   max_leverage: number;
@@ -56,6 +57,8 @@ export interface RiskRuleConfigEntity {
   weekend_holding_allowed: boolean;
   consistency_rule_percent: number;
   min_trading_days: number;
+  default_account_balance?: number;
+  is_default_demo?: boolean;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -165,3 +168,100 @@ export interface PropFirmAffiliateItem {
   payoutSplitPct: number;
   isActive: boolean;
 }
+
+export interface TraderTradeAuditItem {
+  id: string;
+  symbol: string;
+  exchange: string;
+  side: 'LONG' | 'SHORT';
+  size: number;
+  leverage: number;
+  entryPrice: number;
+  exitPrice: number | null;
+  slPrice: number | null;
+  tpPrice: number | null;
+  realizedPnl: number | null;
+  pnlPercent: number | null;
+  status: 'OPEN' | 'CLOSED';
+  closeReason: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  ipAddress?: string;
+}
+
+export interface RuleComplianceAuditItem {
+  id: string;
+  name: string;
+  thresholdLabel: string;
+  currentValueLabel: string;
+  status: 'PASSED' | 'IN_PROGRESS' | 'BREACHED' | 'NOT_STARTED';
+  progressPct: number;
+  details: string;
+}
+
+export interface IpSessionAuditItem {
+  ip: string;
+  count: number;
+  location: string;
+  isp: string;
+  status: 'VERIFIED' | 'SUSPICIOUS_MULTI_IP' | 'VPN_PROXY';
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface UserChallengeAccountSummary {
+  id: string;
+  accountNumber: string;
+  planName: string;
+  initialBalance: number;
+  currentBalance: number;
+  equity: number;
+  status: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN';
+  rulesConfig: any;
+}
+
+export interface TraderAuditData {
+  account: {
+    id: string;
+    accountNumber: string;
+    traderEmail: string;
+    traderName: string;
+    initialBalance: number;
+    currentBalance: number;
+    equity: number;
+    peakEquity: number;
+    dailyStartEquity: number;
+    status: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN';
+    tradingDaysCount: number;
+    planName: string;
+    rulesConfig?: any;
+  };
+  allUserAccounts: UserChallengeAccountSummary[];
+  stats: {
+    totalTrades: number;
+    closedTradesCount: number;
+    openTradesCount: number;
+    bestTradePnl: number;
+    worstTradePnl: number;
+    winRatePct: number;
+    profitFactor: number;
+    netRealizedPnl: number;
+    grossProfits: number;
+    grossLosses: number;
+    avgWin: number;
+    avgLoss: number;
+    profitTargetPct: number;
+    profitTargetAmount: number;
+    profitTargetProgress: number;
+    maxDailyDdPct: number;
+    maxDailyLossAmount: number;
+    dailyDd: number;
+    maxTotalDdPct: number;
+    maxTotalLossAmount: number;
+    totalDd: number;
+  };
+  trades: TraderTradeAuditItem[];
+  ruleChecklist: RuleComplianceAuditItem[];
+  ipSessions: IpSessionAuditItem[];
+}
+

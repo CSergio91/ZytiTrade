@@ -18,7 +18,7 @@ interface TradersClientsTableProps {
   onUpdateAccountSize: (traderId: string, newSize: number) => void;
   onUpdateTraderRole: (traderId: string, newRole: UserCrmRole) => void;
   onUpdateTraderStatus?: (traderId: string, newStatus: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN') => void;
-  onResetBalance: (traderId: string) => void;
+  onResetBalance: (traderId: string, customSize?: number) => void;
   onOpenRiskEngineForTrader?: (trader: TraderClientEntity) => void;
 }
 
@@ -295,23 +295,31 @@ export const TradersClientsTable: React.FC<TradersClientsTableProps> = ({
 
                     {/* Acciones */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => onResetBalance(trader.id)}
-                          className="p-1.5 text-slate-500 hover:text-[#0F172A] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                          title={isEs ? 'Resetear balance de cuenta demo' : 'Reset demo account balance'}
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="flex items-center justify-end gap-2">
                         {onOpenRiskEngineForTrader && (
                           <button
                             onClick={() => onOpenRiskEngineForTrader(trader)}
-                            className="p-1.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                            title={isEs ? 'Supervisar en Risk Engine' : 'Inspect in Risk Engine'}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                            title={isEs ? 'Supervisar auditoría y reglas en Risk Engine' : 'Inspect audit in Risk Engine'}
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{isEs ? 'Auditar' : 'Audit'}</span>
                           </button>
                         )}
+                        <button
+                          onClick={() => {
+                            const ok = window.confirm(
+                              isEs 
+                                ? `¿Restablecer cuenta de ${trader.fullName} a $${trader.accountSize.toLocaleString()}? Se limpiarán las posiciones en DB y la terminal.`
+                                : `Reset account of ${trader.fullName} to $${trader.accountSize.toLocaleString()}? Database and terminal will be cleared.`
+                            );
+                            if (ok) onResetBalance(trader.id, trader.accountSize);
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title={isEs ? 'Resetear balance e historial' : 'Reset balance & history'}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -32,6 +32,7 @@ export class TradingWebSocketClient {
   private gatewayUrl: string;
   private activeAccountId: string | null = null;
   private listeners: Set<TradingEventCallback> = new Set();
+  private rawListeners: Set<(data: any) => void> = new Set();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectTimer: any = null;
@@ -63,6 +64,18 @@ export class TradingWebSocketClient {
     this.activeAccountId = accountId;
     this.isExplicitlyClosed = false;
     this.initializeSocket();
+  }
+
+  public subscribeAccount(accountId: string): void {
+    this.activeAccountId = accountId;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.sendAction({
+        action: 'SUBSCRIBE',
+        accountId
+      });
+    } else {
+      this.connect(accountId);
+    }
   }
 
   private initializeSocket(): void {
@@ -99,6 +112,15 @@ export class TradingWebSocketClient {
               }
             });
           }
+
+          // Difusión a listeners de mensajes de infraestructura / CRM
+          this.rawListeners.forEach((callback) => {
+            try {
+              callback(data);
+            } catch (rErr) {
+              console.warn('[ZYTI SDK] Error en rawListener:', rErr);
+            }
+          });
         } catch (_) {}
       };
 
@@ -160,7 +182,17 @@ export class TradingWebSocketClient {
     };
   }
 
-  private sendAction(payload: any): void {
+  /**
+   * Suscribe un listener para tramas sin procesar del Hub (CRM, Telemetría, etc.)
+   */
+  public onRawMessage(callback: (data: any) => void): () => void {
+    this.rawListeners.add(callback);
+    return () => {
+      this.rawListeners.delete(callback);
+    };
+  }
+
+  public sendAction(payload: any): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
         this.ws.send(JSON.stringify(payload));

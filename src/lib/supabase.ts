@@ -16,7 +16,7 @@ export interface PropFirmAccount {
   initialBalance: number;
   currentBalance: number;
   equity: number;
-  status: 'ACTIVE' | 'PASSED' | 'BREACHED' | 'FROZEN';
+  status: 'ACTIVE' | 'PASSED' | 'BREACHED' | 'FROZEN' | 'WARNING';
   rulesConfig: {
     maxDailyDrawdownPct?: number;
     maxTotalDrawdownPct?: number;
@@ -172,12 +172,10 @@ export async function ensureDefaultDemoAccount(email: string, userId?: string): 
       return existing;
     }
 
-    // Auto-aprovisionar cuenta demo estándar de 100K
-    const suffix = (userId || clean).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || Math.floor(1000 + Math.random() * 9000);
-    const accountNumber = `ZYTI-100K-${suffix}`;
-    const accessToken = `sso_${(userId || clean).replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
-
-    const defaultRules: PropFirmAccount['rulesConfig'] = {
+    // 1. Obtener la Plantilla Demo Activa configurada en el CRM / Supabase
+    let templateBalance = 100000.00;
+    let templateName = 'ZYTI Funding';
+    let defaultRules: PropFirmAccount['rulesConfig'] = {
       maxDailyDrawdownPct: 5.0,
       maxTotalDrawdownPct: 10.0,
       maxLeverage: 100,
@@ -186,17 +184,51 @@ export async function ensureDefaultDemoAccount(email: string, userId?: string): 
       drawdownType: 'EOD'
     };
 
+    try {
+      const { data: defaultRule } = await supabase
+        .from('risk_rule_configs')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_default_demo', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (defaultRule) {
+        if (defaultRule.default_account_balance) {
+          templateBalance = Number(defaultRule.default_account_balance);
+        }
+        if (defaultRule.name) {
+          templateName = defaultRule.name;
+        }
+        defaultRules = {
+          maxDailyDrawdownPct: Number(defaultRule.max_daily_loss_percent),
+          maxTotalDrawdownPct: Number(defaultRule.max_total_drawdown_percent),
+          maxLeverage: Number(defaultRule.max_leverage),
+          profitTargetPct: 8.0,
+          minTradingDays: Number(defaultRule.min_trading_days || 5),
+          mandatoryStopLoss: !!defaultRule.mandatory_stop_loss,
+          drawdownType: defaultRule.drawdown_type || 'EOD'
+        };
+      }
+    } catch (_) {}
+
+    // Auto-aprovisionar cuenta demo basada en la Plantilla Activa de la Prop Firm
+    const sizeLabel = Math.round(templateBalance / 1000);
+    const suffix = (userId || clean).replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() || Math.floor(1000 + Math.random() * 9000);
+    const accountNumber = `ZYTI-${sizeLabel}K-${suffix}`;
+    const accessToken = `sso_${(userId || clean).replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+
     const { data, error } = await supabase
       .from('trading_accounts')
       .insert({
         user_id: (userId && IS_UUID_REGEX.test(userId)) ? userId : null,
         account_number: accountNumber,
         trader_email: clean,
-        initial_balance: 100000.00,
-        current_balance: 100000.00,
-        equity: 100000.00,
-        peak_equity: 100000.00,
-        daily_start_equity: 100000.00,
+        initial_balance: templateBalance,
+        current_balance: templateBalance,
+        equity: templateBalance,
+        peak_equity: templateBalance,
+        daily_start_equity: templateBalance,
         status: 'ACTIVE',
         rules_config: defaultRules,
         access_token: accessToken
@@ -214,15 +246,15 @@ export async function ensureDefaultDemoAccount(email: string, userId?: string): 
       .single();
 
     if (error || !data) {
-      console.warn('[ZYTI DB] Fallback local para cuenta demo 100K:', error?.message);
+      console.warn('[ZYTI DB] Fallback local para cuenta demo:', error?.message);
       return [{
         id: `demo_${Date.now()}`,
         firmId: 'zyti_funding',
-        firmName: 'ZYTI Funding 100K',
+        firmName: templateName,
         accountNumber,
-        initialBalance: 100000.00,
-        currentBalance: 100000.00,
-        equity: 100000.00,
+        initialBalance: templateBalance,
+        currentBalance: templateBalance,
+        equity: templateBalance,
         status: 'ACTIVE',
         rulesConfig: defaultRules
       }];
@@ -231,7 +263,7 @@ export async function ensureDefaultDemoAccount(email: string, userId?: string): 
     return [{
       id: data.id,
       firmId: data.firm_id,
-      firmName: 'ZYTI Funding 100K',
+      firmName: templateName,
       accountNumber: data.account_number,
       initialBalance: Number(data.initial_balance),
       currentBalance: Number(data.current_balance),

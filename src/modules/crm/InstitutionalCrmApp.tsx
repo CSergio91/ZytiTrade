@@ -5,6 +5,7 @@ import { ErpModulesGrid } from './components/ErpModulesGrid';
 import { TradersClientsTable } from './components/TradersClientsTable';
 import { ApiGatewayCard } from './components/ApiGatewayCard';
 import { RiskEngineCard } from './components/RiskEngineCard';
+import { RiskForensicAuditConsole } from './components/RiskForensicAuditConsole';
 import { AffiliatesManagerCard } from './components/AffiliatesManagerCard';
 import { DynamicRulesModal } from './components/DynamicRulesModal';
 import { CreateApiKeyModal } from './components/CreateApiKeyModal';
@@ -26,7 +27,10 @@ import {
   Headphones, 
   Megaphone,
   Check,
-  ShieldAlert
+  ShieldAlert,
+  Plus,
+  Sliders,
+  Star
 } from 'lucide-react';
 
 interface InstitutionalCrmAppProps {
@@ -75,6 +79,8 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
     setActiveModule,
     kpis,
     traders,
+    selectedTraderForAudit,
+    setSelectedTraderForAudit,
     riskRules,
     selectedRuleId,
     setSelectedRuleId,
@@ -430,7 +436,10 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
               onUpdateTraderRole={onTraderRoleChange}
               onUpdateTraderStatus={handleUpdateTraderStatus}
               onResetBalance={handleResetTraderBalance}
-              onOpenRiskEngineForTrader={() => handleSelectModuleWithUrl('risk_engine')}
+              onOpenRiskEngineForTrader={(trader) => {
+                setSelectedTraderForAudit(trader);
+                handleSelectModuleWithUrl('risk_engine');
+              }}
             />
           </>
         )}
@@ -440,20 +449,19 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
           <DeploymentGuideView lang={lang} />
         )}
 
-        {/* 2. Vista Dedicada: Risk Engine */}
+        {/* 2. Vista Dedicada: Motor de Riesgo & Auditoría Forense Institucional */}
         {activeModule === 'risk_engine' && (
-          <RiskEngineCard
-            rules={riskRules}
-            activeRule={activeRule}
-            selectedRuleId={selectedRuleId}
+          <RiskForensicAuditConsole
+            traders={traders}
+            selectedTrader={selectedTraderForAudit}
+            onSelectTrader={setSelectedTraderForAudit}
             lang={lang}
-            onSelectRuleId={setSelectedRuleId}
+            rules={riskRules}
             onOpenRulesModal={() => {
               setEditingRule(activeRule);
               setIsRuleModalOpen(true);
             }}
-            monitoredPositions={monitoredPositions}
-            onEmergencyLiquidate={handleEmergencyLiquidation}
+            onResetAccount={handleResetTraderBalance}
           />
         )}
 
@@ -478,32 +486,113 @@ export const InstitutionalCrmApp: React.FC<InstitutionalCrmAppProps> = ({
           <AffiliatesManagerCard type="prop_firms" lang={lang} />
         )}
 
-        {/* 6. Vista: Challenges */}
+        {/* 6. Vista: Challenges Dinámicos (Sin valores hardcodeados) */}
         {activeModule === 'challenges' && (
           <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="w-6 h-6 text-amber-600" />
-              <div>
-                <h2 className="text-base font-extrabold text-[#0F172A]">
-                  {isEs ? 'Evaluaciones & Retos de Fondeo (Challenges)' : 'Evaluation & Funding Challenges'}
-                </h2>
-                <p className="text-xs text-slate-500 font-medium">
-                  {isEs ? 'Configura los tiers de 10K, 25K, 50K y 100K y fases 1 y 2.' : 'Configure 10K, 25K, 50K and 100K evaluation tiers and phases.'}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[10000, 50000, 100000].map(tier => (
-                <div key={tier} className="p-4 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
-                  <div className="font-extrabold text-sm text-[#0F172A]">${(tier / 1000)}k Challenge</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {isEs ? 'Fase 1: 8% target | Fase 2: 5% target' : 'Phase 1: 8% target | Phase 2: 5% target'}
-                  </div>
-                  <div className="text-xs text-rose-700 font-bold mt-2">
-                    {isEs ? 'Max Pérdida Diaria: 5% | Max Total: 10%' : 'Max Daily Loss: 5% | Max Total: 10%'}
-                  </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#ece7dc]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center shrink-0">
+                  <Trophy className="w-5 h-5 text-amber-600" />
                 </div>
-              ))}
+                <div>
+                  <h2 className="text-base font-extrabold text-[#0F172A]">
+                    {isEs ? 'Evaluaciones & Retos de Fondeo (Challenges)' : 'Evaluation & Funding Challenges'}
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {isEs 
+                      ? 'Crea nuevos desafíos o edita los existentes. Todo se guarda directamente en la base de datos en tiempo real.' 
+                      : 'Create new challenges or edit existing ones. Everything is saved to the database in real time.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditingRule(null);
+                  setIsRuleModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EAB308] hover:bg-[#CA8A04] text-[#020617] text-xs font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-sm cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>{isEs ? 'Crear Nuevo Challenge' : 'Create New Challenge'}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {riskRules.map(rule => {
+                const bal = Number(rule.default_account_balance || 100000);
+                const isDefault = !!rule.is_default_demo;
+                return (
+                  <div 
+                    key={rule.id} 
+                    className={`p-5 rounded-2xl border transition-all ${
+                      isDefault 
+                        ? 'bg-amber-50/40 border-amber-300 shadow-sm ring-1 ring-amber-300/60' 
+                        : 'bg-[#fbf9f5] border-[#e5dfd3] hover:border-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-[#0F172A]">{rule.name}</h3>
+                        <div className="text-lg font-mono font-black text-slate-900 mt-0.5">
+                          ${bal.toLocaleString()}
+                        </div>
+                      </div>
+                      {isDefault ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                          <Star className="w-3 h-3 fill-amber-500 text-amber-600" />
+                          <span>{isEs ? 'Demo Defecto' : 'Default Demo'}</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleSaveRule({ ...rule, is_default_demo: true })}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 transition-colors cursor-pointer"
+                          title={isEs ? 'Hacer esta la plantilla demo para nuevos traders' : 'Make this the default demo template'}
+                        >
+                          {isEs ? 'Establecer Demo' : 'Set as Demo'}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-[#ece7dc] text-xs font-medium">
+                      <div>
+                        <span className="text-emerald-800 text-[10px] uppercase font-bold block">{isEs ? 'Objetivo (Profit)' : 'Profit Target'}</span>
+                        <span className="font-mono font-bold text-emerald-700">+{rule.profit_target_percent || 10}%</span>
+                        <span className="text-[10px] text-emerald-600 font-semibold ml-1">(+${((bal * (rule.profit_target_percent || 10)) / 100).toLocaleString()})</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] uppercase font-bold block">{isEs ? 'Pérdida Diaria' : 'Daily Loss'}</span>
+                        <span className="font-mono font-bold text-rose-700">-{rule.max_daily_loss_percent}%</span>
+                        <span className="text-[10px] text-slate-400 ml-1">({rule.drawdown_type})</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] uppercase font-bold block">{isEs ? 'Pérdida Total' : 'Total Loss'}</span>
+                        <span className="font-mono font-bold text-rose-700">-{rule.max_total_drawdown_percent}%</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[10px] uppercase font-bold block">{isEs ? 'Apalancamiento' : 'Leverage'}</span>
+                        <span className="font-mono font-bold text-amber-700">{rule.max_leverage}x</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-[#ece7dc] flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {rule.min_trading_days || 5} {isEs ? 'días mín.' : 'min days'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setEditingRule(rule);
+                          setIsRuleModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Sliders className="w-3 h-3 text-[#EAB308]" />
+                        <span>{isEs ? 'Editar Challenge' : 'Edit Challenge'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

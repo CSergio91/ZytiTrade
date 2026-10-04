@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useZytiEngineTelemetry } from '../hooks/useZytiEngineTelemetry';
 import { RadialGauge } from './RadialGauge';
+import { CockpitControlCenter } from './CockpitControlCenter';
 
 interface DeploymentGuideViewProps {
   lang?: CrmLang;
@@ -138,6 +139,21 @@ export const DeploymentGuideView: React.FC<DeploymentGuideViewProps> = ({ lang =
             <RefreshCw className={`w-3.5 h-3.5 ${telemetry.isChecking ? 'animate-spin text-amber-600' : ''}`} />
           </button>
         </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 1.5 CENTRO DE CONTROL MAESTRO · COCKPIT COMPACTO SOBRE FONDO WEB */}
+      {/* ==================================================================== */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 font-mono">
+            {isEs ? 'CENTRO DE CONTROL · SUPERVISIÓN ACTIVA DE SERVICIOS' : 'CONTROL CENTER · ACTIVE SERVICES MONITOR'}
+          </span>
+          <span className="text-[10px] text-slate-400 font-semibold font-mono">
+            {isEs ? 'Telemetría de Riesgo & Host' : 'Risk & Host Telemetry'}
+          </span>
+        </div>
+        <CockpitControlCenter telemetry={telemetry} lang={lang} />
       </div>
 
       {/* ==================================================================== */}

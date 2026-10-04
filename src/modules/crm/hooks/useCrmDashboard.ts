@@ -15,6 +15,7 @@ import {
   RiskRuleConfigEntity, 
   TraderClientEntity 
 } from '../types/crm.types';
+import { zytiTradingClient } from '../../../core/trading/gateway/TradingWebSocketClient';
 
 export function useCrmDashboard() {
   const [activeModule, setActiveModule] = useState<CrmModuleId>('hub');
@@ -22,6 +23,7 @@ export function useCrmDashboard() {
   const [traders, setTraders] = useState<TraderClientEntity[]>([]);
   const [riskRules, setRiskRules] = useState<RiskRuleConfigEntity[]>([]);
   const [selectedRuleId, setSelectedRuleId] = useState<string>('');
+  const [selectedTraderForAudit, setSelectedTraderForAudit] = useState<TraderClientEntity | null>(null);
   const [apiCredentials, setApiCredentials] = useState<ApiCredentialEntity[]>([]);
   const [monitoredPositions, setMonitoredPositions] = useState<MonitoredPosition[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,16 +45,20 @@ export function useCrmDashboard() {
       ]);
 
       setTraders(tradersRes);
+      if (tradersRes.length > 0) {
+        setSelectedTraderForAudit(prev => prev ? tradersRes.find(t => t.id === prev.id) || prev : tradersRes[0]);
+      }
       setRiskRules(rulesRes);
       if (rulesRes.length > 0) {
         setSelectedRuleId(rulesRes[0].id);
       }
       setApiCredentials(keysRes);
 
-      // Métricas y posiciones en vivo basadas en los traders reales
+      // Métricas y posiciones en vivo basadas en el Risk Daemon del Servidor y Supabase
       const kpisRes = await crmService.getKpiStats(tradersRes.length);
       setKpis(kpisRes);
-      setMonitoredPositions(crmService.getInitialMonitoredPositions(tradersRes));
+      const livePositions = await crmService.getLiveMonitoredPositions();
+      setMonitoredPositions(livePositions);
     } finally {
       setIsLoading(false);
     }
@@ -62,47 +68,36 @@ export function useCrmDashboard() {
     loadData();
   }, [loadData]);
 
-  // Simulación de Ticks en Vivo para ver el Risk Engine actuar sobre las cuentas demo
+  // Conexión en tiempo real con el Centinela de Riesgo del Servidor (WebSocket + Risk Daemon)
   useEffect(() => {
-    if (monitoredPositions.length === 0) return;
+    if (!zytiTradingClient.isConnected()) {
+      zytiTradingClient.connect('crm_admin_watcher');
+    }
 
-    const interval = setInterval(() => {
-      setMonitoredPositions(prev => prev.map(pos => {
-        const deltaPct = (Math.random() - 0.495) * 0.001;
-        const newPrice = Number((pos.currentPrice * (1 + deltaPct)).toFixed(2));
-        const priceDiff = pos.side === 'LONG' ? newPrice - pos.entryPrice : pos.entryPrice - newPrice;
-        const floatingPnl = Number((priceDiff * pos.sizeUnits).toFixed(2));
+    const timer = setTimeout(() => {
+      zytiTradingClient.sendAction({ action: 'SUBSCRIBE_CRM_RISK' });
+    }, 300);
 
-        // Drawdown relativo al tamaño real de cuenta (Account Size)
-        const accountSize = pos.accountSize || 50000;
-        const simulatedDd = floatingPnl < 0 
-          ? Number((Math.abs(floatingPnl) / accountSize * 100).toFixed(2))
-          : 0;
+    const unsubscribe = zytiTradingClient.onRawMessage((msg) => {
+      if (msg.type === 'CRM_MONITORED_POSITIONS' && Array.isArray(msg.positions)) {
+        setMonitoredPositions(msg.positions);
+      } else if (msg.type === 'CRM_ACCOUNT_BREACHED' && msg.data) {
+        const breach = msg.data;
+        setMonitoredPositions((prev) =>
+          prev.map((pos) =>
+            pos.accountNumber === breach.accountNumber
+              ? { ...pos, ruleHealth: 'BREACHED', breachReason: breach.reason }
+              : pos
+          )
+        );
+      }
+    });
 
-        let ruleHealth: 'HEALTHY' | 'WARNING' | 'BREACHED' = 'HEALTHY';
-        let breachReason: string | undefined = undefined;
-
-        if (simulatedDd >= 5.0) {
-          ruleHealth = 'BREACHED';
-          breachReason = `Drawdown diario excedido (${simulatedDd}% >= 5.00%)`;
-        } else if (simulatedDd >= 3.8) {
-          ruleHealth = 'WARNING';
-          breachReason = `Drawdown diario al límite (${simulatedDd}% / 5.00%)`;
-        }
-
-        return {
-          ...pos,
-          currentPrice: newPrice,
-          floatingPnl,
-          dailyDrawdownPct: simulatedDd,
-          ruleHealth,
-          breachReason
-        };
-      }));
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [monitoredPositions.length]);
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, []);
 
   const activeRule = useMemo(() => {
     return riskRules.find(r => r.id === selectedRuleId) || riskRules[0];
@@ -135,21 +130,30 @@ export function useCrmDashboard() {
     }));
   };
 
-  // Resetear balance de cuenta demo
-  const handleResetTraderBalance = (traderId: string) => {
+  // Resetear balance de cuenta demo en DB Supabase, Terminal y Servidor
+  const handleResetTraderBalance = async (traderId: string, customSize?: number) => {
+    const target = traders.find(t => t.id === traderId);
+    const balanceToSet = customSize || target?.accountSize || 100000;
+
+    await crmService.resetTraderAccount(traderId, balanceToSet);
+
     setTraders(prev => prev.map(t => {
       if (t.id === traderId) {
         return {
           ...t,
-          currentBalance: t.accountSize,
-          equity: t.accountSize,
+          currentBalance: balanceToSet,
+          equity: balanceToSet,
           floatingPnl: 0,
           dailyDrawdownPct: 0,
+          totalDrawdownPct: 0,
           status: 'ACTIVE'
         };
       }
       return t;
     }));
+
+    // Limpiar posiciones en el Sentinel
+    setMonitoredPositions(prev => prev.filter(p => !p.id.includes(traderId) && !p.accountNumber.includes(traderId)));
   };
 
   // Modificar rol de un usuario (trader, soporte, admin, marketing)
@@ -189,6 +193,12 @@ export function useCrmDashboard() {
     setSelectedRuleId(saved.id);
     setIsRuleModalOpen(false);
     setEditingRule(null);
+
+    // Sincronizar regla en caliente con el Risk Daemon del Servidor
+    zytiTradingClient.sendAction({
+      action: 'UPDATE_RISK_RULE',
+      rule: saved
+    });
   };
 
   // Acciones de API Credentials
@@ -215,7 +225,15 @@ export function useCrmDashboard() {
   };
 
   const handleEmergencyLiquidation = (positionId: string) => {
+    const pos = monitoredPositions.find(p => p.id === positionId);
     setMonitoredPositions(prev => prev.filter(p => p.id !== positionId));
+
+    // Despachar orden de liquidación forzosa real al Risk Daemon
+    zytiTradingClient.sendAction({
+      action: 'EMERGENCY_LIQUIDATE',
+      accountId: pos?.accountNumber || pos?.id,
+      positionId
+    });
   };
 
   return {
@@ -223,6 +241,8 @@ export function useCrmDashboard() {
     setActiveModule,
     kpis,
     traders,
+    selectedTraderForAudit,
+    setSelectedTraderForAudit,
     riskRules,
     selectedRuleId,
     setSelectedRuleId,

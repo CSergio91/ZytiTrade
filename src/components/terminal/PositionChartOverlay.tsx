@@ -1439,6 +1439,7 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
           <svg className="w-full h-full absolute inset-0">
             {closedTradesCoords.map((c) => {
               const isFocused = focusedTrade?.id === c.id;
+              const isHovered = hoveredTradeId === c.id;
               const isLong = c.trade.side === 'LONG';
               // Reglas del usuario:
               // LONG: Entrada = Verde (↑), Salida = Roja (↓)
@@ -1448,17 +1449,17 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
 
               return (
                 <g key={`history-trade-svg-${c.id}`}>
-                  {/* Línea conectora entre Entrada y Salida */}
-                  {hasEntry && hasExit && (
+                  {/* Línea conectora entre Entrada y Salida: SOLO para el trade enfocado o bajo hover para erradicar saturación */}
+                  {hasEntry && hasExit && (isFocused || isHovered) && (
                     <line
                       x1={c.entryX!}
                       y1={c.entryY!}
                       x2={c.exitX!}
                       y2={c.exitY!}
                       stroke={isFocused ? '#f59e0b' : c.trade.isProfit ? '#047857' : '#991b1b'}
-                      strokeWidth={isFocused ? 2.5 : 1.25}
-                      strokeDasharray={isFocused ? 'none' : '4 3'}
-                      opacity={isFocused ? 1 : 0.8}
+                      strokeWidth={isFocused ? 1.5 : 1}
+                      strokeDasharray={isFocused ? '3 2' : '2 2'}
+                      opacity={isFocused ? 1 : 0.85}
                       className="pointer-events-auto cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1469,7 +1470,7 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                     />
                   )}
 
-                  {/* Flecha de ENTRADA en el punto exacto */}
+                  {/* Flecha de ENTRADA en el punto exacto (Ultra-compacta para móvil y desktop) */}
                   {hasEntry && (
                     <g
                       transform={`translate(${c.entryX}, ${c.entryY})`}
@@ -1484,11 +1485,11 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                       {isFocused && (
                         <circle
                           cx={0}
-                          cy={isLong ? 6 : -6}
-                          r={9}
+                          cy={isLong ? 5 : -5}
+                          r={7}
                           fill="none"
                           stroke="#f59e0b"
-                          strokeWidth={1.5}
+                          strokeWidth={1.25}
                           strokeDasharray="2 2"
                           className="animate-spin"
                         />
@@ -1497,37 +1498,37 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                         // LONG ENTRADA: Flecha VERDE OSCURA compacta apuntando HACIA ARRIBA (↑)
                         <>
                           <polygon
-                            points="0,0 -4.2,6.5 -1.4,6.5 -1.4,12 1.4,12 1.4,6.5 4.2,6.5"
+                            points="0,0 -3.2,5 -1.1,5 -1.1,9 1.1,9 1.1,5 3.2,5"
                             fill="#047857"
                             stroke="#ffffff"
-                            strokeWidth={1}
+                            strokeWidth={0.8}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.5} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
                         </>
                       ) : (
                         // SHORT ENTRADA: Flecha ROJA OSCURA compacta apuntando HACIA ABAJO (↓)
                         <>
                           <polygon
-                            points="0,0 -4.2,-6.5 -1.4,-6.5 -1.4,-12 1.4,-12 1.4,-6.5 4.2,-6.5"
+                            points="0,0 -3.2,-5 -1.1,-5 -1.1,-9 1.1,-9 1.1,-5 3.2,-5"
                             fill="#991b1b"
                             stroke="#ffffff"
-                            strokeWidth={1}
+                            strokeWidth={0.8}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.5} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
                         </>
                       )}
                     </g>
@@ -1548,11 +1549,11 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                       {isFocused && (
                         <circle
                           cx={0}
-                          cy={isLong ? -6 : 6}
-                          r={9}
+                          cy={isLong ? -5 : 5}
+                          r={7}
                           fill="none"
                           stroke="#f59e0b"
-                          strokeWidth={1.5}
+                          strokeWidth={1.25}
                           strokeDasharray="2 2"
                           className="animate-spin"
                         />
@@ -1561,37 +1562,37 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                         // LONG SALIDA: Flecha ROJA OSCURA compacta apuntando HACIA ABAJO (↓)
                         <>
                           <polygon
-                            points="0,0 -4.2,-6.5 -1.4,-6.5 -1.4,-12 1.4,-12 1.4,-6.5 4.2,-6.5"
+                            points="0,0 -3.2,-5 -1.1,-5 -1.1,-9 1.1,-9 1.1,-5 3.2,-5"
                             fill="#991b1b"
                             stroke="#ffffff"
-                            strokeWidth={1}
+                            strokeWidth={0.8}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.5} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
                         </>
                       ) : (
                         // SHORT SALIDA: Flecha VERDE OSCURA compacta apuntando HACIA ARRIBA (↑)
                         <>
                           <polygon
-                            points="0,0 -4.2,6.5 -1.4,6.5 -1.4,12 1.4,12 1.4,6.5 4.2,6.5"
+                            points="0,0 -3.2,5 -1.1,5 -1.1,9 1.1,9 1.1,5 3.2,5"
                             fill="#047857"
                             stroke="#ffffff"
-                            strokeWidth={1}
+                            strokeWidth={0.8}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.5} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
                         </>
                       )}
                     </g>
@@ -1601,137 +1602,91 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
             })}
           </svg>
 
-          {/* BADGES DE PNL EN EL PUNTO MEDIO DE CADA TRADE Y TOOLTIPS */}
+          {/* BADGES Y TOOLTIPS COMPACTOS: SOLO PARA EL TRADE ENFOCADO O BAJO HOVER */}
           {closedTradesCoords.map((c) => {
             const hasEntry = c.entryX !== null && c.entryY !== null;
             const hasExit = c.exitX !== null && c.exitY !== null;
             if (!hasEntry && !hasExit) return null;
 
-            const posX = hasEntry && hasExit ? (c.entryX! + c.exitX!) / 2 : (c.exitX ?? c.entryX!);
-            const posY = hasEntry && hasExit ? (c.entryY! + c.exitY!) / 2 : (c.exitY ?? c.entryY!);
-
             const isFocused = focusedTrade?.id === c.id;
             const isHovered = hoveredTradeId === c.id;
+            if (!isFocused && !isHovered) return null;
+
+            const posX = hasEntry && hasExit ? (c.entryX! + c.exitX!) / 2 : (c.exitX ?? c.entryX!);
+            const posY = hasEntry && hasExit ? (c.entryY! + c.exitY!) / 2 : (c.exitY ?? c.entryY!);
             const isLong = c.trade.side === 'LONG';
 
             return (
               <React.Fragment key={`history-badge-group-${c.id}`}>
-                {/* Pill de PnL */}
+                {/* Micro-Panel Flotante Compacto (Unificado: reemplaza el panel gigante superior) */}
                 <div
-                  style={{ left: `${posX}px`, top: `${posY}px` }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectTrade?.(c.trade);
-                  }}
-                  onMouseEnter={() => setHoveredTradeId(c.id)}
-                  onMouseLeave={() => setHoveredTradeId(null)}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold text-center shadow-md select-none transition-transform hover:scale-110 z-30 ${
-                    isFocused
-                      ? 'bg-amber-500 text-slate-950 ring-2 ring-white shadow-amber-500/50'
-                      : c.trade.isProfit
-                      ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/60 hover:border-emerald-400'
-                      : 'bg-rose-950/90 text-rose-300 border border-rose-500/60 hover:border-rose-400'
-                  }`}
-                  title={isEs ? 'Clic para ver trade enfocado' : 'Click to focus trade'}
+                  style={{ left: `${posX}px`, top: `${posY - 8}px` }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute -translate-x-1/2 -translate-y-full pointer-events-auto z-40 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md bg-slate-950/92 backdrop-blur-xs text-white border border-slate-700/80 shadow-xl font-mono whitespace-nowrap animate-in fade-in"
                 >
-                  {c.trade.isProfit ? '+' : ''}${c.trade.pnlUsdt.toFixed(2)}
-                </div>
-
-                {/* Tooltip de detalles al pasar el ratón o estar enfocado */}
-                {(isHovered || isFocused) && (
-                  <div
-                    style={{ left: `${posX}px`, top: `${posY - 20}px` }}
-                    className="absolute -translate-x-1/2 -translate-y-full pointer-events-none z-40 px-2.5 py-1.5 rounded-lg bg-slate-950/95 text-white border border-slate-700 shadow-2xl text-[10px] font-mono whitespace-nowrap animate-in fade-in"
-                  >
-                    <div className="flex items-center gap-1.5 font-bold mb-0.5">
-                      <span className={`px-1 py-0.2 rounded text-[8.5px] font-black ${isLong ? 'bg-emerald-500 text-emerald-950' : 'bg-rose-500 text-rose-950'}`}>
-                        {c.trade.side}
-                      </span>
-                      <span>{c.trade.symbol}</span>
-                      {c.trade.leverage && <span className="text-amber-400 font-semibold">{c.trade.leverage}x</span>}
-                      <span className="text-slate-400 font-normal">({c.trade.closeReason || 'MANUAL'})</span>
-                    </div>
-                    <div className="text-slate-300 text-[9px]">
+                  <div className="flex items-center gap-1 sm:gap-1.5 text-[8px] sm:text-[8.5px] leading-tight font-bold">
+                    <span className={`px-1 py-0.2 rounded text-[7px] sm:text-[7.5px] font-black ${isLong ? 'bg-emerald-500 text-emerald-950' : 'bg-rose-500 text-rose-950'}`}>
+                      {c.trade.side}
+                    </span>
+                    <span className="text-slate-300 font-medium">
                       ${c.trade.entry.toLocaleString()} ➔ ${c.trade.exitPrice.toLocaleString()}
-                    </div>
-                    <div className={`font-black text-[10px] ${c.trade.isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      PnL: {c.trade.isProfit ? '+' : ''}${c.trade.pnlUsdt.toFixed(2)} ({c.trade.pnlPercent})
-                    </div>
+                    </span>
+                    <span className={`font-black ${c.trade.isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {c.trade.isProfit ? '+' : ''}${c.trade.pnlUsdt.toFixed(2)}
+                    </span>
+
+                    {/* Controles rápidos al estar enfocado */}
+                    {isFocused && (
+                      <div className="flex items-center gap-1 ml-0.5 pl-1 border-l border-slate-700">
+                        {onReturnToLive && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReturnToLive();
+                            }}
+                            className="px-1 py-0.2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-[7px] sm:text-[7.5px] font-black cursor-pointer flex items-center gap-0.5 transition-all shadow-xs"
+                            title={isEs ? 'Volver a velas en vivo' : 'Return to live chart'}
+                          >
+                            <RotateCcw className="w-2 h-2" />
+                            <span>Live</span>
+                          </button>
+                        )}
+                        {onClearFocusedTrade && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearFocusedTrade();
+                            }}
+                            className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                            title={isEs ? 'Cerrar' : 'Close'}
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </React.Fragment>
             );
           })}
         </>
       )}
 
-      {/* ---------------------------------------------------------------- */}
-      {/* BARRA HUD FLOTANTE SUPERIOR CUANDO HAY UN TRADE ENFOCADO */}
-      {/* ---------------------------------------------------------------- */}
-      {focusedTrade && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-auto bg-slate-950/92 backdrop-blur-md border border-amber-500/70 rounded-xl px-3.5 py-1.5 shadow-2xl flex items-center gap-2.5 text-xs font-mono text-white select-none">
-          <div className="flex items-center gap-1.5">
-            <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-black ${
-              focusedTrade.side === 'LONG' ? 'bg-emerald-500 text-emerald-950' : 'bg-rose-500 text-rose-950'
-            }`}>
-              {focusedTrade.side}
-            </span>
-            <span className="font-black text-slate-100">{focusedTrade.symbol}</span>
-            {focusedTrade.leverage && (
-              <span className="text-[9.5px] text-amber-400 font-bold">{focusedTrade.leverage}x</span>
-            )}
-          </div>
-
-          <div className="h-3.5 w-px bg-slate-700" />
-
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-300">
-            <span>${focusedTrade.entry.toLocaleString()}</span>
-            <span className="text-slate-500">➔</span>
-            <span className="font-bold text-white">${focusedTrade.exitPrice.toLocaleString()}</span>
-          </div>
-
-          <div className="h-3.5 w-px bg-slate-700" />
-
-          <div className={`font-black text-[11px] ${focusedTrade.isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {focusedTrade.isProfit ? '+' : ''}${focusedTrade.pnlUsdt.toFixed(2)} ({focusedTrade.pnlPercent})
-          </div>
-
-          {focusedTrade.closeReason && (
-            <span className={`px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase ${
-              focusedTrade.closeReason === 'TP'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : focusedTrade.closeReason === 'SL'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                : 'bg-slate-800 text-slate-300 border border-slate-700'
-            }`}>
-              {focusedTrade.closeReason}
-            </span>
-          )}
-
-          <div className="h-3.5 w-px bg-slate-700" />
-
-          {onReturnToLive && (
-            <button
-              type="button"
-              onClick={onReturnToLive}
-              className="px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-[9.5px] transition-all cursor-pointer flex items-center gap-1 shadow-xs"
-              title={isEs ? 'Volver a velas en vivo' : 'Return to live chart'}
-            >
-              <RotateCcw className="w-2.5 h-2.5" />
-              <span>{isEs ? 'En Vivo' : 'Live'}</span>
-            </button>
-          )}
-
-          {onClearFocusedTrade && (
-            <button
-              type="button"
-              onClick={onClearFocusedTrade}
-              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-              title={isEs ? 'Quitar enfoque' : 'Dismiss focus'}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {/* Botón flotante discreto en esquina inferior derecha para volver a En Vivo cuando un trade está enfocado */}
+      {focusedTrade && onReturnToLive && (
+        <div className="absolute bottom-3 right-16 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={onReturnToLive}
+            className="px-2 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-400 backdrop-blur-xs text-slate-950 font-black text-[9px] shadow-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+            title={isEs ? 'Volver a velas en vivo' : 'Return to live chart'}
+          >
+            <RotateCcw className="w-2.5 h-2.5" />
+            <span>{isEs ? 'Volver a En Vivo' : 'Back to Live'}</span>
+          </button>
         </div>
       )}
     </div>

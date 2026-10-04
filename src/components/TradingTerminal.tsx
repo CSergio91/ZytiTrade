@@ -276,6 +276,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   activeDrawingToolRef.current = activeDrawingTool;
   const isRadialDialOpenRef = useRef<boolean>(false);
   isRadialDialOpenRef.current = isRadialDialOpen;
+  const lastTickServerSendRef = useRef<Map<string, number>>(new Map());
 
   // ─── Persistencia de trazos en localStorage ────────────────────────────
   const DRAWINGS_KEY = (pair: string) => `zyti_drawings_${pair}`;
@@ -417,10 +418,19 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     asks: []
   });
 
+  // Cuentas de fondeo / Desafíos vinculados al trader
+  const [traderAccounts, setTraderAccounts] = useState<PropFirmAccount[]>(() => user?.accounts || []);
+
+  // Cuenta de fondeo oficial activa
+  const [activeAccountId, setActiveAccountId] = useState<string | undefined>(() => {
+    return user?.activeAccountId || user?.accounts?.[0]?.id || localStorage.getItem('zyti_active_account_id') || undefined;
+  });
+
   // Posiciones abiertas con persistencia Local-First (0ms al recargar el navegador)
   const [positions, setPositions] = useState<PositionItem[]>(() => {
     try {
-      const saved = localStorage.getItem('zyti_open_positions');
+      const activeAccId = user?.activeAccountId || localStorage.getItem('zyti_active_account_id');
+      const saved = activeAccId ? localStorage.getItem(`zyti_positions_${activeAccId}`) : localStorage.getItem('zyti_open_positions');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -432,13 +442,17 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   useEffect(() => {
     try {
       localStorage.setItem('zyti_open_positions', JSON.stringify(positions));
+      if (activeAccountId) {
+        localStorage.setItem(`zyti_positions_${activeAccountId}`, JSON.stringify(positions));
+      }
     } catch {}
-  }, [positions]);
+  }, [positions, activeAccountId]);
 
   // Órdenes Límites pendientes con persistencia en localStorage
   const [limitOrders, setLimitOrders] = useState<LimitOrderItem[]>(() => {
     try {
-      const saved = localStorage.getItem('zyti_limit_orders');
+      const activeAccId = user?.activeAccountId || localStorage.getItem('zyti_active_account_id');
+      const saved = activeAccId ? localStorage.getItem(`zyti_limit_orders_${activeAccId}`) : localStorage.getItem('zyti_limit_orders');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -450,8 +464,11 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   useEffect(() => {
     try {
       localStorage.setItem('zyti_limit_orders', JSON.stringify(limitOrders));
+      if (activeAccountId) {
+        localStorage.setItem(`zyti_limit_orders_${activeAccountId}`, JSON.stringify(limitOrders));
+      }
     } catch {}
-  }, [limitOrders]);
+  }, [limitOrders, activeAccountId]);
 
   // Precio límite configurado en el formulario
   const [limitPrice, setLimitPrice] = useState<string>('');
@@ -475,26 +492,30 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   // Seguro contra clics múltiples rápidos en colocación de órdenes
   const isSubmittingOrderRef = useRef<boolean>(false);
 
-  // Cuenta de fondeo oficial activa (100K)
-  const [activeAccountId, setActiveAccountId] = useState<string | undefined>(() => {
-    return user?.activeAccountId || user?.accounts?.[0]?.id || localStorage.getItem('zyti_active_account_id') || undefined;
-  });
-
-  // Asegurar resolución de la cuenta oficial del usuario autenticado
+  // Asegurar resolución de la cuenta oficial del usuario autenticado y cargar todas sus cuentas
   useEffect(() => {
+    if (user?.accounts && user.accounts.length > 0) {
+      setTraderAccounts(user.accounts);
+    }
     if (user?.activeAccountId) {
       setActiveAccountId(user.activeAccountId);
       try { localStorage.setItem('zyti_active_account_id', user.activeAccountId); } catch {}
     } else if (user?.accounts && user.accounts.length > 0) {
       setActiveAccountId(user.accounts[0].id);
       try { localStorage.setItem('zyti_active_account_id', user.accounts[0].id); } catch {}
-    } else if (user?.email) {
-      fetchTraderAccounts(user.email).then((accs) => {
-        if (accs.length > 0) {
-          setActiveAccountId(accs[0].id);
-          try { localStorage.setItem('zyti_active_account_id', accs[0].id); } catch {}
+    }
+    
+    const identifier = user?.id || user?.email;
+    if (identifier) {
+      fetchTraderAccounts(identifier).then((accs) => {
+        if (accs && accs.length > 0) {
+          setTraderAccounts(accs);
+          if (!activeAccountId || !accs.some((a) => a.id === activeAccountId)) {
+            setActiveAccountId(accs[0].id);
+            try { localStorage.setItem('zyti_active_account_id', accs[0].id); } catch {}
+          }
         }
-      });
+      }).catch(() => {});
     }
   }, [user]);
 
@@ -790,6 +811,18 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             demoBalanceRef.current = balance;
             try { localStorage.setItem('zyti_demo_balance', balance.toString()); } catch {}
           }
+          break;
+        }
+        case 'ACCOUNT_RESET': {
+          const { initialBalance = 100000 } = event.payload || {};
+          setDemoBalance(initialBalance);
+          demoBalanceRef.current = initialBalance;
+          setPositions([]);
+          positionsRef.current = [];
+          setTradeHistory([]);
+          try { localStorage.removeItem('zyti_open_positions'); } catch {}
+          try { localStorage.removeItem('zyti_trade_history'); } catch {}
+          try { localStorage.setItem('zyti_demo_balance', initialBalance.toString()); } catch {}
           break;
         }
         case 'LIMIT_ORDER_PLACED': {
@@ -1089,6 +1122,58 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const workerRef = useRef<Worker | null>(null);
+
+  // Centrar milimétricamente el gráfico KLineChart en una vela/timestamp específico en medio de la pantalla
+  const centerChartOnTimestamp = useCallback((chart: any, targetTs: number) => {
+    if (!chart || !targetTs || isNaN(targetTs)) return;
+    try {
+      const dl = chart.getDataList?.() as Array<{ timestamp: number }> | undefined;
+      if (!dl || dl.length === 0) {
+        chart.scrollToTimestamp?.(targetTs, 300);
+        return;
+      }
+
+      // 1. Encontrar la vela más cercana en el dataset al timestamp del trade
+      let closestIdx = -1;
+      let minDiff = Infinity;
+      for (let i = 0; i < dl.length; i++) {
+        const diff = Math.abs(dl[i].timestamp - targetTs);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIdx = i;
+        }
+      }
+
+      if (closestIdx !== -1) {
+        const visibleRange = chart.getVisibleRange?.() as { from: number; to: number } | undefined;
+        const visibleBars = visibleRange ? Math.max(10, visibleRange.to - visibleRange.from) : 35;
+        // Para que la vela quede en el medio horizontal de la pantalla:
+        // el índice objetivo de la derecha debe ser el índice de la vela + la mitad de las barras visibles
+        const centerTargetIdx = closestIdx + Math.floor(visibleBars / 2);
+        chart.scrollToDataIndex?.(centerTargetIdx, 250);
+
+        // Verificación y corrección milimétrica por coordenadas pixel tras el desplazamiento inicial
+        setTimeout(() => {
+          try {
+            const coord = chart.convertToPixel?.({ dataIndex: closestIdx }, { paneId: 'candle_pane' }) as { x?: number } | undefined;
+            const paneSize = chart.getSize?.('candle_pane') || chart.getSize?.();
+            const canvasWidth = paneSize?.width || (chartContainerRef.current?.clientWidth ?? window.innerWidth);
+            const targetCenter = canvasWidth / 2;
+            if (coord && typeof coord.x === 'number' && !isNaN(coord.x)) {
+              const delta = targetCenter - coord.x;
+              if (Math.abs(delta) > 10) {
+                chart.scrollByDistance?.(delta, 150);
+              }
+            }
+          } catch {}
+        }, 270);
+      } else {
+        chart.scrollToTimestamp?.(targetTs, 300);
+      }
+    } catch (err) {
+      console.warn('[ZYTI Trade] Error centrando gráfico:', err);
+    }
+  }, []);
 
   // Escuchar toques y clics fuera para cerrar el menú contextual del gráfico.
   // IMPORTANTE: KLineChart llama preventDefault() en touchend, lo que impide que llegue
@@ -1494,7 +1579,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
             if (targetTs && !isNaN(targetTs)) {
               setTimeout(() => {
                 try {
-                  activeChart.scrollToTimestamp(targetTs, 300);
+                  centerChartOnTimestamp(activeChart, targetTs);
                 } catch {}
               }, 120);
             } else {
@@ -1528,6 +1613,22 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         const tickSymbol = payload.stats?.symbol || payload.symbol;
         const tickExchange = payload.exchange || payload.stats?.exchange;
         const currentP = payload.stats?.lastPrice || payload.bar?.close;
+
+        // Ingesta continua multi-exchange hacia el Risk Daemon del Servidor (24/7)
+        if (currentP > 0 && tickSymbol) {
+          const now = Date.now();
+          const lastSent = lastTickServerSendRef.current.get(tickSymbol) || 0;
+          if (now - lastSent >= 500) {
+            lastTickServerSendRef.current.set(tickSymbol, now);
+            zytiTradingClient.sendAction({
+              action: 'MARKET_TICK',
+              symbol: tickSymbol,
+              exchange: tickExchange || 'binance',
+              price: currentP,
+              timestamp: now
+            });
+          }
+        }
 
         // 2. Evaluar posiciones abiertas para este símbolo (continúa en vivo aunque el usuario esté en otro par)
         if (!payload.isInitialBars && currentP > 0 && tickSymbol) {
@@ -2053,13 +2154,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       pendingTradeFocusRef.current = trade;
       handleSelectPair(normTradeSym);
     } else if (chartInstanceRef.current && targetTs && !isNaN(targetTs)) {
-      try {
-        (chartInstanceRef.current as any).scrollToTimestamp(targetTs, 300);
-      } catch (err) {
-        console.warn('[ZYTI Trade] Error al centrar gráfico en el trade:', err);
-      }
+      centerChartOnTimestamp(chartInstanceRef.current, targetTs);
     }
-  }, []);
+  }, [centerChartOnTimestamp]);
 
   const handleReturnToLive = useCallback(() => {
     if (chartInstanceRef.current) {
@@ -2442,20 +2539,33 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     try { localStorage.removeItem('zyti_open_positions'); } catch {}
     setTradeHistory([]);
 
-    // 3. Restauración de Saldo y Métricas a 100K
-    setDemoBalance(100000);
-    try { localStorage.setItem('zyti_demo_balance', '100000'); } catch {}
+    // 3. Restauración de Saldo y Métricas al saldo inicial configurado de esta cuenta
+    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
+    const currentAcc = traderAccounts.find((a) => a.id === targetAccountId) || user?.accounts?.[0];
+    const initialBal = currentAcc?.initialBalance ? Number(currentAcc.initialBalance) : 100000;
 
-    // 4. Resetear centinela de Drawdown y nuevo baseline diario a 100K
+    setDemoBalance(initialBal);
+    demoBalanceRef.current = initialBal;
+    try { localStorage.setItem('zyti_demo_balance', initialBal.toString()); } catch {}
+
+    // 4. Resetear centinela de Drawdown y nuevo baseline diario
     const today = new Date().toISOString().split('T')[0];
-    dailyStartEquityRef.current = 100000;
-    try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: 100000 })); } catch {}
+    dailyStartEquityRef.current = initialBal;
+    try { localStorage.setItem('zyti_daily_start_equity', JSON.stringify({ date: today, equity: initialBal })); } catch {}
     isBreachedRef.current = false;
     setIsAccountBreached(false);
     setBreachReason('');
 
+    // Actualizar estado en lista de cuentas del trader
+    setTraderAccounts((prev) =>
+      prev.map((a) =>
+        a.id === targetAccountId
+          ? { ...a, status: 'ACTIVE', currentBalance: initialBal, equity: initialBal }
+          : a
+      )
+    );
+
     // 5. Purgar historial forense en la nube (Supabase) para la cuenta activa y difundir por Broadcast
-    const targetAccountId = activeAccountId || user?.activeAccountId || user?.accounts?.[0]?.id;
     try {
       const bc = new BroadcastChannel('zyti_trading_sync');
       bc.postMessage({ type: 'RESET_SYNC', accountId: targetAccountId });
@@ -2463,28 +2573,91 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     } catch {}
     TradePersistenceService.purgeAccountTrades(targetAccountId, user?.id, user?.email).catch(() => {});
 
+    // 5.1 Notificar al servidor Risk Daemon en RAM para restaurar a ACTIVE de inmediato
+    if (targetAccountId) {
+      zytiTradingClient.sendAction({
+        action: 'RESET_ACCOUNT',
+        accountId: targetAccountId,
+        initialBalance: initialBal
+      });
+    }
+
     // 6. Toast de confirmación institucional
     addToast({
       type: 'info',
       title: isEs ? '¡Cuenta e Historial Restablecidos!' : 'Account & History Cleared!',
       message: isEs
-        ? 'Saldo restablecido a $100,000.00 USDT y todo el historial de trades fue purgado de la base de datos y memoria local.'
-        : 'Balance reset to $100,000.00 USDT and all trade history was purged from cloud database and local storage.'
+        ? `Saldo restablecido a $${initialBal.toLocaleString()} USDT y todo el historial de trades fue purgado.`
+        : `Balance reset to $${initialBal.toLocaleString()} USDT and all trade history was cleared.`
     });
   };
 
   const handleSelectAccount = useCallback((account: PropFirmAccount | null) => {
     if (account) {
+      // 1. Si ya es la cuenta actualmente seleccionada, NO TOCAR NADA ni limpiar memoria
+      if (account.id === activeAccountId) {
+        return;
+      }
+
+      // 2. Guardar estado de posiciones y órdenes de la cuenta saliente
+      if (activeAccountId) {
+        try {
+          localStorage.setItem(`zyti_positions_${activeAccountId}`, JSON.stringify(positionsRef.current));
+          localStorage.setItem(`zyti_limit_orders_${activeAccountId}`, JSON.stringify(limitOrdersRef.current));
+        } catch {}
+      }
+
       setActiveAccountId(account.id);
+      try { localStorage.setItem('zyti_active_account_id', account.id); } catch {}
       closedPositionIdsRef.current.clear();
       filledLimitOrderIdsRef.current.clear();
-      setPositions([]);
-      positionsRef.current = [];
-      setLimitOrders([]);
-      limitOrdersRef.current = [];
-      try { localStorage.removeItem('zyti_limit_orders'); } catch {}
-      setDemoBalance(account.initialBalance);
-      try { localStorage.setItem('zyti_demo_balance', account.initialBalance.toString()); } catch {}
+
+      // 3. Cargar posiciones guardadas específicamente para esta nueva cuenta
+      try {
+        const savedPos = localStorage.getItem(`zyti_positions_${account.id}`);
+        const parsedPos: PositionItem[] = savedPos ? JSON.parse(savedPos) : [];
+        setPositions(parsedPos);
+        positionsRef.current = parsedPos;
+      } catch {
+        setPositions([]);
+        positionsRef.current = [];
+      }
+
+      // 4. Cargar órdenes límite específicas para esta nueva cuenta
+      try {
+        const savedOrd = localStorage.getItem(`zyti_limit_orders_${account.id}`);
+        const parsedOrd: LimitOrderItem[] = savedOrd ? JSON.parse(savedOrd) : [];
+        setLimitOrders(parsedOrd);
+        limitOrdersRef.current = parsedOrd;
+      } catch {
+        setLimitOrders([]);
+        limitOrdersRef.current = [];
+      }
+
+      // 5. Reconciliación en segundo plano desde Supabase para la cuenta seleccionada
+      TradePersistenceService.fetchOpenPositions(account.id, user?.id, user?.email).then((dbPos) => {
+        if (dbPos) {
+          setPositions(dbPos);
+          positionsRef.current = dbPos;
+          try { localStorage.setItem(`zyti_positions_${account.id}`, JSON.stringify(dbPos)); } catch {}
+        }
+      });
+
+      TradePersistenceService.fetchAccountTradesHistory(account.id, user?.id, user?.email).then((dbHist) => {
+        if (dbHist) {
+          setTradeHistory(dbHist);
+          try { localStorage.setItem('zyti_trade_history', JSON.stringify(dbHist)); } catch {}
+        }
+      });
+
+      // 6. Suscribir canal WebSocket central a la nueva cuenta
+      zytiTradingClient.subscribeAccount(account.id);
+
+      const targetBal = Number(account.currentBalance ?? account.initialBalance ?? 100000);
+      setDemoBalance(targetBal);
+      demoBalanceRef.current = targetBal;
+      try { localStorage.setItem('zyti_demo_balance', targetBal.toString()); } catch {}
+
       if (account.rulesConfig) {
         propFirmRulesRef.current = {
           id: account.id,
@@ -2495,9 +2668,12 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           maxLeverage: account.rulesConfig.maxLeverage ?? 100
         };
       }
+
       dailyStartEquityRef.current = account.initialBalance;
-      setIsAccountBreached(false);
-      isBreachedRef.current = false;
+      const isAccBreached = account.status === 'BREACHED';
+      setIsAccountBreached(isAccBreached);
+      isBreachedRef.current = isAccBreached;
+
       addToast({
         type: 'info',
         title: isEs ? 'Cuenta de Fondeo Vinculada' : 'Prop Firm Account Linked',
@@ -3049,6 +3225,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         currentMarketType={currentMarketType}
         connectionStatus={connectionStatus}
         activeAccountId={activeAccountId}
+        accounts={traderAccounts}
         onSelectExchange={handleSelectExchange}
         onSelectMarketType={handleSelectMarketType}
         onSelectPair={handleSelectPair}

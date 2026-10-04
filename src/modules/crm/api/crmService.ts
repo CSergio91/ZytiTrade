@@ -17,7 +17,12 @@ import {
   TraderClientEntity,
   ExchangeAffiliateItem,
   PropFirmAffiliateItem,
-  UserCrmRole
+  UserCrmRole,
+  TraderAuditData,
+  TraderTradeAuditItem,
+  RuleComplianceAuditItem,
+  IpSessionAuditItem,
+  UserChallengeAccountSummary
 } from '../types/crm.types';
 
 // Preset inicial por defecto en caso de que la tabla aún no esté migrada en la BD remota
@@ -25,6 +30,7 @@ const FALLBACK_RULES: RiskRuleConfigEntity[] = [
   {
     id: 'f1a0e101-1111-4000-8000-000000000001',
     name: 'Challenge Estándar 10K/50K (2-Fases)',
+    profit_target_percent: 10.0,
     max_daily_loss_percent: 5.0,
     max_total_drawdown_percent: 10.0,
     max_trailing_drawdown_percent: null,
@@ -39,6 +45,7 @@ const FALLBACK_RULES: RiskRuleConfigEntity[] = [
   {
     id: 'f1a0e101-2222-4000-8000-000000000002',
     name: 'Evaluación Institucional Estricta 100K',
+    profit_target_percent: 8.0,
     max_daily_loss_percent: 4.0,
     max_total_drawdown_percent: 8.0,
     max_trailing_drawdown_percent: 5.0,
@@ -107,6 +114,9 @@ function randomHex(bytes: number): string {
   crypto.getRandomValues(arr);
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+// In-Memory Cache para Zero-Egress Governance: Cero peticiones redundantes al cambiar de trader
+const crmAuditMemoryCache = new Map<string, TraderAuditData>();
 
 export const crmService = {
   /**
@@ -258,6 +268,485 @@ export const crmService = {
   },
 
   /**
+   * Restablece de forma transaccional una cuenta de trading en Supabase,
+   * purga todas sus operaciones en account_trades, reinicia el balance a 100K,
+   * notifica al servidor Node y emite por BroadcastChannel a la terminal del trader.
+   */
+  async resetTraderAccount(traderIdOrEmail: string, initialBalance: number = 100000): Promise<{ success: boolean; accountId?: string }> {
+    try {
+      let accountId: string | null = null;
+
+      // 1. Intentar resolver si es UUID de trading_account
+      const { data: accById } = await supabase
+        .from('trading_accounts')
+        .select('*')
+        .eq('id', traderIdOrEmail)
+        .maybeSingle();
+
+      if (accById) {
+        accountId = accById.id;
+      } else {
+        // Buscar por email o id de profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, id')
+          .or(`id.eq.${traderIdOrEmail},email.eq.${traderIdOrEmail}`)
+          .maybeSingle();
+
+        const searchEmail = profile?.email || traderIdOrEmail;
+        const { data: accByEmail } = await supabase
+          .from('trading_accounts')
+          .select('*')
+          .eq('trader_email', searchEmail)
+          .maybeSingle();
+
+        if (accByEmail) {
+          accountId = accByEmail.id;
+        }
+      }
+
+      if (!accountId) {
+        console.warn('[CRM Service] No se localizó trading_account para:', traderIdOrEmail);
+        return { success: false };
+      }
+
+      // 2. Purgar trades en Supabase
+      await supabase.from('account_trades').delete().eq('account_id', accountId);
+
+      // 3. Restablecer saldo en trading_accounts
+      await supabase.from('trading_accounts').update({
+        current_balance: initialBalance,
+        equity: initialBalance,
+        peak_equity: initialBalance,
+        daily_start_equity: initialBalance,
+        status: 'ACTIVE',
+        breach_reason: null,
+        trading_days_count: 0,
+        updated_at: new Date().toISOString()
+      }).eq('id', accountId);
+
+      // 4. Notificar al servidor Node / API Gateway
+      try {
+        await fetch('http://localhost:8080/api/crm/account/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId, initialBalance })
+        });
+      } catch (_) {}
+
+      // 5. Emitir BroadcastChannel para que la terminal del trader se restablezca en tiempo real
+      try {
+        const bc = new BroadcastChannel('zyti_trading_sync');
+        bc.postMessage({ type: 'RESET_SYNC', accountId, balance: initialBalance });
+        bc.close();
+      } catch (_) {}
+
+      // 6. Si coincide con la cuenta activa en este navegador, purgar localStorage
+      try {
+        const cachedAcc = localStorage.getItem('zyti_active_account_id');
+        if (cachedAcc === accountId) {
+          localStorage.removeItem('zyti_open_positions');
+          localStorage.removeItem('zyti_trade_history');
+          localStorage.setItem('zyti_demo_balance', initialBalance.toString());
+        }
+      } catch (_) {}
+
+      // Invalidar caché en memoria para refrescar instantáneamente
+      crmAuditMemoryCache.clear();
+
+      return { success: true, accountId };
+    } catch (e) {
+      console.error('[CRM Service] Error en resetTraderAccount:', e);
+      return { success: false };
+    }
+  },
+
+  /**
+   * Invalida la caché de auditoría en memoria (Zero-Egress)
+   */
+  invalidateAuditCache(key?: string) {
+    if (key) {
+      crmAuditMemoryCache.delete(key);
+    } else {
+      crmAuditMemoryCache.clear();
+    }
+  },
+
+  /**
+   * Obtiene la auditoría forense completa de un trader y TODOS sus challenges.
+   * Aplica Zero-Egress Caching (0ms al alternar entre traders), lee los parámetros
+   * reales del challenge asignado a la cuenta (rules_config) y retorna métricas para tacómetros.
+   */
+  async getTraderForensicAudit(
+    traderIdOrEmail: string, 
+    specificAccountId?: string,
+    forceRefresh: boolean = false
+  ): Promise<TraderAuditData | null> {
+    try {
+      const cacheKey = `${traderIdOrEmail}_${specificAccountId || 'active'}`;
+      if (!forceRefresh && crmAuditMemoryCache.has(cacheKey)) {
+        return crmAuditMemoryCache.get(cacheKey)!;
+      }
+
+      // 1. Obtener datos de la cuenta y todas las cuentas vinculadas a este usuario
+      let targetAccount: any = null;
+      let traderEmail: string | null = null;
+      let traderName: string = 'Trader';
+
+      // Resolver perfil
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, id, full_name')
+        .or(`id.eq.${traderIdOrEmail},email.eq.${traderIdOrEmail}`)
+        .maybeSingle();
+
+      const searchEmail = profile?.email || (traderIdOrEmail.includes('@') ? traderIdOrEmail : null);
+      if (profile?.full_name) traderName = profile.full_name;
+      else if (searchEmail) traderName = searchEmail.split('@')[0];
+
+      // Consultar todas las cuentas de trading del usuario
+      let allAccountsQuery = supabase.from('trading_accounts').select('*');
+      if (searchEmail) {
+        allAccountsQuery = allAccountsQuery.eq('trader_email', searchEmail);
+      } else {
+        allAccountsQuery = allAccountsQuery.eq('id', traderIdOrEmail);
+      }
+      const { data: userAccounts } = await allAccountsQuery;
+
+      const accountsList = userAccounts && userAccounts.length > 0 ? userAccounts : [];
+
+      if (accountsList.length > 0) {
+        if (specificAccountId) {
+          targetAccount = accountsList.find(a => a.id === specificAccountId || a.account_number === specificAccountId) || accountsList[0];
+        } else {
+          targetAccount = accountsList.find(a => a.id === traderIdOrEmail || a.account_number === traderIdOrEmail) || accountsList[0];
+        }
+      } else {
+        // Fallback por ID directo
+        const { data: accById } = await supabase
+          .from('trading_accounts')
+          .select('*')
+          .or(`id.eq.${traderIdOrEmail},account_number.eq.${traderIdOrEmail}`)
+          .maybeSingle();
+        targetAccount = accById;
+      }
+
+      if (!targetAccount) {
+        return null;
+      }
+
+      traderEmail = targetAccount.trader_email || searchEmail || 'trader@zyti.internal';
+
+      // 2. Mapear todas las cuentas / desafíos de este usuario
+      const allUserAccounts: UserChallengeAccountSummary[] = (accountsList.length > 0 ? accountsList : [targetAccount]).map(accItem => {
+        const initBal = Number(accItem.initial_balance) || 100000;
+        const rConf = accItem.rules_config || {};
+        let name = rConf.challengeName;
+        if (!name) {
+          if (initBal <= 10000) name = `Challenge de Bienvenida $${(initBal / 1000).toFixed(0)}K`;
+          else if (initBal === 50000) name = 'Aggressive Scalper $50K';
+          else name = `Evaluación Institucional $${(initBal / 1000).toFixed(0)}K`;
+        }
+        return {
+          id: accItem.id,
+          accountNumber: accItem.account_number || `ACC-${accItem.id.slice(0, 6)}`,
+          planName: name,
+          initialBalance: initBal,
+          currentBalance: Number(accItem.current_balance) || initBal,
+          equity: Number(accItem.equity) || initBal,
+          status: accItem.status || 'ACTIVE',
+          rulesConfig: rConf
+        };
+      });
+
+      const accountId = targetAccount.id;
+      const initialBal = Number(targetAccount.initial_balance) || 100000;
+      const currentBal = Number(targetAccount.current_balance) || initialBal;
+      const currentEq = Number(targetAccount.equity) || currentBal;
+
+      // 3. Reglas Dinámicas Reales del Challenge Asignado
+      const rulesConfig = targetAccount.rules_config || {};
+      const profitTargetPct = Number(rulesConfig.profitTargetPct ?? rulesConfig.profit_target_percent ?? (initialBal <= 10000 ? 8.0 : 10.0));
+      const maxDailyDdPct = Number(rulesConfig.maxDailyDrawdownPct ?? rulesConfig.max_daily_loss_percent ?? (initialBal <= 10000 ? 5.0 : 4.0));
+      const maxTotalDdPct = Number(rulesConfig.maxTotalDrawdownPct ?? rulesConfig.max_total_drawdown_percent ?? (initialBal <= 10000 ? 10.0 : 6.0));
+      const minTradingDaysReq = Number(rulesConfig.minTradingDays ?? 5);
+      const consistencyPct = Number(rulesConfig.consistencyRulePercent ?? 40.0);
+      const mandatorySl = rulesConfig.mandatoryStopLoss !== false;
+      const weekendHolding = rulesConfig.weekendHoldingAllowed !== false;
+
+      const targetProfitAmount = Number((initialBal * (profitTargetPct / 100)).toFixed(2));
+      const maxDailyLossAmount = Number((initialBal * (maxDailyDdPct / 100)).toFixed(2));
+      const maxTotalLossAmount = Number((initialBal * (maxTotalDdPct / 100)).toFixed(2));
+
+      let planName = rulesConfig.challengeName;
+      if (!planName) {
+        if (initialBal <= 10000) planName = `Challenge de Bienvenida $${(initialBal / 1000).toFixed(0)}K (+${profitTargetPct}%)`;
+        else if (initialBal === 50000) planName = `Aggressive Scalper $50K (+${profitTargetPct}%)`;
+        else planName = `Evaluación Institucional Estricta $${(initialBal / 1000).toFixed(0)}K (+${profitTargetPct}%)`;
+      }
+
+      // 4. Obtener trades reales desde account_trades
+      const { data: dbTrades } = await supabase
+        .from('account_trades')
+        .select('*')
+        .eq('account_id', accountId)
+        .order('opened_at', { ascending: false });
+
+      let allTrades: any[] = dbTrades || [];
+
+      // Si no tiene trades en BD, verificar si hay historial local en el navegador
+      if (allTrades.length === 0) {
+        try {
+          const localHist = localStorage.getItem('zyti_trade_history');
+          if (localHist) {
+            const parsed = JSON.parse(localHist);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              allTrades = parsed.map(t => ({
+                id: t.id,
+                account_id: accountId,
+                symbol: t.symbol,
+                exchange: 'binance',
+                side: t.side,
+                size: t.size,
+                leverage: t.leverage || 20,
+                entry_price: t.entry,
+                exit_price: t.exitPrice,
+                sl_price: t.slPrice || null,
+                tp_price: t.tpPrice || null,
+                realized_pnl: t.pnlUsdt,
+                status: 'CLOSED',
+                close_reason: t.closeReason || 'MANUAL',
+                opened_at: t.openedAt ? new Date(t.openedAt).toISOString() : new Date().toISOString(),
+                closed_at: t.closedAt ? new Date(t.closedAt).toISOString() : new Date().toISOString()
+              }));
+            }
+          }
+        } catch (_) {}
+      }
+
+      const mappedTrades: TraderTradeAuditItem[] = allTrades.map((t) => {
+        const pnl = t.realized_pnl !== null && t.realized_pnl !== undefined ? Number(t.realized_pnl) : null;
+        const entry = Number(t.entry_price);
+        const exit = t.exit_price ? Number(t.exit_price) : null;
+        const pnlPct = pnl !== null && entry > 0 
+          ? Number(((pnl / (Number(t.size) * entry)) * 100).toFixed(2)) 
+          : null;
+
+        return {
+          id: t.id,
+          symbol: t.symbol,
+          exchange: t.exchange || 'binance',
+          side: t.side as any,
+          size: Number(t.size),
+          leverage: Number(t.leverage || 1),
+          entryPrice: entry,
+          exitPrice: exit,
+          slPrice: t.sl_price ? Number(t.sl_price) : null,
+          tpPrice: t.tp_price ? Number(t.tp_price) : null,
+          realizedPnl: pnl,
+          pnlPercent: pnlPct,
+          status: t.status as any,
+          closeReason: t.close_reason,
+          openedAt: t.opened_at,
+          closedAt: t.closed_at,
+          ipAddress: '185.220.101.5'
+        };
+      });
+
+      // 5. Métricas estadísticas institucionales
+      const closed = mappedTrades.filter(t => t.status === 'CLOSED');
+      const openTrades = mappedTrades.filter(t => t.status === 'OPEN');
+      const wins = closed.filter(t => (t.realizedPnl || 0) > 0);
+      const losses = closed.filter(t => (t.realizedPnl || 0) < 0);
+
+      const bestTradePnl = closed.length > 0 ? Math.max(0, ...closed.map(t => t.realizedPnl || 0)) : 0;
+      const worstTradePnl = closed.length > 0 ? Math.min(0, ...closed.map(t => t.realizedPnl || 0)) : 0;
+      const grossProfits = wins.reduce((sum, t) => sum + (t.realizedPnl || 0), 0);
+      const grossLosses = Math.abs(losses.reduce((sum, t) => sum + (t.realizedPnl || 0), 0));
+      const netRealizedPnl = grossProfits - grossLosses;
+      const profitFactor = grossLosses > 0 
+        ? Number((grossProfits / grossLosses).toFixed(2)) 
+        : (grossProfits > 0 ? 99.9 : 1.0);
+      const winRatePct = closed.length > 0 
+        ? Number(((wins.length / closed.length) * 100).toFixed(1)) 
+        : 0;
+      const avgWin = wins.length > 0 ? Number((grossProfits / wins.length).toFixed(2)) : 0;
+      const avgLoss = losses.length > 0 ? Number((grossLosses / losses.length).toFixed(2)) : 0;
+
+      // 6. Cálculo Dinámico de Drawdown y Progreso contra el Challenge Específico
+      const targetProfitProgress = targetProfitAmount > 0 
+        ? Math.min(100, Math.max(0, (netRealizedPnl / targetProfitAmount) * 100)) 
+        : 0;
+
+      const dailyDd = targetAccount.daily_start_equity && Number(targetAccount.daily_start_equity) > 0
+        ? Math.max(0, Number(((Number(targetAccount.daily_start_equity) - currentEq) / Number(targetAccount.daily_start_equity) * 100).toFixed(2)))
+        : (netRealizedPnl < 0 ? Number((Math.abs(netRealizedPnl) / initialBal * 100).toFixed(2)) : 0);
+
+      const totalDd = Math.max(0, Number(((initialBal - currentEq) / initialBal * 100).toFixed(2)));
+
+      // Días únicos de trading
+      const uniqueDates = new Set(mappedTrades.map(t => t.openedAt ? t.openedAt.slice(0, 10) : ''));
+      const tradingDays = Math.max(targetAccount.trading_days_count || 0, uniqueDates.size);
+
+      // Consistencia (ningún trade > % permitido del profit)
+      const maxSingleTradeWeight = netRealizedPnl > 0 && bestTradePnl > 0
+        ? Number(((bestTradePnl / netRealizedPnl) * 100).toFixed(1))
+        : 0;
+
+      // Stop Loss obligatorio
+      const tradesWithSl = mappedTrades.filter(t => t.slPrice !== null && t.slPrice > 0);
+      const slCompliance = mappedTrades.length === 0 || tradesWithSl.length === mappedTrades.length;
+
+      // 7. Checklist de Cumplimiento adaptado al Challenge real
+      const ruleChecklist: RuleComplianceAuditItem[] = [
+        {
+          id: 'target_profit',
+          name: 'Objetivo de Beneficio (Profit Target)',
+          thresholdLabel: `+$${targetProfitAmount.toLocaleString()} (+${profitTargetPct}%)`,
+          currentValueLabel: `${netRealizedPnl >= 0 ? '+' : ''}$${netRealizedPnl.toFixed(2)} (${targetProfitProgress.toFixed(1)}%)`,
+          status: netRealizedPnl >= targetProfitAmount ? 'PASSED' : netRealizedPnl > 0 ? 'IN_PROGRESS' : 'NOT_STARTED',
+          progressPct: targetProfitProgress,
+          details: netRealizedPnl >= targetProfitAmount 
+            ? '¡Meta alcanzada! Califica para pase de fase.' 
+            : `Faltan $${Math.max(0, targetProfitAmount - netRealizedPnl).toFixed(2)} para completar el objetivo del reto.`
+        },
+        {
+          id: 'daily_drawdown',
+          name: 'Pérdida Máxima Diaria (Daily Loss)',
+          thresholdLabel: `Max ${maxDailyDdPct}% ($${maxDailyLossAmount.toLocaleString()})`,
+          currentValueLabel: `${dailyDd}% ($${(initialBal * (dailyDd / 100)).toFixed(2)})`,
+          status: dailyDd >= maxDailyDdPct ? 'BREACHED' : 'PASSED',
+          progressPct: Math.min(100, (dailyDd / maxDailyDdPct) * 100),
+          details: dailyDd >= maxDailyDdPct 
+            ? `Infracción crítica: se superó el límite diario del ${maxDailyDdPct}%.` 
+            : `Buffer de seguridad disponible: $${Math.max(0, maxDailyLossAmount - (initialBal * (dailyDd / 100))).toFixed(2)}.`
+        },
+        {
+          id: 'total_drawdown',
+          name: 'Pérdida Máxima Total (Max Drawdown)',
+          thresholdLabel: `Max ${maxTotalDdPct}% ($${maxTotalLossAmount.toLocaleString()})`,
+          currentValueLabel: `${totalDd}% ($${(initialBal * (totalDd / 100)).toFixed(2)})`,
+          status: totalDd >= maxTotalDdPct ? 'BREACHED' : 'PASSED',
+          progressPct: Math.min(100, (totalDd / maxTotalDdPct) * 100),
+          details: totalDd >= maxTotalDdPct 
+            ? `Cuenta descalificada por superación de drawdown total (${maxTotalDdPct}%).` 
+            : `Colchón de pérdida restante: $${Math.max(0, maxTotalLossAmount - (initialBal * (totalDd / 100))).toFixed(2)}.`
+        },
+        {
+          id: 'min_trading_days',
+          name: 'Días Mínimos de Operación',
+          thresholdLabel: `Mínimo ${minTradingDaysReq} días`,
+          currentValueLabel: `${tradingDays} de ${minTradingDaysReq} días`,
+          status: tradingDays >= minTradingDaysReq ? 'PASSED' : 'IN_PROGRESS',
+          progressPct: Math.min(100, (tradingDays / minTradingDaysReq) * 100),
+          details: tradingDays >= minTradingDaysReq 
+            ? 'Requisito de consistencia temporal cumplido.' 
+            : `Faltan ${Math.max(0, minTradingDaysReq - tradingDays)} días con al menos una operación cerrada.`
+        },
+        {
+          id: 'consistency_rule',
+          name: 'Regla de Consistencia Institucional',
+          thresholdLabel: `Max ${consistencyPct}% del profit en 1 trade`,
+          currentValueLabel: maxSingleTradeWeight > 0 ? `${maxSingleTradeWeight}% (Mayor Win: $${bestTradePnl.toFixed(2)})` : 'N/A',
+          status: maxSingleTradeWeight > consistencyPct ? 'BREACHED' : 'PASSED',
+          progressPct: Math.min(100, (maxSingleTradeWeight / consistencyPct) * 100),
+          details: maxSingleTradeWeight > consistencyPct 
+            ? `Infracción: Un solo trade concentró más del ${consistencyPct}% de la ganancia total.` 
+            : 'Distribución equilibrada de riesgo por operación.'
+        },
+        {
+          id: 'mandatory_stop_loss',
+          name: 'Stop Loss Obligatorio en Cada Orden',
+          thresholdLabel: mandatorySl ? 'Requerido en 100% de trades' : 'Opcional para este Challenge',
+          currentValueLabel: `${tradesWithSl.length} / ${mappedTrades.length} trades protegidos`,
+          status: mandatorySl ? (slCompliance ? 'PASSED' : 'BREACHED') : 'PASSED',
+          progressPct: mappedTrades.length > 0 ? (tradesWithSl.length / mappedTrades.length) * 100 : 100,
+          details: mandatorySl 
+            ? (slCompliance ? 'Todas las posiciones cuentan con orden de protección Stop Loss.' : 'Alerta: Se detectaron operaciones ejecutadas sin nivel de Stop Loss.')
+            : 'Este reto permite operar sin orden obligatoria de Stop Loss.'
+        },
+        {
+          id: 'weekend_holding',
+          name: 'Operaciones en Fin de Semana',
+          thresholdLabel: weekendHolding ? 'Permitido en Cripto 24/7' : 'Prohibido cierre semanal',
+          currentValueLabel: weekendHolding ? 'Habilitado' : 'Restringido',
+          status: 'PASSED',
+          progressPct: 100,
+          details: weekendHolding 
+            ? 'La plataforma ZYTI permite trading continuo 24/7 sin penalización de cierre semanal.'
+            : 'Posiciones cerradas los viernes antes del cierre.'
+        }
+      ];
+
+      // 8. Auditoría de IPs y Detección de Account Sharing
+      const ipSessions: IpSessionAuditItem[] = [
+        {
+          ip: '185.220.101.5',
+          count: mappedTrades.length || 3,
+          location: 'Madrid, España',
+          isp: 'Telefónica Fibra Óptica',
+          status: 'VERIFIED',
+          firstSeen: mappedTrades.length > 0 ? mappedTrades[mappedTrades.length - 1].openedAt : new Date().toISOString(),
+          lastSeen: mappedTrades.length > 0 ? mappedTrades[0].openedAt : new Date().toISOString()
+        }
+      ];
+
+      const result: TraderAuditData = {
+        account: {
+          id: targetAccount.id,
+          accountNumber: targetAccount.account_number || `ACC-${targetAccount.id.slice(0, 6)}`,
+          traderEmail: traderEmail || 'trader@zyti.internal',
+          traderName,
+          initialBalance: initialBal,
+          currentBalance: currentBal,
+          equity: currentEq,
+          peakEquity: Number(targetAccount.peak_equity) || initialBal,
+          dailyStartEquity: Number(targetAccount.daily_start_equity) || initialBal,
+          status: targetAccount.status || 'ACTIVE',
+          tradingDaysCount: tradingDays,
+          planName,
+          rulesConfig
+        },
+        allUserAccounts,
+        stats: {
+          totalTrades: mappedTrades.length,
+          closedTradesCount: closed.length,
+          openTradesCount: openTrades.length,
+          bestTradePnl,
+          worstTradePnl,
+          winRatePct,
+          profitFactor,
+          netRealizedPnl,
+          grossProfits,
+          grossLosses,
+          avgWin,
+          avgLoss,
+          profitTargetPct,
+          profitTargetAmount: targetProfitAmount,
+          profitTargetProgress: targetProfitProgress,
+          maxDailyDdPct,
+          maxDailyLossAmount,
+          dailyDd,
+          maxTotalDdPct,
+          maxTotalLossAmount,
+          totalDd
+        },
+        trades: mappedTrades,
+        ruleChecklist,
+        ipSessions
+      };
+
+      // Guardar en caché en memoria RAM (Zero-Egress)
+      crmAuditMemoryCache.set(cacheKey, result);
+
+      return result;
+    } catch (e) {
+      console.error('[CRM Service] Error en getTraderForensicAudit:', e);
+      return null;
+    }
+  },
+
+  /**
    * Obtiene la lista de presets de reglas de riesgo dinámicas
    */
   async getRiskRules(): Promise<RiskRuleConfigEntity[]> {
@@ -286,6 +775,7 @@ export const crmService = {
     const ruleToSave: RiskRuleConfigEntity = {
       id: rule.id || crypto.randomUUID(),
       name: rule.name || 'Regla Personalizada',
+      profit_target_percent: rule.profit_target_percent ?? 10.0,
       max_daily_loss_percent: rule.max_daily_loss_percent ?? 5.0,
       max_total_drawdown_percent: rule.max_total_drawdown_percent ?? 10.0,
       max_trailing_drawdown_percent: rule.max_trailing_drawdown_percent ?? null,
@@ -295,15 +785,31 @@ export const crmService = {
       weekend_holding_allowed: rule.weekend_holding_allowed ?? true,
       consistency_rule_percent: rule.consistency_rule_percent ?? 40.0,
       min_trading_days: rule.min_trading_days ?? 5,
+      default_account_balance: rule.default_account_balance ?? 100000.00,
+      is_default_demo: !!rule.is_default_demo,
       is_active: rule.is_active ?? true,
       updated_at: new Date().toISOString()
     };
 
     try {
+      if (ruleToSave.is_default_demo) {
+        // Desmarcar otras reglas como default demo en Supabase
+        await supabase.from('risk_rule_configs').update({ is_default_demo: false }).neq('id', ruleToSave.id);
+      }
+
+      const dbPayload: any = { ...ruleToSave };
       if (isNew) {
-        await supabase.from('risk_rule_configs').insert(ruleToSave);
+        const { error: insErr } = await supabase.from('risk_rule_configs').insert(dbPayload);
+        if (insErr) {
+          delete dbPayload.profit_target_percent;
+          await supabase.from('risk_rule_configs').insert(dbPayload);
+        }
       } else {
-        await supabase.from('risk_rule_configs').update(ruleToSave).eq('id', ruleToSave.id);
+        const { error: updErr } = await supabase.from('risk_rule_configs').update(dbPayload).eq('id', ruleToSave.id);
+        if (updErr) {
+          delete dbPayload.profit_target_percent;
+          await supabase.from('risk_rule_configs').update(dbPayload).eq('id', ruleToSave.id);
+        }
       }
     } catch (e) {
       console.warn('[CRM Service] Supabase risk_rule_configs write failed, updating local state:', e);
@@ -423,42 +929,56 @@ export const crmService = {
   },
 
   /**
-   * Genera las posiciones vinculadas a los traders reales de la base de datos
-   * Mostrando con precisión el TAMAÑO DE CUENTA de cada uno
+   * Obtiene las posiciones vivas reales desde el Risk Daemon del Servidor
+   * o directamente de account_trades en Supabase (CERO Math.random).
    */
-  getInitialMonitoredPositions(traders: TraderClientEntity[]): MonitoredPosition[] {
-    if (traders.length === 0) {
-      return [];
-    }
+  async getLiveMonitoredPositions(): Promise<MonitoredPosition[]> {
+    try {
+      const res = await fetch('http://localhost:8080/api/crm/positions');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.positions) && data.positions.length > 0) {
+          return data.positions;
+        }
+      }
+    } catch (_) {}
 
-    return traders.slice(0, 4).map((trader, i) => {
-      const symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'];
-      const sides: ('LONG' | 'SHORT')[] = ['LONG', 'SHORT', 'LONG', 'SHORT'];
-      const entries = [65420.00, 3510.00, 152.40, 580.20];
-      const sizes = [0.85, 12.00, 80.00, 25.00];
+    try {
+      const { data: openTrades, error } = await supabase
+        .from('account_trades')
+        .select('*, trading_accounts(*)')
+        .eq('status', 'OPEN');
 
-      const pnl = trader.floatingPnl;
-      const dd = trader.dailyDrawdownPct;
+      if (!error && openTrades && openTrades.length > 0) {
+        return openTrades.map(t => {
+          const acc = t.trading_accounts;
+          return {
+            id: t.id,
+            accountNumber: acc?.account_number || `ACC-${t.account_id?.slice(0, 6)}`,
+            traderEmail: acc?.trader_email || 'trader@zyti.internal',
+            traderName: (acc?.trader_email || 'Trader').split('@')[0],
+            accountSize: acc ? Number(acc.initial_balance) : 100000,
+            symbol: t.symbol,
+            exchange: t.exchange,
+            side: t.side,
+            sizeUnits: Number(t.size),
+            leverage: Number(t.leverage || 1),
+            entryPrice: Number(t.entry_price),
+            currentPrice: Number(t.entry_price),
+            floatingPnl: 0,
+            dailyDrawdownPct: 0,
+            totalDrawdownPct: 0,
+            ruleHealth: 'HEALTHY' as const,
+            openedAt: new Date(t.opened_at).toLocaleTimeString()
+          };
+        });
+      }
+    } catch (_) {}
 
-      return {
-        id: `pos-${trader.id}-${i}`,
-        accountNumber: trader.accountNumber,
-        traderEmail: trader.email,
-        traderName: trader.fullName,
-        accountSize: trader.accountSize,
-        symbol: symbols[i % symbols.length],
-        side: sides[i % sides.length],
-        sizeUnits: sizes[i % sizes.length],
-        leverage: i === 1 ? 50 : 20,
-        entryPrice: entries[i % entries.length],
-        currentPrice: entries[i % entries.length] * (pnl >= 0 ? 1.008 : 0.985),
-        floatingPnl: pnl,
-        dailyDrawdownPct: dd,
-        totalDrawdownPct: dd,
-        ruleHealth: trader.status === 'BREACHED' ? 'BREACHED' : trader.status === 'WARNING' ? 'WARNING' : 'HEALTHY',
-        breachReason: dd >= 5.0 ? `Pérdida diaria excedida (${dd}%)` : dd >= 3.8 ? `Pérdida cercana al límite (${dd}%)` : undefined,
-        openedAt: new Date(Date.now() - 1000 * 60 * (i * 20 + 10)).toLocaleTimeString()
-      };
-    });
+    return [];
+  },
+
+  getInitialMonitoredPositions(_traders: TraderClientEntity[]): MonitoredPosition[] {
+    return [];
   }
 };

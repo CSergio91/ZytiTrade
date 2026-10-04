@@ -1,7 +1,7 @@
 import React from 'react';
 import { MonitoredPosition, RiskRuleConfigEntity } from '../types/crm.types';
 import { CrmLang, crmTranslations } from '../types/i18n';
-import { ShieldCheck, Sliders, AlertOctagon, ArrowUpRight, ArrowDownRight, Skull, Zap } from 'lucide-react';
+import { ShieldCheck, Sliders, AlertOctagon, ArrowUpRight, ArrowDownRight, Skull, Zap, Plus, RotateCcw } from 'lucide-react';
 
 interface RiskEngineCardProps {
   rules: RiskRuleConfigEntity[];
@@ -10,8 +10,10 @@ interface RiskEngineCardProps {
   lang?: CrmLang;
   onSelectRuleId: (id: string) => void;
   onOpenRulesModal: () => void;
+  onOpenCreateRuleModal?: () => void;
   monitoredPositions: MonitoredPosition[];
   onEmergencyLiquidate: (positionId: string) => void;
+  onResetAccount?: (accountNumberOrId: string) => void;
 }
 
 export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
@@ -21,8 +23,10 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
   lang = 'es',
   onSelectRuleId,
   onOpenRulesModal,
+  onOpenCreateRuleModal,
   monitoredPositions,
-  onEmergencyLiquidate
+  onEmergencyLiquidate,
+  onResetAccount
 }) => {
   const t = crmTranslations[lang] || crmTranslations.es;
 
@@ -59,7 +63,9 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
           >
             {rules.map(r => (
               <option key={r.id} value={r.id}>
-                {r.name}
+                {r.is_default_demo 
+                  ? `⭐ ${r.name} ($${Math.round(Number(r.default_account_balance || 100000) / 1000)}K - Demo Defecto)`
+                  : `${r.name} ($${Math.round(Number(r.default_account_balance || 100000) / 1000)}K)`}
               </option>
             ))}
           </select>
@@ -71,11 +77,28 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
             <Sliders className="w-3.5 h-3.5 text-[#EAB308]" />
             <span>{t.calibrateRules}</span>
           </button>
+
+          <button
+            onClick={onOpenCreateRuleModal || onOpenRulesModal}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#EAB308] hover:bg-[#CA8A04] text-[#020617] text-xs font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>{lang === 'es' ? 'Nuevo Challenge' : 'New Challenge'}</span>
+          </button>
         </div>
       </div>
 
       {/* Franja de Parámetros Dinámicos (Sin valores hardcodeados) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 my-4 p-3 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 my-4 p-3 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">{lang === 'es' ? 'Tamaño Cuenta' : 'Account Size'}</div>
+          <div className="text-xs font-mono font-extrabold text-[#0F172A] flex items-center gap-1">
+            <span>${(Number(activeRule?.default_account_balance || 100000)).toLocaleString()}</span>
+            {activeRule?.is_default_demo && (
+              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-bold">⭐ Demo</span>
+            )}
+          </div>
+        </div>
         <div className="px-2 py-1">
           <div className="text-[10px] text-slate-500 font-bold uppercase">{t.ruleDailyLoss}</div>
           <div className="text-xs font-mono font-extrabold text-rose-700">
@@ -140,7 +163,14 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
             ) : (
               monitoredPositions.map(pos => {
                 const isLong = pos.side === 'LONG';
-                const isPosProfit = pos.floatingPnl >= 0;
+                const floatingPnl = Number(pos.floatingPnl) || 0;
+                const isPosProfit = floatingPnl >= 0;
+                const accSize = Number(pos.accountSize) || 100000;
+                const entryP = Number(pos.entryPrice) || 0;
+                const currentP = Number(pos.currentPrice) || entryP;
+                const ddPct = Number(pos.dailyDrawdownPct) || 0;
+                const maxDailyLimit = Number(activeRule?.max_daily_loss_percent) || 5;
+                const sizeLabel = pos.sizeUnits !== undefined && pos.sizeUnits !== null ? String(pos.sizeUnits) : '0';
 
                 return (
                   <tr key={pos.id} className="hover:bg-[#faf8f4] transition-colors">
@@ -152,7 +182,7 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
                     {/* Tamaño de Cuenta */}
                     <td className="py-3 px-3">
                       <span className="inline-block px-2 py-0.5 rounded-md bg-[#f5f1e8] border border-[#dcd6ca] text-[11px] font-mono font-extrabold text-[#0F172A]">
-                        ${(pos.accountSize / 1000).toFixed(0)}k USD
+                        ${(accSize / 1000).toFixed(0)}k USD
                       </span>
                     </td>
 
@@ -171,18 +201,18 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
                     </td>
 
                     <td className="py-3 px-3">
-                      <div className="font-mono font-semibold text-slate-800">{pos.sizeUnits}</div>
-                      <div className="text-[10px] text-amber-700 font-mono font-bold">{pos.leverage}x Lev</div>
+                      <div className="font-mono font-semibold text-slate-800">{sizeLabel}</div>
+                      <div className="text-[10px] text-amber-700 font-mono font-bold">{pos.leverage || 1}x Lev</div>
                     </td>
 
                     <td className="py-3 px-3 font-mono text-[11px]">
-                      <div className="text-slate-400 font-medium">${pos.entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                      <div className="text-[#0F172A] font-bold">${pos.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      <div className="text-slate-400 font-medium">${entryP.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      <div className="text-[#0F172A] font-bold">${currentP.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                     </td>
 
                     <td className="py-3 px-3 font-mono text-xs">
                       <span className={`font-extrabold ${isPosProfit ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {isPosProfit ? '+' : ''}${pos.floatingPnl.toFixed(2)}
+                        {isPosProfit ? '+' : ''}${floatingPnl.toFixed(2)}
                       </span>
                     </td>
 
@@ -191,13 +221,13 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
                         <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                           <div 
                             className={`h-full rounded-full transition-all duration-300 ${
-                              pos.dailyDrawdownPct > 4.0 ? 'bg-rose-600' : pos.dailyDrawdownPct > 2.5 ? 'bg-amber-500' : 'bg-emerald-600'
+                              ddPct > maxDailyLimit * 0.8 ? 'bg-rose-600' : ddPct > maxDailyLimit * 0.5 ? 'bg-amber-500' : 'bg-emerald-600'
                             }`}
-                            style={{ width: `${Math.min(100, (pos.dailyDrawdownPct / 5) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (ddPct / maxDailyLimit) * 100)}%` }}
                           />
                         </div>
                         <span className="font-mono text-[11px] text-slate-700 font-bold">
-                          {pos.dailyDrawdownPct}%
+                          {ddPct.toFixed(2)}%
                         </span>
                       </div>
                     </td>
@@ -224,14 +254,25 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
                     </td>
 
                     <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => onEmergencyLiquidate(pos.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-bold transition-all hover:scale-[1.02] active:scale-95"
-                        title="Liquidación forzosa inmediata a mercado"
-                      >
-                        <Zap className="w-3 h-3" />
-                        {t.btnLiquidate}
-                      </button>
+                      {pos.ruleHealth === 'BREACHED' ? (
+                        <button
+                          onClick={() => onResetAccount ? onResetAccount(pos.accountNumber || pos.id) : onEmergencyLiquidate(pos.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-extrabold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-xs"
+                          title={lang === 'es' ? 'Restablecer cuenta a estado ACTIVA' : 'Reset account to ACTIVE status'}
+                        >
+                          <RotateCcw className="w-3 h-3 text-emerald-600" />
+                          <span>{lang === 'es' ? 'Restablecer' : 'Reset'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onEmergencyLiquidate(pos.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-bold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-xs"
+                          title="Liquidación forzosa inmediata a mercado"
+                        >
+                          <Zap className="w-3 h-3" />
+                          {t.btnLiquidate}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
