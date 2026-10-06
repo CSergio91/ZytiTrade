@@ -217,6 +217,9 @@ export const TradersClientsTable: React.FC<TradersClientsTableProps> = ({
                       </div>
                       <div className="text-[10px] text-slate-400 font-medium">
                         Alta: {new Date(trader.createdAt).toLocaleDateString()}
+                        {trader.tradingDaysCount !== undefined && (
+                          <span className="ml-1 font-mono text-slate-500">· {trader.tradingDaysCount}d op.</span>
+                        )}
                       </div>
                     </td>
 
@@ -269,6 +272,11 @@ export const TradersClientsTable: React.FC<TradersClientsTableProps> = ({
                           {trader.dailyDrawdownPct}%
                         </span>
                       </div>
+                      {trader.dailyStartEquity ? (
+                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                          Base UTC: ${Math.round(trader.dailyStartEquity).toLocaleString()}
+                        </div>
+                      ) : null}
                     </td>
 
                     {/* Estado Sentinela Interactivo */}

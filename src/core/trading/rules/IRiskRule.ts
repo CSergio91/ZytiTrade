@@ -4,7 +4,7 @@
  * Desacoplada al 100% para permitir configuración dinámica desde Supabase o APIs de Prop Firms.
  */
 
-import { OrderRequest, AccountMetrics, PropFirmRuleConfig } from '../types';
+import { OrderRequest, AccountMetrics, PropFirmRuleConfig, PositionItem } from '../types';
 
 export interface PreTradeContext {
   req: OrderRequest;
@@ -16,6 +16,8 @@ export interface PreTradeContext {
   sizeUnits: number;
   estimatedLossUsd: number;
   estimatedProfitUsd: number;
+  openPositions?: PositionItem[];
+  todayRealizedPnl?: number;
 }
 
 export interface InFlightContext {

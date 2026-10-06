@@ -90,6 +90,21 @@ export function useCrmDashboard() {
               : pos
           )
         );
+      } else if (msg.type === 'CRM_DAILY_ROLLOVER' && msg.data) {
+        const rollover = msg.data;
+        setTraders((prev) =>
+          prev.map((t) =>
+            (t.id === rollover.accountId || t.accountNumber === rollover.accountNumber)
+              ? {
+                  ...t,
+                  dailyStartEquity: rollover.newDailyStartEquity,
+                  dailyStartDate: rollover.date,
+                  tradingDaysCount: rollover.tradingDaysCount,
+                  dailyDrawdownPct: 0
+                }
+              : t
+          )
+        );
       }
     });
 
@@ -201,6 +216,14 @@ export function useCrmDashboard() {
     });
   };
 
+  const handleDeleteRule = async (ruleId: string) => {
+    await crmService.deleteRiskRule(ruleId);
+    setRiskRules(prev => prev.filter(r => r.id !== ruleId));
+    if (selectedRuleId === ruleId) {
+      setSelectedRuleId(riskRules.find(r => r.id !== ruleId)?.id || '');
+    }
+  };
+
   // Acciones de API Credentials
   const handleCreateApiKey = async (params: {
     name: string;
@@ -263,6 +286,7 @@ export function useCrmDashboard() {
     handleUpdateTraderStatus,
     handleResetTraderBalance,
     handleSaveRule,
+    handleDeleteRule,
     handleCreateApiKey,
     handleToggleApiKey,
     handleDeleteApiKey,

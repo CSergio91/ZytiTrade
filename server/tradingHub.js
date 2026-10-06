@@ -184,6 +184,27 @@ const riskDaemon = new RiskDaemon({
       timestamp: Date.now()
     });
   },
+  onAccountPassed: (passData) => {
+    // 1. Notificar inmediatamente al trader que aprobó su evaluación
+    fanOutToClients(passData.accountId, {
+      type: 'CHALLENGE_PASSED',
+      payload: passData
+    });
+
+    // 2. Publicar en Redis
+    if (isRedisActive && redisPub) {
+      try {
+        redisPub.publish('channel:risk:passed', JSON.stringify(passData));
+      } catch (_) {}
+    }
+
+    // 3. Notificar al CRM institucional
+    broadcastToCrm({
+      type: 'CRM_ACCOUNT_PASSED',
+      data: passData,
+      timestamp: Date.now()
+    });
+  },
   onMetricsUpdate: (metrics) => {
     // Sincronizar estado en caliente local
     const cur = localHotState.get(metrics.accountId) || {};
@@ -227,6 +248,37 @@ const riskDaemon = new RiskDaemon({
     broadcastToCrm({
       type: 'CRM_MONITORED_POSITIONS',
       positions,
+      timestamp: Date.now()
+    });
+  },
+  onDailyRollover: (rolloverData) => {
+    // 1. Notificar inmediatamente al trader en su terminal (PC, móvil, tablet)
+    fanOutToClients(rolloverData.accountId, {
+      type: 'DAILY_ROLLOVER',
+      payload: {
+        accountId: rolloverData.accountId,
+        accountNumber: rolloverData.accountNumber,
+        newDailyStartEquity: rolloverData.newDailyStartEquity,
+        previousDailyBase: rolloverData.previousDailyBase,
+        date: rolloverData.date,
+        equity: rolloverData.equity,
+        balance: rolloverData.balance,
+        tradingDaysCount: rolloverData.tradingDaysCount,
+        timestamp: rolloverData.timestamp
+      }
+    });
+
+    // 2. Publicar en Redis canal prioritario de rollover
+    if (isRedisActive && redisPub) {
+      try {
+        redisPub.publish('channel:risk:rollover', JSON.stringify(rolloverData));
+      } catch (_) {}
+    }
+
+    // 3. Notificar al CRM institucional
+    broadcastToCrm({
+      type: 'CRM_DAILY_ROLLOVER',
+      data: rolloverData,
       timestamp: Date.now()
     });
   }
@@ -489,11 +541,91 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (url.pathname.startsWith('/api/state/')) {
-    const accountId = url.pathname.replace('/api/state/', '');
-    const state = localHotState.get(accountId) || null;
+  if (url.pathname === '/api/risk/rollover-status') {
+    const status = riskDaemon.getRolloverStatus();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ accountId, state }));
+    res.end(JSON.stringify({ success: true, ...status }));
+    return;
+  }
+
+  if (url.pathname === '/api/risk/trigger-rollover' && (req.method === 'POST' || req.method === 'GET')) {
+    const targetDate = url.searchParams.get('date') || null;
+    riskDaemon.performDailyRollover(targetDate).then((results) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Rollover diario ejecutado con éxito',
+        accountsProcessed: results.length,
+        results,
+        timestamp: Date.now()
+      }));
+    }).catch((err) => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    });
+    return;
+  }
+
+  // Endpoint para simulación y validación en tiempo real de órdenes contra reglas
+  if (url.pathname === '/api/risk/simulate-order' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { rulesConfig, accountState, order } = JSON.parse(body || '{}');
+        const posMap = new Map();
+        if (Array.isArray(accountState?.positions)) {
+          accountState.positions.forEach(p => {
+            posMap.set(p.id || Math.random().toString(), {
+              ...p,
+              normSymbol: normalizeSymbol(p.symbol)
+            });
+          });
+        }
+        const simulatedAcc = {
+          id: accountState?.id || 'sim_acc',
+          accountNumber: accountState?.accountNumber || 'SIM-TEST-001',
+          status: accountState?.status || 'ACTIVE',
+          breachReason: accountState?.breachReason || null,
+          positions: posMap,
+          rulesConfig: rulesConfig || {}
+        };
+        const validation = riskDaemon.validatePreTrade(simulatedAcc, order || {});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, validation, timestamp: Date.now() }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Endpoint institucional de prueba regla por regla (Test Sandbox en Vivo)
+  if (url.pathname === '/api/risk/test-rule' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { ruleType, ruleConfig, accountState, testPayload } = JSON.parse(body || '{}');
+        const start = performance.now();
+        const result = riskDaemon.testRule(ruleType, ruleConfig, accountState, testPayload);
+        const serverLatencyMs = parseFloat((performance.now() - start).toFixed(3));
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          type: 'RULE_TEST_RESULT',
+          ruleType,
+          result,
+          serverLatencyMs,
+          timestamp: Date.now()
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
     return;
   }
 
@@ -778,6 +910,22 @@ wss.on('connection', (ws, req) => {
             mode: isRedisActive ? 'REDIS_CLUSTER' : 'LOCAL_IN_MEMORY',
             memoryHeapMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
             memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
+          }));
+          break;
+        }
+
+        case 'TEST_RISK_RULE': {
+          const { ruleType, ruleConfig, accountState, testPayload } = message;
+          const start = performance.now();
+          const result = riskDaemon.testRule(ruleType, ruleConfig, accountState, testPayload);
+          const serverLatencyMs = parseFloat((performance.now() - start).toFixed(3));
+
+          ws.send(JSON.stringify({
+            type: 'RULE_TEST_RESULT',
+            ruleType,
+            result,
+            serverLatencyMs,
+            timestamp: Date.now()
           }));
           break;
         }

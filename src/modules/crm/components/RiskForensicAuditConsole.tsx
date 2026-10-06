@@ -355,6 +355,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
       mandatory_stop_loss: !!rConf.mandatoryStopLoss,
       weekend_holding_allowed: rConf.weekendHoldingAllowed !== false,
       consistency_rule_percent: Number(rConf.consistencyRulePercent ?? 40.0),
+      profit_split_percent: Number(rConf.profitSplitPercent ?? rConf.profit_split_percent ?? 80.0),
       min_trading_days: Number(rConf.minTradingDays ?? 5),
       default_account_balance: acc.initialBalance || 100000,
       is_default_demo: false,
@@ -1409,6 +1410,8 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
         lang={lang}
         onClose={() => setIsRuleModalOpen(false)}
         ruleToEdit={accountRuleToEdit}
+        availableRules={rules}
+        onNavigateToChallenges={onOpenRulesModal}
         onSaveRule={handleSaveAccountRules}
       />
     </div>

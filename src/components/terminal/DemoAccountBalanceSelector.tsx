@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check, ShieldAlert, Award, RotateCcw, ShieldCheck, Layers } from 'lucide-react';
+import { ChevronDown, Check, ShieldAlert, Award, RotateCcw, ShieldCheck, Layers, Clock } from 'lucide-react';
 import { PropFirmAccount } from '../../lib/supabase';
 
 interface DemoAccountBalanceSelectorProps {
@@ -8,6 +8,8 @@ interface DemoAccountBalanceSelectorProps {
   isEs: boolean;
   accounts?: PropFirmAccount[];
   activeAccountId?: string;
+  dailyStartEquity?: number;
+  tradingDaysCount?: number;
   onSelectAmount?: (amount: number) => void;
   onSelectAccount?: (account: PropFirmAccount | null) => void;
   onResetToCurrent: () => void;
@@ -19,11 +21,43 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
   isEs,
   accounts = [],
   activeAccountId,
+  dailyStartEquity,
+  tradingDaysCount,
   onSelectAccount,
   onResetToCurrent
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Reloj y Cuenta Regresiva de Cambio de Día UTC (00:00:00 UTC Rollover)
+  const [utcCountdown, setUtcCountdown] = useState<string>('');
+  const [utcClock, setUtcClock] = useState<string>('');
+
+  useEffect(() => {
+    const updateUtcTimer = () => {
+      const now = new Date();
+      const hours = now.getUTCHours();
+      const minutes = now.getUTCMinutes();
+      const seconds = now.getUTCSeconds();
+
+      setUtcClock(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+
+      const nextMidnightUtc = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0, 0, 0, 0
+      ));
+      const diffMs = Math.max(0, nextMidnightUtc.getTime() - now.getTime());
+      const remHours = Math.floor(diffMs / 3600000);
+      const remMins = Math.floor((diffMs % 3600000) / 60000);
+      setUtcCountdown(`${String(remHours).padStart(2, '0')}h ${String(remMins).padStart(2, '0')}m`);
+    };
+
+    updateUtcTimer();
+    const interval = setInterval(updateUtcTimer, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -106,7 +140,7 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
           <div className="absolute top-full left-0 mt-1.5 w-80 sm:w-92 bg-white border border-[#ded5c5] rounded-2xl shadow-2xl py-3 px-3.5 z-50 animate-in fade-in-50 zoom-in-95 duration-150">
             
             {/* Cabecera del Gestor de Cuentas */}
-            <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[#ece7dc]">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#ece7dc]">
               <div className="flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-amber-600" />
                 <div>
@@ -121,6 +155,18 @@ export const DemoAccountBalanceSelector: React.FC<DemoAccountBalanceSelectorProp
               <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                 {accounts.length} {accounts.length === 1 ? (isEs ? 'cuenta' : 'account') : (isEs ? 'cuentas' : 'accounts')}
               </span>
+            </div>
+
+            {/* BARRA INFORMATIVA DE CAMBIO DE DÍA UTC (00:00 UTC ROLLOVER) */}
+            <div className="flex items-center justify-between px-2.5 py-1.5 mb-2.5 rounded-xl bg-amber-500/10 border border-amber-300/80 text-[10px] font-mono select-none">
+              <div className="flex items-center gap-1.5 text-amber-950 font-bold">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>UTC {utcClock}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-500 text-[9px]">{isEs ? 'Reset diario en: ' : 'Daily reset in: '}</span>
+                <strong className="text-amber-900 font-extrabold">{utcCountdown}</strong>
+              </div>
             </div>
 
             {/* LISTADO DE CUENTAS DISPONIBLES PARA EL TRADER */}

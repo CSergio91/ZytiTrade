@@ -74,6 +74,31 @@ El Risk Engine actúa como la **última línea de defensa** inexpugnable. Se eje
 5. **Deduplicación Estricta:** Detección de órdenes gemelas en ventanas de tiempo inferiores a 100ms.
 6. **Kill Switch Global:** Bandera booleana en memoria capaz de suspender toda emisión de órdenes de emergencia con un solo comando administrativo.
 
+### 3.1 Arquitectura Desacoplada de Reglas: 1 Archivo por Regla (Mandato Estricto)
+
+Para garantizar extensibilidad sin regresiones, cumplimiento de los principios SOLID y mantenimiento modular en plataformas de fondeo:
+
+> **REGLA ARQUITECTÓNICA INVIOLABLE:**
+> Cada regla de riesgo (Pre-Trade o In-Flight / Post-Trade) **debe residir obligatoriamente en su propio archivo individual independiente** dentro del directorio `src/core/trading/rules/<RuleName>Rule.ts` implementando la interfaz canónica `IRiskRule`.
+> Queda terminantemente prohibido codificar reglas de riesgo de forma monolítica, inline o incrustadas en controladores, sockets o interfaces de usuario.
+
+```typescript
+// Contrato institucional para cada regla desacoplada:
+export interface IRiskRule {
+  readonly id: string;
+  readonly name: string;
+  readonly type: 'PRE_TRADE' | 'POST_TRADE' | 'IN_FLIGHT';
+  validate(context: PreTradeContext, config: PropFirmRuleConfig): RiskValidationResult;
+}
+```
+
+#### Convenciones de Implementación:
+1. **Archivo Único por Regla:** Ubicación obligatoria en `src/core/trading/rules/<NombreDeRegla>Rule.ts` (ej: `MaxDailyDrawdownRule.ts`, `AntiHedgingRule.ts`, `QualifiedMinTradingDaysRule.ts`, `ConsistencyRule.ts`, `MicroscalpingRule.ts`, etc.).
+2. **Barrel Export:** Toda nueva regla debe registrarse y exportarse formalmente en `src/core/trading/rules/index.ts`.
+3. **Pipeline Dinámico:** Se inyecta en el orquestador `RiskPipeline` dentro de `RiskEngine.ts` mediante `RiskEngine.createPipelineForFirm()`, permitiendo activar, desactivar o parametrizar reglas según el plan o challenge del trader.
+4. **Respuesta Tipada:** Toda regla debe retornar `{ passed: boolean, reason?: string, details?: any }`.
+
+
 ---
 
 ## 4. Smart Order Router (SOR): Cálculo del Coste Real de Ejecución
@@ -195,6 +220,7 @@ El ciclo de vida del trading se conecta de forma reactiva con el **Telegram Bot 
 
 ## 9. Checklist de Verificación para Agentes de IA
 
+- [ ] ¿Cada regla de riesgo institucional cuenta con su **archivo individual independiente** en `src/core/trading/rules/<RuleName>Rule.ts` implementando `IRiskRule` y exportado en `rules/index.ts`?
 - [ ] ¿El Risk Engine se ejecuta de forma **síncrona en memoria** antes de invocar los adaptadores externos?
 - [ ] ¿El SOR calcula el coste real considerando la profundidad L2 del orderbook y las comisiones de maker/taker?
 - [ ] ¿Cada orden cuenta con un cerrojo de idempotencia en Redis con `client_order_id` antes del envío?

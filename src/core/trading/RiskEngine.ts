@@ -12,6 +12,16 @@ import {
   MaxDailyDrawdownRule,
   MaxTotalDrawdownRule,
   MandatoryStopLossRule,
+  AntiHedgingRule,
+  MaxPositionsPerSymbolRule,
+  MaxTotalOpenPositionsRule,
+  QualifiedMinTradingDaysRule,
+  ConsistencyRule,
+  MicroscalpingRule,
+  WeekendHoldingRule,
+  NewsTradingRule,
+  InactivityPeriodRule,
+  ProfitTargetRule,
   PreTradeContext,
   InFlightContext
 } from './rules';
@@ -46,9 +56,33 @@ export class RiskEngine {
       new MaxTotalDrawdownRule()
     ]);
 
-    // Si la firma exige SL obligatorio de forma estricta
-    if (rules.id?.includes('strict') || rules.firmName?.toLowerCase().includes('strict')) {
+    // Reglas dinámicas inyectadas según el preset de la firma
+    if (rules.mandatoryStopLoss || rules.id?.includes('strict') || rules.firmName?.toLowerCase().includes('strict')) {
       pipeline.addRule(new MandatoryStopLossRule());
+    }
+    if (rules.antiHedgingEnabled) {
+      pipeline.addRule(new AntiHedgingRule());
+    }
+    if (rules.maxPositionsPerSymbolEnabled) {
+      pipeline.addRule(new MaxPositionsPerSymbolRule());
+    }
+    if (rules.maxTotalOpenPositionsEnabled) {
+      pipeline.addRule(new MaxTotalOpenPositionsRule());
+    }
+    if (rules.allowWeekendHolding === false) {
+      pipeline.addRule(new WeekendHoldingRule());
+    }
+    if (rules.allowNewsTrading === false) {
+      pipeline.addRule(new NewsTradingRule());
+    }
+    if (rules.inactivityDaysLimit) {
+      pipeline.addRule(new InactivityPeriodRule());
+    }
+    if (rules.minTradingDays) {
+      pipeline.addRule(new QualifiedMinTradingDaysRule());
+    }
+    if (rules.profitTargetPercent) {
+      pipeline.addRule(new ProfitTargetRule());
     }
 
     return pipeline;

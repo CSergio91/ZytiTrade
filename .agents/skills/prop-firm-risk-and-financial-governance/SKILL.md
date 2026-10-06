@@ -143,6 +143,7 @@ El motor de gobernanza financiera utiliza el **Telegram Bot Engine** para preven
 
 ## 7. Checklist de Verificación para Agentes de IA
 
+- [ ] ¿Cada regla de trading y riesgo institucional reside en su **archivo individual dedicado** dentro de `src/core/trading/rules/` implementando `IRiskRule`?
 - [ ] ¿El sistema calcula el ratio de solvencia de forma continua y alerta si desciende de 2.0?
 - [ ] ¿El motor de riesgo implementa la fórmula EOD sin penalizar el flotante intradía en las cuentas configuradas con esta modalidad?
 - [ ] ¿La regla de consistencia del 40% valida de forma determinista la distribución de beneficios antes de permitir una solicitud de retiro?

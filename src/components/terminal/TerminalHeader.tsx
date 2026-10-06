@@ -24,6 +24,8 @@ interface TerminalHeaderProps {
   connectionStatus: AdapterConnectionStatus;
   activeAccountId?: string;
   accounts?: PropFirmAccount[];
+  dailyStartEquity?: number;
+  tradingDaysCount?: number;
   onSelectExchange: (exchange: string) => void;
   onSelectMarketType: (marketType: MarketType) => void;
   onSelectPair: (pair: string) => void;
@@ -50,6 +52,8 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   connectionStatus,
   activeAccountId,
   accounts,
+  dailyStartEquity,
+  tradingDaysCount,
   onSelectExchange,
   onSelectMarketType,
   onSelectPair,
@@ -98,6 +102,8 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
             isEs={isEs}
             accounts={accounts && accounts.length > 0 ? accounts : (user?.accounts || [])}
             activeAccountId={activeAccountId}
+            dailyStartEquity={dailyStartEquity}
+            tradingDaysCount={tradingDaysCount}
             onSelectAmount={onSelectBalanceAmount}
             onSelectAccount={onSelectAccount}
             onResetToCurrent={onResetBalance || (() => {})}

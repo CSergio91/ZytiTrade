@@ -16,8 +16,12 @@ export interface PropFirmAccount {
   initialBalance: number;
   currentBalance: number;
   equity: number;
+  dailyStartEquity?: number;
+  dailyStartDate?: string;
+  tradingDaysCount?: number;
+  lastTradeDate?: string;
   status: 'ACTIVE' | 'PASSED' | 'BREACHED' | 'FROZEN' | 'WARNING';
-  rulesConfig: {
+  rulesConfig: Record<string, any> & {
     maxDailyDrawdownPct?: number;
     maxTotalDrawdownPct?: number;
     profitTargetPct?: number;
@@ -121,6 +125,10 @@ export async function fetchTraderAccounts(identifier: string): Promise<PropFirmA
         initial_balance,
         current_balance,
         equity,
+        daily_start_equity,
+        daily_start_date,
+        trading_days_count,
+        last_trade_date,
         status,
         rules_config,
         prop_firms (
@@ -150,6 +158,10 @@ export async function fetchTraderAccounts(identifier: string): Promise<PropFirmA
       initialBalance: Number(row.initial_balance),
       currentBalance: Number(row.current_balance),
       equity: Number(row.equity),
+      dailyStartEquity: row.daily_start_equity ? Number(row.daily_start_equity) : Number(row.initial_balance),
+      dailyStartDate: row.daily_start_date ? String(row.daily_start_date) : undefined,
+      tradingDaysCount: row.trading_days_count !== undefined ? Number(row.trading_days_count) : 0,
+      lastTradeDate: row.last_trade_date ? String(row.last_trade_date) : undefined,
       status: row.status,
       rulesConfig: row.rules_config || {}
     }));

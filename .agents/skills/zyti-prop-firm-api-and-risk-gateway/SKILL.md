@@ -397,6 +397,40 @@ Trader Desktop         Trader Mobile          CRM Admin (Nexus)
    - Tamaño = $\text{Margen USDT} \times \text{Apalancamiento} = \text{Nocional USD}$.
    - Unidades = $\text{Nocional USD} / \text{Precio de Entrada}$.
 
+### 5.3 Gobernanza de Implementación: 1 Archivo por Regla (`src/core/trading/rules/`)
+
+El Risk Engine (tanto en frontend como en el daemon backend) opera bajo una **arquitectura desacoplada basada en plugins (Chain of Responsibility)**:
+
+> **PRINCIPIO ARQUITECTÓNICO FUNDAMENTAL:**
+> Cada regla institucional (Pre-Trade o In-Flight) **debe residir obligatoriamente en su propio archivo independiente** dentro de `src/core/trading/rules/<RuleName>Rule.ts` implementando la interfaz `IRiskRule`.
+> Queda estrictamente prohibido acumular reglas de validación en bloques switch/case gigantes o embebidas dentro de daemons o vistas.
+
+#### Estructura Canónica de Archivos:
+```text
+src/core/trading/rules/
+├── AllowedExchangesRule.ts          # Restricción de exchanges autorizados
+├── AntiHedgingRule.ts               # Bloqueo de posiciones opuestas simultáneas
+├── ConsistencyRule.ts               # Regla de consistencia (máx % beneficio en 1 día)
+├── InactivityPeriodRule.ts          # Detección de cuentas inactivas
+├── MandatoryStopLossRule.ts         # Exigencia obligatoria de Stop Loss al abrir orden
+├── MaxDailyDrawdownRule.ts          # Límite de pérdida diaria (EOD o Trailing Equity)
+├── MaxLeverageRule.ts               # Apalancamiento máximo permitido
+├── MaxPositionsPerSymbolRule.ts     # Límite de exposición / operaciones por par
+├── MaxTotalDrawdownRule.ts          # Drawdown total máximo
+├── MaxTotalOpenPositionsRule.ts     # Límite global de operaciones abiertas concurrentes
+├── MicroscalpingRule.ts             # Prohibición de trades de latencia ultra-corta (< 10s)
+├── NewsTradingRule.ts               # Restricción de operaciones en ventanas de noticias de alto impacto
+├── ProfitTargetRule.ts              # Detección automática de objetivo cumplido (Passed Challenge)
+├── QualifiedMinTradingDaysRule.ts   # Días mínimos con umbral mínimo de ganancia/volumen
+├── WeekendHoldingRule.ts            # Bloqueo de tenencia de posiciones en fin de semana
+└── index.ts                         # Barrel export unificado de todas las reglas
+```
+
+#### Ciclo de Registro:
+1. La regla implementa `validate(context: PreTradeContext, config: PropFirmRuleConfig): RiskValidationResult`.
+2. Se exporta formalmente en `src/core/trading/rules/index.ts`.
+3. `RiskEngine.createPipelineForFirm(firmConfig)` instancia e inyecta la regla en la tubería `RiskPipeline` dinámicamente según la parametrización de la empresa o challenge.
+4. El backend `riskDaemon.js` y el simulador interactivo de challenges respetan y validan exactamente los mismos parámetros tipados.
 
 ---
 

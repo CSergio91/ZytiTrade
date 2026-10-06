@@ -139,6 +139,9 @@ export const crmService = {
           floatingPnl: pnl,
           dailyDrawdownPct: dailyDd,
           totalDrawdownPct: Number((Math.max(0, (initialSize - equity) / initialSize * 100)).toFixed(2)),
+          dailyStartEquity: realAccount?.daily_start_equity ? Number(realAccount.daily_start_equity) : initialSize,
+          dailyStartDate: realAccount?.daily_start_date || new Date().toISOString().slice(0, 10),
+          tradingDaysCount: realAccount?.trading_days_count || 0,
           status,
           lastActivity: new Date(Date.now() - 1000 * 60 * (index * 15 + 5)).toLocaleTimeString()
         };
@@ -794,10 +797,12 @@ export const crmService = {
         .order('created_at', { ascending: false });
 
       if (error || !data) {
+        console.warn('[CRM Service] Error fetching risk_rule_configs from Supabase:', error);
         const local = localStorage.getItem('zyti_crm_risk_rules');
         if (local) return JSON.parse(local);
         return [];
       }
+      localStorage.setItem('zyti_crm_risk_rules', JSON.stringify(data));
       return data as RiskRuleConfigEntity[];
     } catch {
       const local = localStorage.getItem('zyti_crm_risk_rules');
@@ -814,16 +819,30 @@ export const crmService = {
     const ruleToSave: RiskRuleConfigEntity = {
       id: rule.id || crypto.randomUUID(),
       name: rule.name || 'Regla Personalizada',
+      model_type: rule.model_type || 'ONE_PHASE',
       profit_target_percent: rule.profit_target_percent ?? 10.0,
+      profit_target_phase2_percent: rule.profit_target_phase2_percent ?? null,
       max_daily_loss_percent: rule.max_daily_loss_percent ?? 5.0,
       max_total_drawdown_percent: rule.max_total_drawdown_percent ?? 10.0,
       max_trailing_drawdown_percent: rule.max_trailing_drawdown_percent ?? null,
       drawdown_type: rule.drawdown_type || 'EOD',
       max_leverage: rule.max_leverage ?? 100,
       mandatory_stop_loss: !!rule.mandatory_stop_loss,
+      max_positions_per_symbol_enabled: !!rule.max_positions_per_symbol_enabled,
+      max_positions_per_symbol: rule.max_positions_per_symbol ?? 2,
+      max_total_open_positions_enabled: !!rule.max_total_open_positions_enabled,
+      max_total_open_positions: rule.max_total_open_positions ?? 5,
+      anti_hedging_enabled: !!rule.anti_hedging_enabled,
+      max_risk_per_trade_percent: rule.max_risk_per_trade_percent ?? null,
       weekend_holding_allowed: rule.weekend_holding_allowed ?? true,
+      min_trade_duration_seconds: rule.min_trade_duration_seconds ?? 10,
+      news_trading_allowed: rule.news_trading_allowed ?? true,
       consistency_rule_percent: rule.consistency_rule_percent ?? 40.0,
       min_trading_days: rule.min_trading_days ?? 5,
+      min_daily_profit_type: rule.min_daily_profit_type || 'PERCENT',
+      min_daily_profit_value: rule.min_daily_profit_value ?? 0.5,
+      profit_split_percent: rule.profit_split_percent ?? 80.0,
+      inactivity_days_limit: rule.inactivity_days_limit ?? 30,
       default_account_balance: rule.default_account_balance ?? 100000.00,
       is_default_demo: !!rule.is_default_demo,
       is_active: rule.is_active ?? true,
@@ -840,14 +859,12 @@ export const crmService = {
       if (isNew) {
         const { error: insErr } = await supabase.from('risk_rule_configs').insert(dbPayload);
         if (insErr) {
-          delete dbPayload.profit_target_percent;
-          await supabase.from('risk_rule_configs').insert(dbPayload);
+          console.warn('[CRM Service] Error inserting risk_rule_configs:', insErr);
         }
       } else {
         const { error: updErr } = await supabase.from('risk_rule_configs').update(dbPayload).eq('id', ruleToSave.id);
         if (updErr) {
-          delete dbPayload.profit_target_percent;
-          await supabase.from('risk_rule_configs').update(dbPayload).eq('id', ruleToSave.id);
+          console.warn('[CRM Service] Error updating risk_rule_configs:', updErr);
         }
       }
     } catch (e) {
@@ -864,6 +881,20 @@ export const crmService = {
   },
 
   /**
+   * Elimina un preset de reglas de riesgo de la base de datos
+   */
+  async deleteRiskRule(id: string): Promise<void> {
+    try {
+      await supabase.from('risk_rule_configs').delete().eq('id', id);
+    } catch (e) {
+      console.warn('[CRM Service] Error deleting risk_rule_configs:', e);
+    }
+    const current = await this.getRiskRules();
+    const updated = current.filter(r => r.id !== id);
+    localStorage.setItem('zyti_crm_risk_rules', JSON.stringify(updated));
+  },
+
+  /**
    * Calibra y actualiza las reglas dinámicas de una cuenta específica en Supabase y el RiskDaemon
    */
   async updateAccountRulesConfig(
@@ -871,17 +902,32 @@ export const crmService = {
     rule: Partial<RiskRuleConfigEntity>
   ): Promise<void> {
     const rulesConfig = {
+      challengeRuleId: rule.id || undefined,
       challengeName: rule.name || 'Challenge Calibrado',
+      modelType: rule.model_type || 'ONE_PHASE',
       profitTargetPct: Number(rule.profit_target_percent ?? 10.0),
+      profitTargetPhase2Pct: rule.profit_target_phase2_percent ? Number(rule.profit_target_phase2_percent) : null,
       maxDailyDrawdownPct: Number(rule.max_daily_loss_percent ?? 5.0),
       maxTotalDrawdownPct: Number(rule.max_total_drawdown_percent ?? 10.0),
       maxTrailingDrawdownPct: rule.max_trailing_drawdown_percent ? Number(rule.max_trailing_drawdown_percent) : null,
       drawdownType: rule.drawdown_type || 'EOD',
       maxLeverage: Number(rule.max_leverage ?? 100),
       mandatoryStopLoss: !!rule.mandatory_stop_loss,
+      maxPositionsPerSymbolEnabled: !!rule.max_positions_per_symbol_enabled,
+      maxPositionsPerSymbol: Number(rule.max_positions_per_symbol ?? 2),
+      maxTotalPositionsEnabled: !!rule.max_total_open_positions_enabled,
+      maxTotalPositions: Number(rule.max_total_open_positions ?? 5),
+      antiHedgingEnabled: !!rule.anti_hedging_enabled,
+      maxRiskPerTradePct: rule.max_risk_per_trade_percent ? Number(rule.max_risk_per_trade_percent) : null,
       weekendHoldingAllowed: rule.weekend_holding_allowed ?? true,
+      minTradeDurationSeconds: Number(rule.min_trade_duration_seconds ?? 10),
+      newsTradingAllowed: rule.news_trading_allowed ?? true,
       consistencyRulePercent: Number(rule.consistency_rule_percent ?? 40.0),
-      minTradingDays: Number(rule.min_trading_days ?? 5)
+      minTradingDays: Number(rule.min_trading_days ?? 5),
+      minDailyProfitType: rule.min_daily_profit_type || 'PERCENT',
+      minDailyProfitValue: Number(rule.min_daily_profit_value ?? 0.5),
+      profitSplitPercent: Number(rule.profit_split_percent ?? 80.0),
+      inactivityDaysLimit: Number(rule.inactivity_days_limit ?? 30)
     };
 
     try {

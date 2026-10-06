@@ -101,13 +101,30 @@ export interface PropFirmRuleConfig {
   id: string;
   firmName: string; // e.g. "FTMO", "Funding Pips", "E8", "ZYTI Prop"
   initialBalance: number;
+  modelType?: 'INSTANT_FUNDING' | 'ONE_PHASE' | 'TWO_PHASE';
   maxDailyLossPercent: number; // e.g. 5% diario
   maxTotalDrawdownPercent: number; // e.g. 10% total
   maxTrailingDrawdownPercent?: number; // e.g. 6% trailing
+  drawdownType?: 'EOD' | 'TRAILING_EQUITY';
+  profitTargetPercent?: number;
+  profitTargetPhase2Percent?: number;
   maxLeverage: number; // e.g. 30x o 100x
+  mandatoryStopLoss?: boolean;
+  maxPositionsPerSymbolEnabled?: boolean;
+  maxPositionsPerSymbol?: number;
+  maxTotalOpenPositionsEnabled?: boolean;
+  maxTotalOpenPositions?: number;
+  antiHedgingEnabled?: boolean;
+  maxRiskPerTradePercent?: number;
+  consistencyRulePercent?: number;
+  minTradingDays?: number;
+  minDailyProfitType?: 'PERCENT' | 'AMOUNT';
+  minDailyProfitValue?: number;
   allowWeekendHolding?: boolean;
   allowNewsTrading?: boolean;
-  minTradingDays?: number;
+  minTradeDurationSeconds?: number;
+  profitSplitPercent?: number;
+  inactivityDaysLimit?: number;
 }
 
 export interface RiskCheckResult {

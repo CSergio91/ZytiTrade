@@ -14,6 +14,7 @@ import {
   PropFirmRuleConfig 
 } from './types';
 import { RiskEngine, DEFAULT_PROP_FIRM_RULES } from './RiskEngine';
+import { RiskPipeline } from './rules';
 
 // Generador de UUIDv4 compatible con navegadores, túneles locales y workers
 export const generateTradeId = (): string => {
@@ -64,10 +65,12 @@ export class TradingEngine {
     currentPrice: number,
     entryTimestamp: number,
     metrics: AccountMetrics,
-    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES
+    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES,
+    customPipeline?: RiskPipeline
   ): { success: boolean; position?: PositionItem; error?: string } {
-    // 1. Pre-Trade Risk Validation
-    const riskCheck = RiskEngine.evaluateOrderRisk(req, metrics, currentPrice, rules);
+    // 1. Pre-Trade Risk Validation con Pipeline Dinámico de la Cuenta
+    const pipeline = customPipeline || RiskEngine.createPipelineForFirm(rules);
+    const riskCheck = RiskEngine.evaluateOrderRisk(req, metrics, currentPrice, rules, pipeline);
     if (!riskCheck.allowed) {
       return { success: false, error: riskCheck.reason };
     }
@@ -292,14 +295,16 @@ export class TradingEngine {
     limitPrice: number,
     currentPrice: number,
     metrics: AccountMetrics,
-    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES
+    rules: PropFirmRuleConfig = DEFAULT_PROP_FIRM_RULES,
+    customPipeline?: RiskPipeline
   ): { success: boolean; limitOrder?: LimitOrderItem; error?: string } {
     if (!limitPrice || isNaN(limitPrice) || limitPrice <= 0) {
       return { success: false, error: 'Precio límite no válido' };
     }
 
-    // 1. Pre-Trade Risk Validation contra el precio límite
-    const riskCheck = RiskEngine.evaluateOrderRisk(req, metrics, limitPrice, rules);
+    // 1. Pre-Trade Risk Validation contra el precio límite con Pipeline Dinámico
+    const pipeline = customPipeline || RiskEngine.createPipelineForFirm(rules);
+    const riskCheck = RiskEngine.evaluateOrderRisk(req, metrics, limitPrice, rules, pipeline);
     if (!riskCheck.allowed) {
       return { success: false, error: riskCheck.reason };
     }

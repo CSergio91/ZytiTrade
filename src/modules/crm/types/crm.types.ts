@@ -43,23 +43,49 @@ export interface ApiCredentialEntity {
   raw_secret_key?: string;
 }
 
+export type ChallengeModelType = 'INSTANT_FUNDING' | 'ONE_PHASE' | 'TWO_PHASE';
+export type MinDailyProfitType = 'PERCENT' | 'AMOUNT';
+
 export interface RiskRuleConfigEntity {
   id: string;
   firm_id?: string | null;
   name: string;
-  max_daily_loss_percent: number;
-  max_total_drawdown_percent: number;
-  profit_target_percent?: number;
-  max_trailing_drawdown_percent?: number | null;
-  drawdown_type: 'EOD' | 'TRAILING_EQUITY';
-  max_leverage: number;
-  mandatory_stop_loss: boolean;
-  weekend_holding_allowed: boolean;
-  consistency_rule_percent: number;
-  min_trading_days: number;
+  model_type?: ChallengeModelType;
   default_account_balance?: number;
   is_default_demo?: boolean;
   is_active: boolean;
+
+  // Drawdowns
+  drawdown_type: 'EOD' | 'TRAILING_EQUITY';
+  max_daily_loss_percent: number;
+  max_total_drawdown_percent: number;
+  max_trailing_drawdown_percent?: number | null;
+
+  // Calificación & Objetivos
+  profit_target_percent?: number;
+  profit_target_phase2_percent?: number | null;
+  min_trading_days: number;
+  min_daily_profit_type?: MinDailyProfitType;
+  min_daily_profit_value?: number;
+  consistency_rule_percent: number;
+
+  // Operativa & Exposición (Pre-Trade)
+  max_leverage: number;
+  mandatory_stop_loss: boolean;
+  max_positions_per_symbol_enabled?: boolean;
+  max_positions_per_symbol?: number;
+  max_total_open_positions_enabled?: boolean;
+  max_total_open_positions?: number;
+  anti_hedging_enabled?: boolean;
+  max_risk_per_trade_percent?: number | null;
+
+  // Restricciones de Tiempo & Gobierno
+  weekend_holding_allowed: boolean;
+  min_trade_duration_seconds?: number;
+  news_trading_allowed?: boolean;
+  inactivity_days_limit?: number;
+  profit_split_percent?: number;
+
   created_at?: string;
   updated_at?: string;
 }
@@ -125,6 +151,9 @@ export interface TraderClientEntity {
   floatingPnl: number;
   dailyDrawdownPct: number;
   totalDrawdownPct: number;
+  dailyStartEquity?: number;
+  dailyStartDate?: string;
+  tradingDaysCount?: number;
   status: 'ACTIVE' | 'WARNING' | 'BREACHED' | 'FROZEN';
   lastActivity: string;
 }

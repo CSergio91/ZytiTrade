@@ -88,8 +88,14 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
         </div>
       </div>
 
-      {/* Franja de Parámetros Dinámicos (Sin valores hardcodeados) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 my-4 p-3 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+      {/* Franja de Parámetros Dinámicos Institucionales (Reglas Clave) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-13 gap-2 my-4 p-3 rounded-xl bg-[#fbf9f5] border border-[#e5dfd3]">
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">{lang === 'es' ? 'Modelo' : 'Model'}</div>
+          <div className="text-xs font-black text-[#0F172A] uppercase">
+            {activeRule?.model_type === 'INSTANT_FUNDING' ? 'Fondeo Directo' : activeRule?.model_type === 'TWO_PHASE' ? '2 Fases' : '1 Fase'}
+          </div>
+        </div>
         <div className="px-2 py-1">
           <div className="text-[10px] text-slate-500 font-bold uppercase">{lang === 'es' ? 'Tamaño Cuenta' : 'Account Size'}</div>
           <div className="text-xs font-mono font-extrabold text-[#0F172A] flex items-center gap-1">
@@ -97,6 +103,12 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
             {activeRule?.is_default_demo && (
               <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-bold">⭐ Demo</span>
             )}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Target Profit</div>
+          <div className="text-xs font-mono font-extrabold text-emerald-700">
+            {activeRule?.model_type === 'INSTANT_FUNDING' ? 'N/A' : `+${activeRule?.profit_target_percent || 10}%`}
           </div>
         </div>
         <div className="px-2 py-1">
@@ -124,15 +136,39 @@ export const RiskEngineCard: React.FC<RiskEngineCardProps> = ({
           </div>
         </div>
         <div className="px-2 py-1">
-          <div className="text-[10px] text-slate-500 font-bold uppercase">{t.ruleConsistency}</div>
-          <div className="text-xs font-mono font-extrabold text-slate-700">
-            Máx {activeRule?.consistency_rule_percent}%
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Anti-Hedging</div>
+          <div className={`text-xs font-bold ${activeRule?.anti_hedging_enabled ? 'text-indigo-700' : 'text-slate-500'}`}>
+            {activeRule?.anti_hedging_enabled ? 'Estricto' : 'Permitido'}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Por Activo</div>
+          <div className="text-xs font-mono font-bold text-slate-800">
+            {activeRule?.max_positions_per_symbol_enabled ? `Máx ${activeRule.max_positions_per_symbol}` : 'Sin Límite'}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Total Posiciones</div>
+          <div className="text-xs font-mono font-bold text-slate-800">
+            {activeRule?.max_total_open_positions_enabled ? `Máx ${activeRule.max_total_open_positions}` : 'Sin Límite'}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">{lang === 'es' ? 'Día Mínimo' : 'Min Days'}</div>
+          <div className="text-xs font-mono font-extrabold text-blue-700">
+            {activeRule?.min_trading_days || 5}d <span className="text-[10px] text-slate-400">({activeRule?.min_daily_profit_value ? `+${activeRule.min_daily_profit_value}${activeRule.min_daily_profit_type === 'AMOUNT' ? '$' : '%'}` : 'Libre'})</span>
           </div>
         </div>
         <div className="px-2 py-1">
           <div className="text-[10px] text-slate-500 font-bold uppercase">{t.ruleWeekends}</div>
           <div className={`text-xs font-bold ${activeRule?.weekend_holding_allowed ? 'text-emerald-700' : 'text-rose-700'}`}>
             {activeRule?.weekend_holding_allowed ? t.ruleAllowed : t.ruleForbidden}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="text-[10px] text-slate-500 font-bold uppercase">Profit Split</div>
+          <div className="text-xs font-mono font-extrabold text-emerald-700">
+            {activeRule?.profit_split_percent || 80}% <span className="text-[10px] text-slate-400 font-normal">/ {100 - (activeRule?.profit_split_percent || 80)}%</span>
           </div>
         </div>
       </div>

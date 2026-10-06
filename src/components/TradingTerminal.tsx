@@ -45,6 +45,7 @@ import { DrawdownBreachBanner } from './terminal/DrawdownBreachBanner';
 import { ChartContextMenu } from './terminal/ChartContextMenu';
 import { MobileRadialDrawingDial } from './terminal/MobileRadialDrawingDial';
 import { registerCustomChartOverlays } from './terminal/drawingTools';
+import { ChartTimezoneSelector } from './terminal/ChartTimezoneSelector';
 
 interface TradingTerminalProps {
   currentLang: Language;
@@ -213,6 +214,29 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   }, []);
 
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
+
+  // Huso horario del gráfico (America/New_York por defecto para trading institucional)
+  const [chartTimezone, setChartTimezone] = useState<string>(() => {
+    try {
+      return localStorage.getItem('zyti_chart_timezone') || 'America/New_York';
+    } catch {
+      return 'America/New_York';
+    }
+  });
+
+  const handleSelectTimezone = useCallback((tz: string) => {
+    setChartTimezone(tz);
+    try {
+      localStorage.setItem('zyti_chart_timezone', tz);
+    } catch {}
+    if (chartInstanceRef.current) {
+      if (tz === 'LOCAL') {
+        chartInstanceRef.current.setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      } else {
+        chartInstanceRef.current.setTimezone(tz);
+      }
+    }
+  }, []);
 
   // Navegación lateral en escritorio y drawer en móvil
   const [navPosition, setNavPosition] = useState<'left' | 'right'>(() => {
@@ -701,11 +725,26 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
         },
         (payload: any) => {
           const row = payload.new;
-          if (row && typeof row.current_balance !== 'undefined') {
-            const newBal = Number(row.current_balance);
-            if (!isNaN(newBal) && newBal > 0) {
-              setDemoBalance(newBal);
-              try { localStorage.setItem('zyti_demo_balance', newBal.toString()); } catch {}
+          if (row) {
+            if (typeof row.current_balance !== 'undefined') {
+              const newBal = Number(row.current_balance);
+              if (!isNaN(newBal) && newBal > 0) {
+                setDemoBalance(newBal);
+                try { localStorage.setItem('zyti_demo_balance', newBal.toString()); } catch {}
+              }
+            }
+            if (typeof row.daily_start_equity !== 'undefined') {
+              const newDailyBase = Number(row.daily_start_equity);
+              if (!isNaN(newDailyBase) && newDailyBase > 0) {
+                dailyStartEquityRef.current = newDailyBase;
+                const today = new Date().toISOString().split('T')[0];
+                try {
+                  localStorage.setItem('zyti_daily_start_equity', JSON.stringify({
+                    date: row.daily_start_date || today,
+                    equity: newDailyBase
+                  }));
+                } catch {}
+              }
             }
             if (row.status === 'BREACHED') {
               setIsAccountBreached(true);
@@ -882,6 +921,40 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           setIsAccountBreached(true);
           isBreachedRef.current = true;
           setBreachReason(event.payload?.reason || (isEs ? 'Infracción de reglas de riesgo' : 'Risk rules breached'));
+          break;
+        }
+        case 'DAILY_ROLLOVER': {
+          const { newDailyStartEquity, date } = event.payload || {};
+          if (typeof newDailyStartEquity === 'number' && newDailyStartEquity > 0) {
+            dailyStartEquityRef.current = newDailyStartEquity;
+            const rollDate = date || new Date().toISOString().split('T')[0];
+            try {
+              localStorage.setItem('zyti_daily_start_equity', JSON.stringify({
+                date: rollDate,
+                equity: newDailyStartEquity
+              }));
+            } catch {}
+
+            // Actualizar cuenta en lista local de cuentas
+            const targetAccId = activeAccountId || user?.activeAccountId;
+            if (targetAccId) {
+              setTraderAccounts((prev) =>
+                prev.map((a) =>
+                  a.id === targetAccId
+                    ? { ...a, dailyStartEquity: newDailyStartEquity, dailyStartDate: rollDate, tradingDaysCount: (a.tradingDaysCount || 0) + (event.payload?.tradingDaysCount ? 1 : 0) }
+                    : a
+                )
+              );
+            }
+
+            addToastRef.current({
+              type: 'info',
+              title: isEs ? 'Nuevo Día de Trading (00:00 UTC)' : 'New Trading Day (00:00 UTC)',
+              message: isEs
+                ? `Drawdown diario reiniciado. Tu base de equidad para hoy es $${newDailyStartEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT.`
+                : `Daily drawdown reset. Your base equity for today is $${newDailyStartEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT.`
+            });
+          }
           break;
         }
       }
@@ -1094,6 +1167,37 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
   const [breachReason, setBreachReason] = useState<string>('');
   const isBreachedRef = useRef<boolean>(false);
   isBreachedRef.current = isAccountBreached;
+
+  // Vigilancia y sincronización proactiva de cambio de día UTC (00:00:00 UTC) en cliente
+  useEffect(() => {
+    const checkUtcDateRollover = () => {
+      const todayUtc = new Date().toISOString().split('T')[0];
+      const savedRaw = localStorage.getItem('zyti_daily_start_equity');
+      if (savedRaw) {
+        try {
+          const parsed = JSON.parse(savedRaw);
+          if (parsed && parsed.date && parsed.date !== todayUtc) {
+            const currentEq = demoBalanceRef.current;
+            dailyStartEquityRef.current = currentEq;
+            localStorage.setItem('zyti_daily_start_equity', JSON.stringify({
+              date: todayUtc,
+              equity: currentEq
+            }));
+            addToastRef.current({
+              type: 'info',
+              title: isEs ? 'Nuevo Día de Trading (00:00 UTC)' : 'New Trading Day (00:00 UTC)',
+              message: isEs
+                ? `Inicio de nueva sesión UTC. Equidad base para hoy: $${currentEq.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT.`
+                : `New UTC trading session started. Base equity for today: $${currentEq.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT.`
+            });
+          }
+        } catch {}
+      }
+    };
+
+    const interval = setInterval(checkUtcDateRollover, 15000);
+    return () => clearInterval(interval);
+  }, [isEs]);
 
   // Menú contextual flotante de clic derecho en el gráfico
   const [chartContextMenu, setChartContextMenu] = useState<{
@@ -1363,7 +1467,8 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
       orderReq,
       targetPrice,
       stats.lastPrice,
-      currentMetrics
+      currentMetrics,
+      propFirmRulesRef.current
     );
 
     if (!result.success || !result.limitOrder) {
@@ -1423,6 +1528,14 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     chartInstanceRef.current = chart;
 
     chart.setPriceVolumePrecision(2, 4);
+
+    // Calibrar huso horario institucional (New York por defecto, o guardado por el usuario)
+    const initialTz = localStorage.getItem('zyti_chart_timezone') || 'America/New_York';
+    if (initialTz === 'LOCAL') {
+      chart.setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    } else {
+      chart.setTimezone(initialTz);
+    }
 
     // Restaurar los indicadores guardados en el navegador por el usuario
     applyIndicatorsToChart(chart, activeIndicatorsRef.current || ['MA', 'VOL']);
@@ -2672,17 +2785,47 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
       try { localStorage.setItem('zyti_demo_balance', targetBal.toString()); } catch {}
 
       if (account.rulesConfig) {
+        const rc: any = account.rulesConfig;
         propFirmRulesRef.current = {
           id: account.id,
           firmName: account.firmName,
           initialBalance: account.initialBalance,
-          maxDailyLossPercent: account.rulesConfig.maxDailyDrawdownPct ?? 5,
-          maxTotalDrawdownPercent: account.rulesConfig.maxTotalDrawdownPct ?? 10,
-          maxLeverage: account.rulesConfig.maxLeverage ?? 100
+          modelType: rc.modelType || rc.model_type || 'ONE_PHASE',
+          maxDailyLossPercent: Number(rc.maxDailyLossPercent ?? rc.maxDailyDrawdownPct ?? 5),
+          maxTotalDrawdownPercent: Number(rc.maxTotalDrawdownPercent ?? rc.maxTotalDrawdownPct ?? 10),
+          maxTrailingDrawdownPercent: rc.maxTrailingDrawdownPercent ? Number(rc.maxTrailingDrawdownPercent) : undefined,
+          drawdownType: rc.drawdownType || rc.drawdown_type || 'EOD',
+          profitTargetPercent: Number(rc.profitTargetPercent ?? rc.profit_target_percent ?? 10),
+          profitTargetPhase2Percent: Number(rc.profitTargetPhase2Percent ?? rc.profit_target_phase2_percent ?? 5),
+          maxLeverage: Number(rc.maxLeverage ?? rc.max_leverage ?? 100),
+          mandatoryStopLoss: !!(rc.mandatoryStopLoss ?? rc.mandatory_stop_loss),
+          maxPositionsPerSymbolEnabled: !!(rc.maxPositionsPerSymbolEnabled ?? rc.max_positions_per_symbol_enabled),
+          maxPositionsPerSymbol: Number(rc.maxPositionsPerSymbol ?? rc.max_positions_per_symbol ?? 2),
+          maxTotalOpenPositionsEnabled: !!(rc.maxTotalOpenPositionsEnabled ?? rc.max_total_open_positions_enabled),
+          maxTotalOpenPositions: Number(rc.maxTotalOpenPositions ?? rc.max_total_open_positions ?? 5),
+          antiHedgingEnabled: !!(rc.antiHedgingEnabled ?? rc.anti_hedging_enabled),
+          consistencyRulePercent: Number(rc.consistencyRulePercent ?? rc.consistency_rule_percent ?? 40),
+          allowWeekendHolding: rc.allowWeekendHolding !== undefined ? !!rc.allowWeekendHolding : (rc.weekend_holding_allowed !== undefined ? !!rc.weekend_holding_allowed : true),
+          allowNewsTrading: rc.allowNewsTrading !== undefined ? !!rc.allowNewsTrading : (rc.news_trading_allowed !== undefined ? !!rc.news_trading_allowed : true),
+          minTradeDurationSeconds: Number(rc.minTradeDurationSeconds ?? rc.min_trade_duration_seconds ?? 10),
+          minTradingDays: Number(rc.minTradingDays ?? rc.min_trading_days ?? 5),
+          minDailyProfitType: rc.minDailyProfitType || rc.min_daily_profit_type || 'PERCENT',
+          minDailyProfitValue: Number(rc.minDailyProfitValue ?? rc.min_daily_profit_value ?? 0.5),
+          profitSplitPercent: Number(rc.profitSplitPercent ?? rc.profit_split_percent ?? 80),
+          inactivityDaysLimit: Number(rc.inactivityDaysLimit ?? rc.inactivity_days_limit ?? 30)
         };
       }
 
-      dailyStartEquityRef.current = account.initialBalance;
+      const effectiveDailyBase = Number(account.dailyStartEquity || account.initialBalance || 100000);
+      dailyStartEquityRef.current = effectiveDailyBase;
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        localStorage.setItem('zyti_daily_start_equity', JSON.stringify({
+          date: account.dailyStartDate || today,
+          equity: effectiveDailyBase
+        }));
+      } catch {}
+
       const isAccBreached = account.status === 'BREACHED';
       setIsAccountBreached(isAccBreached);
       isBreachedRef.current = isAccBreached;
@@ -2859,7 +3002,8 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
         orderReq,
         limitP,
         stats.lastPrice,
-        accountMetrics
+        accountMetrics,
+        propFirmRulesRef.current
       );
 
       if (!result.success || !result.limitOrder) {
@@ -2919,7 +3063,8 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
       orderReq,
       stats.lastPrice,
       entryTs,
-      accountMetrics
+      accountMetrics,
+      propFirmRulesRef.current
     );
 
     if (!result.success || !result.position) {
@@ -3033,7 +3178,8 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
       orderReq,
       currentP,
       entryTs,
-      accountMetrics
+      accountMetrics,
+      propFirmRulesRef.current
     );
 
     if (result.success && result.position) {
@@ -3239,6 +3385,8 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
         connectionStatus={connectionStatus}
         activeAccountId={activeAccountId}
         accounts={traderAccounts}
+        dailyStartEquity={dailyStartEquityRef.current}
+        tradingDaysCount={traderAccounts.find((a) => a.id === activeAccountId)?.tradingDaysCount}
         onSelectExchange={handleSelectExchange}
         onSelectMarketType={handleSelectMarketType}
         onSelectPair={handleSelectPair}
@@ -3448,6 +3596,15 @@ const parseTradeTimestamp = (d?: string | number | null): number | null => {
               isEs={isEs}
               onClose={() => setSelectedCandle(null)}
             />
+
+            {/* SELECTOR DE HUSO HORARIO INSTITUCIONAL (NEW YORK / UTC / LOCAL) */}
+            <div className="absolute bottom-1 right-18 sm:right-22 z-30">
+              <ChartTimezoneSelector
+                currentTimezone={chartTimezone}
+                onSelectTimezone={handleSelectTimezone}
+                isEs={isEs}
+              />
+            </div>
 
           </div>
 

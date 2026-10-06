@@ -20,7 +20,8 @@ export interface TradingEvent {
     | 'ALL_LIMIT_ORDERS_CANCELLED'
     | 'BALANCE_UPDATED'
     | 'ACCOUNT_RESET'
-    | 'DRAWDOWN_BREACH';
+    | 'DRAWDOWN_BREACH'
+    | 'DAILY_ROLLOVER';
   payload: any;
   timestamp?: number;
 }
