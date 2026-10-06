@@ -110,7 +110,7 @@ async function fetchHistoricalKlines(
       try {
         const bybitTf = mapTimeframeToBybit(timeframe);
         const category = marketType === 'futures' ? 'linear' : 'spot';
-        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${clean}&interval=${bybitTf}&limit=200`;
+        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${clean}&interval=${bybitTf}&limit=500`;
         const res = await fetch(url, { signal: controller.signal });
         if (res.ok) {
           const json = await res.json();
@@ -132,8 +132,8 @@ async function fetchHistoricalKlines(
 
     // 2. Binance REST global (alta disponibilidad, sin problemas de CORS en navegadores)
     const binanceEndpoints = [
-      `https://api.binance.com/api/v3/klines?symbol=${clean}&interval=${tf}&limit=200`,
-      `https://fapi.binance.com/fapi/v1/klines?symbol=${clean}&interval=${tf}&limit=200`
+      `https://api.binance.com/api/v3/klines?symbol=${clean}&interval=${tf}&limit=500`,
+      `https://fapi.binance.com/fapi/v1/klines?symbol=${clean}&interval=${tf}&limit=500`
     ];
 
     for (const ep of binanceEndpoints) {

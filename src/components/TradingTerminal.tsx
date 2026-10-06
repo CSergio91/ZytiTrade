@@ -1575,7 +1575,9 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
           if (pendingTradeFocusRef.current) {
             const pending = pendingTradeFocusRef.current;
             pendingTradeFocusRef.current = null;
-            const targetTs = pending.openedAt ? new Date(pending.openedAt).getTime() : new Date(pending.closedAt).getTime();
+            const openTs = parseTradeTimestamp(pending.openedAt);
+            const closeTs = parseTradeTimestamp(pending.closedAt);
+            const targetTs = openTs || closeTs;
             if (targetTs && !isNaN(targetTs)) {
               setTimeout(() => {
                 try {
@@ -2143,12 +2145,23 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     }
   };
 
+const parseTradeTimestamp = (d?: string | number | null): number | null => {
+  if (!d) return null;
+  if (typeof d === 'number') return d;
+  const num = Number(d);
+  if (!isNaN(num) && num > 100000000000) return num;
+  const parsed = new Date(d).getTime();
+  return isNaN(parsed) ? null : parsed;
+};
+
   const handleSelectHistoryTrade = useCallback((trade: ClosedTradeItem) => {
     setFocusedTrade(trade);
     const normTradeSym = normalizePair(trade.symbol);
     const normCurrentSym = normalizePair(selectedPairRef.current);
 
-    const targetTs = trade.openedAt ? new Date(trade.openedAt).getTime() : new Date(trade.closedAt).getTime();
+    const openTs = parseTradeTimestamp(trade.openedAt);
+    const closeTs = parseTradeTimestamp(trade.closedAt);
+    const targetTs = openTs || closeTs;
 
     if (normTradeSym !== normCurrentSym) {
       pendingTradeFocusRef.current = trade;
@@ -2156,7 +2169,7 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({
     } else if (chartInstanceRef.current && targetTs && !isNaN(targetTs)) {
       centerChartOnTimestamp(chartInstanceRef.current, targetTs);
     }
-  }, [centerChartOnTimestamp]);
+  }, [centerChartOnTimestamp, normalizePair]);
 
   const handleReturnToLive = useCallback(() => {
     if (chartInstanceRef.current) {

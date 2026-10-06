@@ -1470,7 +1470,7 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                     />
                   )}
 
-                  {/* Flecha de ENTRADA en el punto exacto (Ultra-compacta para móvil y desktop) */}
+                    {/* Flecha de ENTRADA en el punto exacto (Ultra-compacta para móvil y desktop) */}
                   {hasEntry && (
                     <g
                       transform={`translate(${c.entryX}, ${c.entryY})`}
@@ -1482,53 +1482,56 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                       onMouseEnter={() => setHoveredTradeId(c.id)}
                       onMouseLeave={() => setHoveredTradeId(null)}
                     >
+                      {/* Área táctil invisible para facilitar el click en móvil y desktop */}
+                      <circle cx={0} cy={isLong ? 4.5 : -4.5} r={12} fill="transparent" />
+
                       {isFocused && (
                         <circle
                           cx={0}
                           cy={isLong ? 5 : -5}
-                          r={7}
+                          r={7.5}
                           fill="none"
                           stroke="#f59e0b"
-                          strokeWidth={1.25}
+                          strokeWidth={1.5}
                           strokeDasharray="2 2"
                           className="animate-spin"
                         />
                       )}
                       {isLong ? (
-                        // LONG ENTRADA: Flecha VERDE OSCURA compacta apuntando HACIA ARRIBA (↑)
+                        // LONG ENTRADA: Flecha VERDE apuntando HACIA ARRIBA (↑)
                         <>
                           <polygon
-                            points="0,0 -3.2,5 -1.1,5 -1.1,9 1.1,9 1.1,5 3.2,5"
-                            fill="#047857"
+                            points="0,0 -3.6,5.5 -1.2,5.5 -1.2,10 1.2,10 1.2,5.5 3.6,5.5"
+                            fill="#059669"
                             stroke="#ffffff"
-                            strokeWidth={0.8}
+                            strokeWidth={0.9}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.3} fill="#ffffff" />
                         </>
                       ) : (
-                        // SHORT ENTRADA: Flecha ROJA OSCURA compacta apuntando HACIA ABAJO (↓)
+                        // SHORT ENTRADA: Flecha ROJA apuntando HACIA ABAJO (↓)
                         <>
                           <polygon
-                            points="0,0 -3.2,-5 -1.1,-5 -1.1,-9 1.1,-9 1.1,-5 3.2,-5"
-                            fill="#991b1b"
+                            points="0,0 -3.6,-5.5 -1.2,-5.5 -1.2,-10 1.2,-10 1.2,-5.5 3.6,-5.5"
+                            fill="#dc2626"
                             stroke="#ffffff"
-                            strokeWidth={0.8}
+                            strokeWidth={0.9}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.3} fill="#ffffff" />
                         </>
                       )}
                     </g>
@@ -1546,53 +1549,56 @@ export const PositionChartOverlay: React.FC<PositionChartOverlayProps> = ({
                       onMouseEnter={() => setHoveredTradeId(c.id)}
                       onMouseLeave={() => setHoveredTradeId(null)}
                     >
+                      {/* Área táctil invisible para facilitar el click en móvil y desktop */}
+                      <circle cx={0} cy={isLong ? -4.5 : 4.5} r={12} fill="transparent" />
+
                       {isFocused && (
                         <circle
                           cx={0}
                           cy={isLong ? -5 : 5}
-                          r={7}
+                          r={7.5}
                           fill="none"
                           stroke="#f59e0b"
-                          strokeWidth={1.25}
+                          strokeWidth={1.5}
                           strokeDasharray="2 2"
                           className="animate-spin"
                         />
                       )}
                       {isLong ? (
-                        // LONG SALIDA: Flecha ROJA OSCURA compacta apuntando HACIA ABAJO (↓)
+                        // LONG SALIDA: Flecha ROJA apuntando HACIA ABAJO (↓)
                         <>
                           <polygon
-                            points="0,0 -3.2,-5 -1.1,-5 -1.1,-9 1.1,-9 1.1,-5 3.2,-5"
-                            fill="#991b1b"
+                            points="0,0 -3.6,-5.5 -1.2,-5.5 -1.2,-10 1.2,-10 1.2,-5.5 3.6,-5.5"
+                            fill="#dc2626"
                             stroke="#ffffff"
-                            strokeWidth={0.8}
+                            strokeWidth={0.9}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.3} fill="#ffffff" />
                         </>
                       ) : (
-                        // SHORT SALIDA: Flecha VERDE OSCURA compacta apuntando HACIA ARRIBA (↑)
+                        // SHORT SALIDA: Flecha VERDE apuntando HACIA ARRIBA (↑)
                         <>
                           <polygon
-                            points="0,0 -3.2,5 -1.1,5 -1.1,9 1.1,9 1.1,5 3.2,5"
-                            fill="#047857"
+                            points="0,0 -3.6,5.5 -1.2,5.5 -1.2,10 1.2,10 1.2,5.5 3.6,5.5"
+                            fill="#059669"
                             stroke="#ffffff"
-                            strokeWidth={0.8}
+                            strokeWidth={0.9}
                             strokeLinejoin="round"
                             style={{
                               filter: isFocused
-                                ? 'drop-shadow(0 0 5px rgba(245,158,11,0.95))'
-                                : 'drop-shadow(0 1px 2px rgba(0,0,0,0.85))'
+                                ? 'drop-shadow(0 0 6px rgba(245,158,11,0.95))'
+                                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.85))'
                             }}
                             className="transition-transform group-hover:scale-125"
                           />
-                          <circle cx={0} cy={0} r={1.2} fill="#ffffff" />
+                          <circle cx={0} cy={0} r={1.3} fill="#ffffff" />
                         </>
                       )}
                     </g>

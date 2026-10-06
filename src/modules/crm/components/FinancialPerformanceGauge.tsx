@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 export type FinancialGaugeTheme = 'emerald' | 'amber' | 'indigo' | 'cobalt' | 'crimson';
 
@@ -97,8 +97,17 @@ export const FinancialPerformanceGauge: React.FC<FinancialPerformanceGaugeProps>
   const startAngle = 150;
   const sweepAngle = 240;
 
-  // 1. Motor de animación suave a 60 FPS (Lerp amortiguado)
-  const targetPercent = Math.min(100, Math.max(0, percent));
+  // 1. Motor de animación suave a 60 FPS con deflexión responsiva para micro-profits
+  const visualTargetPercent = useMemo(() => {
+    if (percent <= 0) return 0;
+    if (percent >= 100) return 100;
+    // Deflexión base para que cualquier profit, por pequeño que sea, mueva la aguja visiblemente
+    const base = 5.0;
+    const dynamic = Math.pow(percent / 100, 0.55) * (100 - base);
+    return Math.min(100, Math.max(base, base + dynamic));
+  }, [percent]);
+
+  const targetPercent = Math.min(100, Math.max(0, visualTargetPercent));
   const [animPercent, setAnimPercent] = useState<number>(targetPercent);
   const animPercentRef = useRef<number>(targetPercent);
   const targetPercentRef = useRef<number>(targetPercent);
@@ -203,15 +212,16 @@ export const FinancialPerformanceGauge: React.FC<FinancialPerformanceGaugeProps>
 
   return (
     <div className="flex flex-col items-center select-none font-sans group">
-      {/* CUERPO DEL DIAL - 100% SOBRE EL FONDO NATURAL SIN FONDOS OSCUROS */}
+      {/* CUERPO DEL DIAL - TRANSLÚCIDO SOBRE EL FONDO CUADRICULADO DE LA PÁGINA */}
       <div 
         className="relative flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-[1.02]"
         style={{ 
           width: size, 
           height: size,
-          background: 'radial-gradient(circle at center, #FFFFFF 0%, #FAF8F5 65%, #F0EAE0 100%)',
-          boxShadow: '0 8px 24px -4px rgba(27,24,18,0.06), 0 2px 6px rgba(0,0,0,0.02), inset 0 0 12px rgba(255,255,255,0.9)',
-          border: '1.5px solid rgba(226,219,206,0.9)'
+          background: 'radial-gradient(circle at center, rgba(255,255,255,0.72) 0%, rgba(250,248,245,0.4) 65%, rgba(240,234,224,0.2) 100%)',
+          backdropFilter: 'blur(3px)',
+          boxShadow: '0 8px 24px -4px rgba(27,24,18,0.04), 0 2px 6px rgba(0,0,0,0.02), inset 0 0 12px rgba(255,255,255,0.8)',
+          border: '1.5px solid rgba(226,219,206,0.7)'
         }}
       >
         <svg 
@@ -245,7 +255,7 @@ export const FinancialPerformanceGauge: React.FC<FinancialPerformanceGaugeProps>
           />
 
           {/* Arco activo coloreado dinámico */}
-          {animPercent > 0.5 && (
+          {animPercent > 0.01 && (
             <circle
               cx={cx}
               cy={cy}
@@ -264,7 +274,7 @@ export const FinancialPerformanceGauge: React.FC<FinancialPerformanceGaugeProps>
           )}
 
           {/* Aguja terminal de precisión */}
-          {animPercent > 0.5 && (
+          {animPercent > 0.01 && (
             <line
               x1={cx + needleInnerR * Math.cos(tipAngleRad)}
               y1={cy + needleInnerR * Math.sin(tipAngleRad)}
@@ -280,15 +290,16 @@ export const FinancialPerformanceGauge: React.FC<FinancialPerformanceGaugeProps>
           )}
         </svg>
 
-        {/* NÚCLEO CENTRAL LÍMPIDO EN BLANCO/CREMA (SIN NINGÚN FONDO OSCURO) */}
+        {/* NÚCLEO CENTRAL LÍMPIDO EN BLANCO TRANSLÚCIDO */}
         <div 
           className="relative z-10 flex flex-col items-center justify-center rounded-full text-center px-1.5"
           style={{
             width: size * 0.53,
             height: size * 0.53,
-            background: '#FFFFFF',
-            border: `1.5px solid ${isBreached ? '#F43F5E' : 'rgba(226,219,206,0.85)'}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04), inset 0 1px 2px rgba(255,255,255,0.95)'
+            background: 'rgba(255, 255, 255, 0.82)',
+            backdropFilter: 'blur(3px)',
+            border: `1.5px solid ${isBreached ? '#F43F5E' : 'rgba(226,219,206,0.8)'}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03), inset 0 1px 2px rgba(255,255,255,0.9)'
           }}
         >
           {/* Valor Principal en Obsidian Intenso y Legible */}

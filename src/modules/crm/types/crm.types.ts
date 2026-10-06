@@ -204,7 +204,10 @@ export interface IpSessionAuditItem {
   count: number;
   location: string;
   isp: string;
-  status: 'VERIFIED' | 'SUSPICIOUS_MULTI_IP' | 'VPN_PROXY';
+  status: 'VERIFIED' | 'SUSPICIOUS_MULTI_IP' | 'VPN_PROXY' | 'SHARED_WIFI_SUSPICIOUS';
+  networkType?: string;
+  isSharedNetwork?: boolean;
+  sharedWithAccounts?: string[];
   firstSeen: string;
   lastSeen: string;
 }

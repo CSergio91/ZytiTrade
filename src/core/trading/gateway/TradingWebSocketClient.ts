@@ -27,6 +27,35 @@ export interface TradingEvent {
 
 export type TradingEventCallback = (event: TradingEvent) => void;
 
+function detectClientTelemetry() {
+  if (typeof window === 'undefined') return {};
+  const nav = window.navigator as any;
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+  
+  let connectionType = 'WiFi';
+  if (conn) {
+    if (conn.type) {
+      connectionType = conn.type === 'wifi' ? 'WiFi' : conn.type === 'cellular' ? 'Datos Móviles (4G/5G)' : conn.type === 'ethernet' ? 'Ethernet (Cable)' : conn.type;
+    } else if (conn.effectiveType) {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        connectionType = 'Datos Móviles (4G/5G)';
+      } else {
+        connectionType = 'WiFi / Fibra';
+      }
+    }
+  }
+
+  return {
+    connectionType,
+    effectiveType: conn?.effectiveType || '4g',
+    downlink: conn?.downlink ? `${conn.downlink} Mbps` : 'Alta Velocidad',
+    rtt: conn?.rtt ? `${conn.rtt} ms` : '<30 ms',
+    deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Móvil' : /Tablet|iPad/i.test(navigator.userAgent) ? 'Tablet' : 'PC Escritorio / Laptop',
+    userAgent: navigator.userAgent
+  };
+}
+
 export class TradingWebSocketClient {
   private ws: WebSocket | null = null;
   private gatewayUrl: string;
@@ -71,7 +100,8 @@ export class TradingWebSocketClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.sendAction({
         action: 'SUBSCRIBE',
-        accountId
+        accountId,
+        telemetry: detectClientTelemetry()
       });
     } else {
       this.connect(accountId);
@@ -94,7 +124,8 @@ export class TradingWebSocketClient {
         if (this.activeAccountId) {
           this.sendAction({
             action: 'SUBSCRIBE',
-            accountId: this.activeAccountId
+            accountId: this.activeAccountId,
+            telemetry: detectClientTelemetry()
           });
         }
       };

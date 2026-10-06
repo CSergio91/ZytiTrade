@@ -10,6 +10,10 @@ import { CrmLang } from '../types/i18n';
 import { crmService } from '../api/crmService';
 import { FinancialPerformanceGauge } from './FinancialPerformanceGauge';
 import { TraderPerformanceLinearChart } from './TraderPerformanceLinearChart';
+import { TraderForensicStatsCards } from './TraderForensicStatsCards';
+import { TraderDailyJournalCalendar } from './TraderDailyJournalCalendar';
+import { zytiTradingClient } from '../../../core/trading/gateway/TradingWebSocketClient';
+import { DynamicRulesModal } from './DynamicRulesModal';
 import { 
   ShieldCheck, 
   RotateCcw, 
@@ -34,7 +38,12 @@ import {
   ChevronRight,
   Sparkles,
   Zap,
-  Target
+  Target,
+  Wifi,
+  Smartphone,
+  Laptop,
+  Calendar,
+  ShieldAlert
 } from 'lucide-react';
 
 interface RiskForensicAuditConsoleProps {
@@ -74,6 +83,8 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState<boolean>(false);
+  const [selectedChartDay, setSelectedChartDay] = useState<string | null>(null);
 
   // Filtrado de traders en memoria RAM para búsqueda rápida e indexada
   const filteredTradersList = useMemo(() => {
@@ -119,6 +130,48 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
     setSelectedAccountId(accItem.id);
     fetchAudit(accItem.id, true);
   };
+
+  // Suscripción WebSocket en vivo a la cuenta del trader seleccionado (Modo Observador / Inspector Admin)
+  useEffect(() => {
+    const targetId = selectedAccountId || auditData?.account.id;
+    if (!targetId) return;
+
+    if (!zytiTradingClient.isConnected()) {
+      zytiTradingClient.connect('crm_admin_inspector');
+    }
+
+    const timer = setTimeout(() => {
+      zytiTradingClient.sendAction({ action: 'SUBSCRIBE', accountId: targetId });
+    }, 250);
+
+    const unsubscribe = zytiTradingClient.onRawMessage((msg) => {
+      if (msg.type === 'TRADING_EVENT' && msg.accountId === targetId) {
+        const event = msg.event;
+        if (event.type === 'TRADE_CLOSED' || event.type === 'TRADE_OPENED' || event.type === 'BALANCE_UPDATED') {
+          fetchAudit(targetId, true);
+        }
+      } else if (msg.type === 'HOT_STATE_SNAPSHOT' && msg.accountId === targetId && msg.state) {
+        setAuditData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            account: {
+              ...prev.account,
+              currentBalance: msg.state.balance ?? prev.account.currentBalance,
+              equity: msg.state.equity ?? prev.account.equity,
+              status: msg.state.status ?? prev.account.status
+            }
+          };
+        });
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+      zytiTradingClient.sendAction({ action: 'UNSUBSCRIBE', accountId: targetId });
+    };
+  }, [selectedAccountId, auditData?.account.id]);
 
   // Filtrado de la tabla de trades forense
   const filteredTrades = useMemo(() => {
@@ -233,28 +286,17 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
     }
   };
 
-  if (!activeTrader) {
-    return (
-      <div className="w-full p-8 rounded-3xl bg-white border border-[#e5dfd3] text-center">
-        <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-        <p className="text-sm font-bold text-slate-700">
-          {isEs ? 'No hay traders registrados para supervisar.' : 'No registered traders to supervise.'}
-        </p>
-      </div>
-    );
-  }
-
   const acc = auditData?.account || {
-    id: activeTrader.id,
-    accountNumber: activeTrader.accountNumber,
-    traderEmail: activeTrader.email,
-    traderName: activeTrader.fullName,
-    initialBalance: activeTrader.accountSize || 100000,
-    currentBalance: activeTrader.currentBalance || 100000,
-    equity: activeTrader.equity || 100000,
-    peakEquity: activeTrader.equity || 100000,
-    dailyStartEquity: activeTrader.equity || 100000,
-    status: activeTrader.status,
+    id: activeTrader?.id || '',
+    accountNumber: activeTrader?.accountNumber || 'ACC-001',
+    traderEmail: activeTrader?.email || '',
+    traderName: activeTrader?.fullName || 'Trader',
+    initialBalance: activeTrader?.accountSize || 100000,
+    currentBalance: activeTrader?.currentBalance || 100000,
+    equity: activeTrader?.equity || 100000,
+    peakEquity: activeTrader?.equity || 100000,
+    dailyStartEquity: activeTrader?.equity || 100000,
+    status: activeTrader?.status || 'ACTIVE',
     tradingDaysCount: 0,
     planName: 'Evaluación Institucional'
   };
@@ -277,20 +319,74 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
     profitTargetProgress: 0,
     maxDailyDdPct: 4.0,
     maxDailyLossAmount: (acc.initialBalance * 0.04),
-    dailyDd: activeTrader.dailyDrawdownPct || 0,
+    dailyDd: activeTrader?.dailyDrawdownPct || 0,
     maxTotalDdPct: 6.0,
     maxTotalLossAmount: (acc.initialBalance * 0.06),
-    totalDd: activeTrader.totalDrawdownPct || 0
+    totalDd: activeTrader?.totalDrawdownPct || 0
   };
 
   const userChallenges = auditData?.allUserAccounts || [];
+
+  // Fecha oficial de inicio del Challenge (Día del 1er trade ejecutado)
+  const firstTrade = useMemo(() => {
+    if (!auditData?.trades || auditData.trades.length === 0) return null;
+    const sorted = [...auditData.trades].sort((a, b) => {
+      const tA = new Date(a.openedAt || a.closedAt || 0).getTime();
+      const tB = new Date(b.openedAt || b.closedAt || 0).getTime();
+      return tA - tB;
+    });
+    return sorted[0];
+  }, [auditData?.trades]);
+
+  const challengeStartDate = firstTrade?.openedAt ? new Date(firstTrade.openedAt) : null;
+
+  // Objeto de regla para calibración en DynamicRulesModal
+  const accountRuleToEdit: RiskRuleConfigEntity | null = useMemo(() => {
+    const rConf = acc.rulesConfig || {};
+    return {
+      id: acc.id,
+      name: rConf.challengeName || acc.planName || 'Evaluación Institucional',
+      profit_target_percent: Number(rConf.profitTargetPct ?? rConf.profit_target_percent ?? stats.profitTargetPct ?? 10.0),
+      max_daily_loss_percent: Number(rConf.maxDailyDrawdownPct ?? rConf.max_daily_loss_percent ?? stats.maxDailyDdPct ?? 5.0),
+      max_total_drawdown_percent: Number(rConf.maxTotalDrawdownPct ?? rConf.max_total_drawdown_percent ?? stats.maxTotalDdPct ?? 10.0),
+      max_trailing_drawdown_percent: rConf.maxTrailingDrawdownPct ? Number(rConf.maxTrailingDrawdownPct) : null,
+      drawdown_type: rConf.drawdownType || 'EOD',
+      max_leverage: Number(rConf.maxLeverage ?? 100),
+      mandatory_stop_loss: !!rConf.mandatoryStopLoss,
+      weekend_holding_allowed: rConf.weekendHoldingAllowed !== false,
+      consistency_rule_percent: Number(rConf.consistencyRulePercent ?? 40.0),
+      min_trading_days: Number(rConf.minTradingDays ?? 5),
+      default_account_balance: acc.initialBalance || 100000,
+      is_default_demo: false,
+      is_active: true,
+      created_at: new Date().toISOString()
+    };
+  }, [acc.rulesConfig, acc.id, acc.planName, acc.initialBalance, stats.profitTargetPct, stats.maxDailyDdPct, stats.maxTotalDdPct]);
+
+  const handleSaveAccountRules = async (ruleData: Partial<RiskRuleConfigEntity>) => {
+    if (!acc.id) return;
+    await crmService.updateAccountRulesConfig(acc.id, ruleData);
+    await fetchAudit(acc.id, true);
+    setIsRuleModalOpen(false);
+  };
+
+  if (!activeTrader) {
+    return (
+      <div className="w-full p-8 rounded-3xl bg-white border border-[#e5dfd3] text-center">
+        <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+        <p className="text-sm font-bold text-slate-700">
+          {isEs ? 'No hay traders registrados para supervisar.' : 'No registered traders to supervise.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">
       {/* ==================================================================== */}
       {/* 1. BARRA SUPERIOR MAESTRA: SELECTOR DE TRADER + BUSCADOR AL LADO */}
       {/* ==================================================================== */}
-      <div className="w-full rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-4 shadow-sm">
+      <div className="w-full rounded-2xl bg-[#FAF8F5]/50 backdrop-blur-xs border border-[#E5DEC9] p-4 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Lado Izquierdo: Buscador de Traders + Selector de Trader */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1">
@@ -302,7 +398,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
                 value={traderSearchQuery}
                 onChange={(e) => setTraderSearchQuery(e.target.value)}
                 placeholder={isEs ? 'Buscar por nombre, email, cuenta...' : 'Search by name, email, account...'}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 transition-colors shadow-2xs font-medium"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/60 border border-[#E5DEC9] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 transition-colors shadow-2xs font-medium"
               />
               {traderSearchQuery && (
                 <button
@@ -324,7 +420,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
                     onSelectTrader(found);
                   }
                 }}
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-slate-800 shadow-2xs cursor-pointer truncate"
+                className="w-full bg-white/60 border border-[#E5DEC9] rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-slate-800 shadow-2xs cursor-pointer truncate"
               >
                 {filteredTradersList.map(t => (
                   <option key={t.id} value={t.id}>
@@ -391,7 +487,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
       {/* ==================================================================== */}
       {/* 2. FICHA DEL TRADER + SELECTOR DE CHALLENGES DEL USUARIO (MULTI-CHALLENGE) */}
       {/* ==================================================================== */}
-      <div className="w-full rounded-3xl bg-white/85 backdrop-blur-xl border border-white/70 p-6 shadow-[0_20px_50px_-15px_rgba(27,24,18,0.07)]">
+      <div className="w-full rounded-3xl bg-[#FAF8F5]/45 backdrop-blur-xs border border-[#E5DEC9] p-6 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-[#ece7dc]">
           {/* Identidad del Trader */}
           <div className="flex items-start sm:items-center gap-4">
@@ -443,7 +539,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
 
         {/* PESTAÑAS DE CHALLENGES DEL USUARIO (Muestra TODOS los challenges que tiene este trader) */}
         {userChallenges.length > 0 && (
-          <div className="pt-4 pb-2">
+          <div className="pt-4">
             <div className="flex items-center gap-2 mb-2 text-xs font-bold text-slate-700">
               <Award className="w-3.5 h-3.5 text-amber-500" />
               <span>
@@ -484,85 +580,99 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
             </div>
           </div>
         )}
-
-        {/* Tarjetas Resumen de Balance y Equidad */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-          <div className="p-3.5 rounded-2xl bg-white/70 border border-[#e5dfd3] shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-              {isEs ? 'Balance Actual' : 'Current Balance'}
-            </span>
-            <div className="text-xl font-mono font-black text-slate-900 mt-0.5">
-              ${acc.currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              Inic: ${acc.initialBalance.toLocaleString()}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/70 border border-[#e5dfd3] shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-              {isEs ? 'Equidad en Cuenta' : 'Account Equity'}
-            </span>
-            <div className="text-xl font-mono font-black text-slate-900 mt-0.5">
-              ${acc.equity.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              Peak: ${(acc.peakEquity || acc.initialBalance).toLocaleString()}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/70 border border-[#e5dfd3] shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-              {isEs ? 'PnL Realizado Neto' : 'Net Realized PnL'}
-            </span>
-            <div className={`text-xl font-mono font-black mt-0.5 ${stats.netRealizedPnl >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-              {stats.netRealizedPnl >= 0 ? '+' : ''}${stats.netRealizedPnl.toFixed(2)}
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              {stats.closedTradesCount} {isEs ? 'trades cerrados' : 'closed trades'}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/70 border border-[#e5dfd3] shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-              {isEs ? 'Drawdown del Día' : 'Daily Drawdown'}
-            </span>
-            <div className="text-xl font-mono font-black text-slate-900 mt-0.5">
-              {stats.dailyDd}%
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              Límite diario: {stats.maxDailyDdPct}%
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* ==================================================================== */}
-      {/* 3. OBJETIVOS DEL CHALLENGE & MÉTRICAS CLAVE (SOBRE FONDO CLARO EDITORIAL) */}
+      {/* ÁREA 1: GOBERNANZA & AUDITORÍA DE REGLAS DEL RETO (CHALLENGE RULES AUDIT) */}
       {/* ==================================================================== */}
-      <div className="w-full rounded-3xl bg-white/85 backdrop-blur-xl border border-white/70 p-6 shadow-[0_20px_50px_-15px_rgba(27,24,18,0.07)]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-5 border-b border-[#ece7dc] gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-indigo-700" />
-              <h3 className="text-base font-black text-[#0F172A] tracking-tight">
-                {isEs ? 'Objetivos del Reto & Supervisión Operativa' : 'Challenge Targets & Operational Telemetry'}
-              </h3>
+      <div className="w-full rounded-3xl bg-[#FAF8F5]/45 backdrop-blur-xs border border-[#E5DEC9] p-6 shadow-2xs space-y-6">
+        {/* Header de la tarjeta con nombre del plan, cuenta y botón de calibración */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#ECE7DC] gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-700 shadow-2xs">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {isEs 
-                ? `Métricas en vivo calculadas contra los parámetros del ${acc.planName} (Base: $${acc.initialBalance.toLocaleString()} USDT).` 
-                : `Live metrics computed against ${acc.planName} thresholds (Base: $${acc.initialBalance.toLocaleString()} USDT).`}
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-[#0F172A] tracking-tight">
+                  {isEs ? 'Gobernanza & Cumplimiento de Reglas del Challenge' : 'Challenge Governance & Rules Audit'}
+                </h3>
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-white/80 border border-[#E5DEC9] px-2.5 py-0.5 rounded-lg">
+                  {acc.planName}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {isEs 
+                  ? `Supervisión de drawdown, profit target y restricciones operativas en vivo (Cuenta: ${acc.accountNumber}).` 
+                  : `Real-time drawdown, profit targets, and operational constraints monitoring (Account: ${acc.accountNumber}).`}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsRuleModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
+            title={isEs ? 'Modificar reglas de esta cuenta' : 'Calibrate rules for this account'}
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-300" />
+            <span>{isEs ? 'Calibrar Reglas' : 'Calibrate Rules'}</span>
+          </button>
+        </div>
+
+        {/* Barra Informativa: Inicio Oficial del Challenge y Días Operados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-4 rounded-2xl bg-white/70 border border-[#EBE5D8]">
+          {/* Fecha oficial de inicio */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-[10.5px] font-mono font-bold uppercase text-slate-500">
+              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+              <span>{isEs ? 'Inicio Oficial del Challenge' : 'Official Challenge Start'}</span>
+            </div>
+            <div className="text-xs sm:text-sm font-mono font-extrabold text-slate-900">
+              {challengeStartDate ? (
+                isEs 
+                  ? challengeStartDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : challengeStartDate.toLocaleString()
+              ) : (
+                <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[10px] font-sans font-bold">
+                  {isEs ? 'Pendiente (Inicia con 1er trade)' : 'Pending (Starts on 1st trade)'}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-500 leading-tight">
+              {firstTrade 
+                ? `${isEs ? '1ª orden ejecutada:' : '1st order:'} ${firstTrade.symbol} (${firstTrade.side}) @ $${firstTrade.entryPrice.toLocaleString()}`
+                : (isEs ? 'El reto se computa desde la primera orden ejecutada.' : 'Challenge timer begins when first trade is opened.')}
             </p>
           </div>
 
-          <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl self-start sm:self-auto">
-            {acc.planName}
-          </span>
+          {/* Días mínimos de operación */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-[10.5px] font-mono font-bold uppercase text-slate-500">
+              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <span>{isEs ? 'Días Operados Reales' : 'Real Traded Days'}</span>
+            </div>
+            <div className="text-xs sm:text-sm font-mono font-extrabold text-slate-900 flex items-center justify-between">
+              <span>{acc.tradingDaysCount || (firstTrade ? 1 : 0)} / {acc.rulesConfig?.minTradingDays ?? 5} {isEs ? 'días' : 'days'}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
+                (acc.tradingDaysCount || (firstTrade ? 1 : 0)) >= (acc.rulesConfig?.minTradingDays ?? 5) 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-blue-100 text-blue-800'
+              }`}>
+                {(acc.tradingDaysCount || (firstTrade ? 1 : 0)) >= (acc.rulesConfig?.minTradingDays ?? 5) ? (isEs ? 'Cumplido ✓' : 'Passed ✓') : (isEs ? 'En Curso' : 'In Progress')}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+              <div 
+                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (((acc.tradingDaysCount || (firstTrade ? 1 : 0)) / (acc.rulesConfig?.minTradingDays ?? 5)) * 100))}%` }}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Grid de 4 Diales Financieros sobre Fondo Claro (Compactos & Elegantes) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-center justify-items-center py-1">
+        {/* 3 Diales Críticos de Riesgo (Gauges Financieros): Profit Target, Daily DD, Total DD */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center justify-items-center py-2">
           {/* Dial 1: Meta de Beneficio (Profit Target) */}
           <FinancialPerformanceGauge
             value={stats.netRealizedPnl >= 0 ? `+$${stats.netRealizedPnl.toFixed(0)}` : `-$${Math.abs(stats.netRealizedPnl).toFixed(0)}`}
@@ -570,10 +680,10 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
             label={isEs ? 'Meta de Beneficio' : 'Profit Target'}
             subtext={stats.netRealizedPnl >= stats.profitTargetAmount 
               ? (isEs ? '¡Objetivo Superado!' : 'Target Passed!') 
-              : `${isEs ? 'Faltan' : 'Remaining'}: $${Math.max(0, stats.profitTargetAmount - stats.netRealizedPnl).toFixed(0)}`}
+              : `${isEs ? 'Restan' : 'Remaining'}: $${Math.max(0, stats.profitTargetAmount - stats.netRealizedPnl).toFixed(0)}`}
             percent={stats.profitTargetProgress}
             theme="emerald"
-            size={155}
+            size={160}
             statusText={`Target: +${stats.profitTargetPct}%`}
           />
 
@@ -584,11 +694,11 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
             label={isEs ? 'Drawdown Diario' : 'Daily Drawdown'}
             subtext={stats.dailyDd >= stats.maxDailyDdPct 
               ? (isEs ? '✕ Límite Superado' : '✕ Breached') 
-              : `Buffer: $${Math.max(0, stats.maxDailyLossAmount - (acc.initialBalance * stats.dailyDd / 100)).toFixed(0)}`}
+              : `${isEs ? 'Margen' : 'Margin'}: $${Math.max(0, stats.maxDailyLossAmount - (acc.initialBalance * stats.dailyDd / 100)).toFixed(0)}`}
             percent={Math.min(100, (stats.dailyDd / (stats.maxDailyDdPct || 4)) * 100)}
             theme={stats.dailyDd >= stats.maxDailyDdPct ? 'crimson' : stats.dailyDd >= stats.maxDailyDdPct * 0.7 ? 'amber' : 'cobalt'}
             isBreached={stats.dailyDd >= stats.maxDailyDdPct}
-            size={155}
+            size={160}
             statusText={`Max Loss: -${stats.maxDailyDdPct}%`}
           />
 
@@ -599,70 +709,31 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
             label={isEs ? 'Drawdown Total' : 'Total Drawdown'}
             subtext={stats.totalDd >= stats.maxTotalDdPct 
               ? (isEs ? '✕ Infracción' : '✕ Breached') 
-              : `Colchón: $${Math.max(0, stats.maxTotalLossAmount - (acc.initialBalance * stats.totalDd / 100)).toFixed(0)}`}
+              : `${isEs ? 'Margen' : 'Margin'}: $${Math.max(0, stats.maxTotalLossAmount - (acc.initialBalance * stats.totalDd / 100)).toFixed(0)}`}
             percent={Math.min(100, (stats.totalDd / (stats.maxTotalDdPct || 6)) * 100)}
             theme={stats.totalDd >= stats.maxTotalDdPct ? 'crimson' : stats.totalDd >= stats.maxTotalDdPct * 0.7 ? 'amber' : 'indigo'}
             isBreached={stats.totalDd >= stats.maxTotalDdPct}
-            size={155}
+            size={160}
             statusText={`Max DD: -${stats.maxTotalDdPct}%`}
           />
-
-          {/* Dial 4: Tasa de Acierto & Consistencia */}
-          <FinancialPerformanceGauge
-            value={`${stats.winRatePct}%`}
-            unit={`${stats.closedTradesCount} ${isEs ? 'cerrados' : 'trades'}`}
-            label={isEs ? 'Tasa de Acierto' : 'Win Rate'}
-            subtext={`PF: ${stats.profitFactor}`}
-            percent={stats.winRatePct}
-            theme="cobalt"
-            size={155}
-            statusText={`${stats.totalTrades} operaciones`}
-          />
         </div>
 
-        {/* Separador Institucional sutil entre Diales y Gráfico Lineal */}
-        <div className="my-5 border-t border-[#ece7dc]" />
+        {/* Separador Institucional */}
+        <div className="border-t border-[#ECE7DC]" />
 
-        {/* Gráfico Lineal Institucional de Evolución de Balance & Umbrales de Riesgo */}
-        <div className="w-full">
-          <TraderPerformanceLinearChart
-            initialBalance={acc.initialBalance}
-            currentBalance={acc.currentBalance}
-            equity={acc.equity}
-            profitTargetAmount={stats.profitTargetAmount}
-            maxDailyLossAmount={stats.maxDailyLossAmount}
-            maxTotalLossAmount={stats.maxTotalLossAmount}
-            trades={auditData?.trades || []}
-            isEs={isEs}
-            height={340}
-          />
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 4. REGLAS DEL CHALLENGE: CHECKLIST DE CUMPLIMIENTO REAL */}
-      {/* ==================================================================== */}
-      <div className="w-full rounded-3xl bg-white/85 backdrop-blur-xl border border-white/70 p-6 shadow-[0_20px_50px_-15px_rgba(27,24,18,0.07)]">
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#ece7dc]">
-          <div>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-700" />
-              <h3 className="text-base font-black text-[#0F172A] tracking-tight">
-                {isEs ? 'Checklist de Cumplimiento de Reglas del Challenge' : 'Challenge Rules Compliance Audit'}
-              </h3>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {isEs 
-                ? `Cálculo real para ${acc.planName} (Balance Base: $${acc.initialBalance.toLocaleString()} USDT).` 
-                : `Live evaluation for ${acc.planName} (Starting Base: $${acc.initialBalance.toLocaleString()} USDT).`}
-            </p>
+        {/* Checklist Forense de Reglas Operativas */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
+              {isEs ? 'Checklist de Reglas Operativas del Challenge' : 'Challenge Operational Rules Checklist'}
+            </span>
+            <span className="text-[10px] font-mono font-bold text-slate-500">
+              {auditData?.ruleChecklist?.filter(r => r.status === 'PASSED').length || 0} / {auditData?.ruleChecklist?.length || 0} {isEs ? 'cumplidas' : 'passed'}
+            </span>
           </div>
-        </div>
 
-        {/* Grid de Reglas del Challenge */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {auditData?.ruleChecklist ? (
-            auditData.ruleChecklist.map((rule) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {auditData?.ruleChecklist?.map((rule) => {
               const isPassed = rule.status === 'PASSED';
               const isBreached = rule.status === 'BREACHED';
               const isInProgress = rule.status === 'IN_PROGRESS';
@@ -670,149 +741,241 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
               return (
                 <div 
                   key={rule.id}
-                  className={`p-4 rounded-2xl border transition-all ${
+                  className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
                     isPassed 
-                      ? 'bg-emerald-50/50 border-emerald-200' 
+                      ? 'bg-emerald-50/50 border-emerald-200/90 shadow-2xs' 
                       : isBreached 
-                      ? 'bg-rose-50/60 border-rose-300' 
-                      : 'bg-white border-[#e5dfd3]'
+                      ? 'bg-rose-50/60 border-rose-300 shadow-2xs' 
+                      : isInProgress
+                      ? 'bg-blue-50/40 border-blue-200 shadow-2xs'
+                      : 'bg-white/60 border-[#E5DEC9] shadow-2xs'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black text-slate-900 tracking-tight">
-                      {rule.name}
-                    </span>
-                    {isPassed && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                        {isEs ? 'Cumplida' : 'Passed'}
+                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isPassed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                      {isBreached && <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />}
+                      {isInProgress && <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                      {rule.status === 'NOT_STARTED' && <div className="w-3 h-3 rounded-full border-2 border-slate-300 shrink-0" />}
+                      <span className="text-[11px] font-extrabold text-slate-900 truncate" title={rule.name}>
+                        {rule.name}
                       </span>
-                    )}
-                    {isBreached && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
-                        <XCircle className="w-3 h-3 text-rose-700" />
-                        {isEs ? 'Infracción' : 'Breached'}
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className={`text-[11px] font-mono font-black ${
+                        isPassed ? 'text-emerald-700' : isBreached ? 'text-rose-700' : isInProgress ? 'text-blue-700' : 'text-slate-900'
+                      }`}>
+                        {rule.currentValueLabel}
                       </span>
-                    )}
-                    {isInProgress && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
-                        <Clock className="w-3 h-3 text-blue-700" />
-                        {isEs ? 'En Progreso' : 'In Progress'}
-                      </span>
-                    )}
-                    {rule.status === 'NOT_STARTED' && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
-                        {isEs ? 'Pendiente' : 'Pending'}
-                      </span>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="flex items-baseline justify-between text-xs font-mono mb-2">
-                    <span className="text-slate-500 font-semibold">{rule.thresholdLabel}</span>
-                    <span className={`font-black ${isPassed ? 'text-emerald-800' : isBreached ? 'text-rose-800' : 'text-slate-900'}`}>
-                      {rule.currentValueLabel}
-                    </span>
-                  </div>
-
-                  {/* Barra de progreso */}
-                  <div className="w-full h-1.5 rounded-full bg-slate-200/80 overflow-hidden mb-2">
+                  <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden mb-1.5">
                     <div 
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        isPassed ? 'bg-emerald-600' : isBreached ? 'bg-rose-600' : 'bg-blue-600'
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isPassed ? 'bg-emerald-500' : isBreached ? 'bg-rose-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300'
                       }`}
                       style={{ width: `${Math.min(100, Math.max(0, rule.progressPct))}%` }}
                     />
                   </div>
 
-                  <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                    {rule.details}
-                  </p>
+                  <div className="flex items-center justify-between text-[9.5px] text-slate-500 font-medium leading-tight">
+                    <span className="font-mono text-[9px] text-slate-500 font-semibold truncate max-w-[48%]">
+                      {rule.thresholdLabel}
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 truncate max-w-[50%] text-right font-medium" title={rule.details}>
+                      {rule.details}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* ÁREA 2: ESTADÍSTICAS DEL TRADER & DISTRIBUCIÓN DE ACTIVOS             */}
+      {/* ==================================================================== */}
+      <TraderForensicStatsCards
+        account={acc}
+        stats={stats}
+        trades={auditData?.trades || []}
+        isEs={isEs}
+      />
+
+      {/* ==================================================================== */}
+      {/* ÁREA 3: DIARIO FORENSE DE TRADING (WEEKLY JOURNAL GRID)              */}
+      {/* ==================================================================== */}
+      <TraderDailyJournalCalendar
+        trades={auditData?.trades || []}
+        isEs={isEs}
+        selectedDay={selectedChartDay}
+        onSelectDay={setSelectedChartDay}
+      />
+
+      {/* ==================================================================== */}
+      {/* ÁREA 4: EVOLUCIÓN PANORÁMICA DE BALANCE Y EQUIDAD (GRÁFICO LINEAL)   */}
+      {/* ==================================================================== */}
+      <div className="w-full rounded-3xl bg-[#FAF8F5]/45 backdrop-blur-xs border border-[#E5DEC9] p-6 shadow-2xs">
+        <TraderPerformanceLinearChart
+          initialBalance={acc.initialBalance}
+          currentBalance={acc.currentBalance}
+          equity={acc.equity}
+          profitTargetAmount={stats.profitTargetAmount}
+          maxDailyLossAmount={stats.maxDailyLossAmount}
+          maxTotalLossAmount={stats.maxTotalLossAmount}
+          trades={auditData?.trades || []}
+          isEs={isEs}
+          height={440}
+          selectedDay={selectedChartDay}
+          onSelectDay={setSelectedChartDay}
+        />
+      </div>
+
+      {/* ==================================================================== */}
+      {/* ÁREA 5: CENTINELA FORENSE DE RED & TELEMETRÍA IP (UNIFICADO)         */}
+      {/* ==================================================================== */}
+      <div className="w-full rounded-3xl bg-[#FAF8F5]/45 backdrop-blur-xs border border-[#E5DEC9] p-6 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#ECE7DC] gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-700 shadow-2xs">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-[#0F172A] tracking-tight">
+                  {isEs ? 'Centinela Forense de Red & Telemetría IP' : 'Network Forensic Sentinel & IP Surveillance'}
+                </h3>
+                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {isEs ? 'En Vivo' : 'Live'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {isEs 
+                  ? 'Monitoreo de IPs públicas de despacho, tipo de conexión y detección de Pass Services o cuentas compartidas.' 
+                  : 'Public IP dispatch telemetry, connection mode, and automated Pass Services / Account Sharing detection.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 self-start sm:self-auto">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isEs ? 'IP Principal Verificada: 100% Coherente' : 'Primary IP Verified: Consistent'}</span>
+          </div>
+        </div>
+
+        {/* Tarjetas de Sesiones de Red Detectadas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {auditData?.ipSessions && auditData.ipSessions.length > 0 ? (
+            auditData.ipSessions.map((sess, idx) => {
+              const isShared = sess.isSharedNetwork;
+              const isWifi = sess.networkType?.toLowerCase().includes('wifi');
+              const isCellular = sess.networkType?.toLowerCase().includes('móvil') || sess.networkType?.toLowerCase().includes('cellular');
+
+              return (
+                <div 
+                  key={`ip-sess-${idx}`}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                    isShared 
+                      ? 'bg-rose-50/70 border-rose-300 shadow-2xs' 
+                      : 'bg-white/70 border-[#EBE5D8] hover:border-indigo-300'
+                  }`}
+                >
+                  <div>
+                    {/* Fila de Tipología y Estado */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        {isWifi ? (
+                          <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <Wifi className="w-3 h-3 text-emerald-700" />
+                            {sess.networkType || 'Red WiFi'}
+                          </span>
+                        ) : isCellular ? (
+                          <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-200">
+                            <Smartphone className="w-3 h-3 text-sky-700" />
+                            {sess.networkType || 'Datos Móviles'}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            <Laptop className="w-3 h-3 text-indigo-700" />
+                            {sess.networkType || 'Ethernet'}
+                          </span>
+                        )}
+                      </div>
+
+                      {isShared ? (
+                        <span className="flex items-center gap-1 text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-rose-200 text-rose-900 border border-rose-300 animate-pulse">
+                          <ShieldAlert className="w-3 h-3 text-rose-700" />
+                          {isEs ? 'Red Compartida' : 'Shared'}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                          {isEs ? 'IP Exclusiva' : 'Unique IP'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Dirección IP con botón de copiar */}
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="text-sm font-mono font-black text-slate-900 tracking-tight">
+                        {sess.ip}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(sess.ip)}
+                        className="text-slate-400 hover:text-indigo-600 transition-colors p-1 rounded-md hover:bg-slate-100 cursor-pointer"
+                        title={isEs ? 'Copiar IP' : 'Copy IP'}
+                      >
+                        {copiedId === sess.ip ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Proveedor ISP y Ubicación */}
+                    <div className="text-[11px] text-slate-600 font-semibold mt-1">
+                      {sess.isp}
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      {sess.location} • <span className="font-bold text-indigo-700">{sess.count} {isEs ? 'órdenes' : 'orders'}</span>
+                    </div>
+
+                    {/* Alerta de Detección de Cuenta Compartida (Pass Services) */}
+                    {isShared && sess.sharedWithAccounts && sess.sharedWithAccounts.length > 0 && (
+                      <div className="mt-2.5 p-2 rounded-xl bg-rose-100/90 border border-rose-200 text-[10px] text-rose-950 font-bold leading-tight">
+                        🚨 {isEs ? 'Misma IP detectada en cuentas:' : 'Same IP detected on accounts:'}{' '}
+                        <span className="font-mono font-black">{sess.sharedWithAccounts.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fechas de Primera y Última Conexión */}
+                  <div className="pt-2.5 mt-2.5 border-t border-[#ECE7DC] flex items-center justify-between text-[9.5px] font-mono text-slate-500">
+                    <span>{isEs ? '1ª Conexión:' : 'First:'} {new Date(sess.firstSeen).toLocaleDateString()}</span>
+                    <span>{isEs ? 'Última:' : 'Last:'} {new Date(sess.lastSeen).toLocaleDateString()} {new Date(sess.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
               );
             })
           ) : (
-            <div className="col-span-full py-6 text-center text-xs text-slate-400 font-mono">
-              {isEs ? 'Cargando checklist de reglas...' : 'Loading rules checklist...'}
+            <div className="col-span-full py-6 text-center text-xs text-slate-400 font-mono bg-white/40 rounded-2xl border border-dashed border-[#E5DEC9]">
+              {isEs ? 'Registrando telemetría de red del operador...' : 'Logging operator network telemetry...'}
             </div>
           )}
         </div>
       </div>
 
       {/* ==================================================================== */}
-      {/* 5. MÉTRICAS FORENSES: WIN RATE, MAYOR GANANCIA/PÉRDIDA */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>{isEs ? 'Mayor Ganancia' : 'Best Trade'}</span>
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-emerald-700">
-            +${stats.bestTradePnl.toFixed(2)}
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Max Win Single Trade</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>{isEs ? 'Mayor Pérdida' : 'Worst Trade'}</span>
-            <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-rose-700">
-            ${stats.worstTradePnl.toFixed(2)}
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Max Loss Single Trade</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>Win Rate</span>
-            <Target className="w-3.5 h-3.5 text-blue-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-slate-900">
-            {stats.winRatePct}%
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Ratio de Acierto</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>Profit Factor</span>
-            <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-slate-900">
-            {stats.profitFactor}
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Beneficio vs Pérdida</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>{isEs ? 'Media Ganadora' : 'Avg Win'}</span>
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-emerald-700">
-            +${stats.avgWin.toFixed(2)}
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Promedio de Acierto</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white/85 border border-[#e5dfd3] shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">
-            <span>{isEs ? 'Media Perdedora' : 'Avg Loss'}</span>
-            <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
-          </div>
-          <div className="text-lg font-mono font-black text-rose-700">
-            -${stats.avgLoss.toFixed(2)}
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Promedio de Pérdida</span>
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
       {/* 6. TABLA FORENSE DE TRADES (IDÉNTICA A LA DEL TERMINAL DE TRADING) */}
       {/* ==================================================================== */}
-      <div className="w-full rounded-3xl bg-white/85 backdrop-blur-xl border border-white/70 p-6 shadow-[0_20px_50px_-15px_rgba(27,24,18,0.07)]">
+      <div className="w-full rounded-3xl bg-[#FAF8F5]/45 backdrop-blur-xs border border-[#E5DEC9] p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#ece7dc]">
           <div>
             <div className="flex items-center gap-2">
@@ -840,15 +1003,15 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
                 value={tradeSearch}
                 onChange={(e) => setTradeSearch(e.target.value)}
                 placeholder={isEs ? 'Filtrar por par, ticket o motivo...' : 'Filter by symbol, ticket or reason...'}
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-[#dcd6ca] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 shadow-2xs"
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/60 border border-[#E5DEC9] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 shadow-2xs"
               />
             </div>
 
-            <div className="flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-600">
+            <div className="flex items-center p-0.5 rounded-xl bg-white/40 border border-[#E5DEC9] text-xs font-bold text-slate-600">
               <button
                 onClick={() => setTradeFilter('ALL')}
                 className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  tradeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'hover:text-slate-900'
+                  tradeFilter === 'ALL' ? 'bg-[#0F172A] text-white shadow-2xs' : 'hover:text-slate-900'
                 }`}
               >
                 {isEs ? 'Todos' : 'All'}
@@ -890,7 +1053,7 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
         </div>
 
         {/* Tabla Forense */}
-        <div className="overflow-x-auto mt-3">
+        <div className="overflow-x-auto mt-3 rounded-2xl border border-[#E5DEC9] bg-white/35 backdrop-blur-xs p-1">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-[#e5dfd3] text-[10px] font-mono uppercase tracking-wider text-slate-500">
@@ -1239,6 +1402,15 @@ export const RiskForensicAuditConsole: React.FC<RiskForensicAuditConsoleProps> =
           </div>
         </div>
       )}
+
+      {/* Modal Dinámico para Calibrar Reglas de Esta Cuenta */}
+      <DynamicRulesModal
+        isOpen={isRuleModalOpen}
+        lang={lang}
+        onClose={() => setIsRuleModalOpen(false)}
+        ruleToEdit={accountRuleToEdit}
+        onSaveRule={handleSaveAccountRules}
+      />
     </div>
   );
 };
