@@ -58,18 +58,39 @@ $destLib = Join-Path $DestinationPath "src\lib"
 New-Item -ItemType Directory -Force -Path $destLib | Out-Null
 Copy-Item -Force "$sourceRoot\src\lib\supabase.ts" $destLib
 
-# 6. Copiar Servidor de Riesgo en RAM y WebSocket Gateway
-Write-Host "[6/7] Copiando server (tradingHub.js y riskDaemon.js)..." -ForegroundColor Yellow
+# 6. Copiar Modulo CRM Institucional (Nexus ERP)
+Write-Host "[6/8] Copiando src/modules/crm (Nexus CRM, Reglas, Auditoria)..." -ForegroundColor Yellow
+$destCrm = Join-Path $DestinationPath "src\modules\crm"
+New-Item -ItemType Directory -Force -Path $destCrm | Out-Null
+Copy-Item -Recurse -Force "$sourceRoot\src\modules\crm\*" $destCrm
+
+# 7. Copiar Servidor de Riesgo en RAM y WebSocket Gateway
+Write-Host "[7/8] Copiando server (tradingHub.js y riskDaemon.js)..." -ForegroundColor Yellow
 $destServer = Join-Path $DestinationPath "server"
 New-Item -ItemType Directory -Force -Path $destServer | Out-Null
 Copy-Item -Recurse -Force "$sourceRoot\server\*" $destServer
 
-# 7. Copiar Esquema SQL Completo
-Write-Host "[7/7] Copiando esquema SQL prop_firm_complete_schema_init.sql..." -ForegroundColor Yellow
+# 8. Copiar Esquema SQL Completo
+Write-Host "[8/10] Copiando esquema SQL prop_firm_complete_schema_init.sql..." -ForegroundColor Yellow
 $destSupabase = Join-Path $DestinationPath "supabase"
 New-Item -ItemType Directory -Force -Path $destSupabase | Out-Null
 Copy-Item -Force "$sourceRoot\supabase\prop_firm_complete_schema_init.sql" $destSupabase
 
+# 9. Copiar Infraestructura Docker (Postgres, Redis, Gateway y SQL)
+Write-Host "[9/10] Copiando stack Docker (docker/init.sql, Dockerfile.server, compose)..." -ForegroundColor Yellow
+$destDocker = Join-Path $DestinationPath "docker"
+New-Item -ItemType Directory -Force -Path $destDocker | Out-Null
+Copy-Item -Force "$sourceRoot\supabase\prop_firm_complete_schema_init.sql" (Join-Path $destDocker "init.sql")
+Copy-Item -Force "$sourceRoot\Dockerfile.server" $DestinationPath
+Copy-Item -Force "$sourceRoot\docker-compose.eklipse.yml" (Join-Path $DestinationPath "docker-compose.yml")
+
+# 10. Copiar AGENTS.md y Sincronizar Skills
+Write-Host "[10/10] Sincronizando AGENTS.md y .agents/skills..." -ForegroundColor Yellow
+Copy-Item -Force "$sourceRoot\AGENTS.md" $DestinationPath
+$destSkills = Join-Path $DestinationPath ".agents\skills"
+New-Item -ItemType Directory -Force -Path $destSkills | Out-Null
+Copy-Item -Recurse -Force "$sourceRoot\.agents\skills\*" $destSkills
+
 Write-Host ""
 Write-Host "[EXITO] EXPORTACION COMPLETADA CON EXITO!" -ForegroundColor Green
-Write-Host "Todos los modulos del motor y terminal estan sincronizados en $DestinationPath" -ForegroundColor Green
+Write-Host "Todos los modulos del motor, CRM, Docker, Skills y AGENTS.md estan sincronizados en $DestinationPath" -ForegroundColor Green
